@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypedGML.Transpiler", "TypedGML.Transpiler\TypedGML.Transpiler.csproj", "{86AD3A73-D063-407E-8EFA-422020F887AD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{86AD3A73-D063-407E-8EFA-422020F887AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86AD3A73-D063-407E-8EFA-422020F887AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86AD3A73-D063-407E-8EFA-422020F887AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86AD3A73-D063-407E-8EFA-422020F887AD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
