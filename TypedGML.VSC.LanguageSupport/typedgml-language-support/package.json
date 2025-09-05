@@ -1,0 +1,25 @@
+{
+  "name": "typedgml-language-support",
+  "displayName": "TypedGML Language Support",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.103.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "tgml",
+      "aliases": ["TGML", "tgml"],
+      "extensions": ["tgml"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "tgml",
+      "scopeName": "source.tgml",
+      "path": "./syntaxes/tgml.tmLanguage.json"
+    }]
+  }
+}
