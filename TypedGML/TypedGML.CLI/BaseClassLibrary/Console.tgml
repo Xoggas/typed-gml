@@ -1,0 +1,15 @@
+﻿public static class Console
+{
+	private static void nocheck ShowDebugMessage(string message)
+	{
+		literal
+		{
+			show_debug_message(message);
+		}
+	}
+
+	public static void WriteLine(string message)
+	{
+		ShowDebugMessage(message);
+	}
+}
