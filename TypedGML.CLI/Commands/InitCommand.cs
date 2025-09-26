@@ -58,15 +58,19 @@ public class InitCommand : ICommand
             return;
         }
 
-        var folderHasProjectFile = Directory.GetFiles(projectPath, "*.yyp").Length != 0;
+        var projectFilePath = Directory.GetFiles(projectPath, "*.yyp").FirstOrDefault();
 
-        if (folderHasProjectFile is false)
+        if (projectFilePath is null)
         {
             Console.WriteLine("Project not found");
             return;
         }
 
-        var tgmlMetadata = new Metadata();
+        var tgmlMetadata = new TgmlProjectFile
+        {
+            ProjectFileName = Path.GetFileName(projectFilePath)
+        };
+
         var tgmlMetadataPath = Path.Combine(projectPath, "tgmlMetadata.json");
         var json = JsonConvert.SerializeObject(tgmlMetadata, Formatting.Indented);
         File.WriteAllText(tgmlMetadataPath, json);
