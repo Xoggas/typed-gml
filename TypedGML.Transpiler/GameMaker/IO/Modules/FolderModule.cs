@@ -13,24 +13,7 @@ public sealed class FolderModule
         _changesTracker = changesTracker;
     }
 
-    public bool TryFindFolder(string path, [NotNullWhen(true)] out Reference? folderReference)
-    {
-        var realPath = PathExtensions.Combine("folders", path) + ".yy";
-
-        if (_project.FolderByPathLookup.TryGetValue(realPath, out var folder))
-        {
-            folderReference = Reference.FromFolder(folder);
-
-            _changesTracker.RegisterFolder(path);
-
-            return true;
-        }
-
-        folderReference = null;
-        return false;
-    }
-
-    public Reference GetFolder(string path)
+    public Folder GetFolder(string path)
     {
         var parts = path.Split('/');
 
@@ -57,7 +40,7 @@ public sealed class FolderModule
 
         var resultingPath = PathExtensions.Combine("folders", pathAccumulator) + ".yy";
 
-        return Reference.FromFolder(_project.FolderByPathLookup[resultingPath]);
+        return _project.FolderByPathLookup[resultingPath];
     }
 
     public void DeleteFolder(string path)
@@ -69,5 +52,22 @@ public sealed class FolderModule
             _project.Folders.Remove(folder);
             _project.FolderByPathLookup.Remove(folder.FolderPath);
         }
+    }
+
+    private bool TryFindFolder(string path, [NotNullWhen(true)] out Reference? folderReference)
+    {
+        var realPath = PathExtensions.Combine("folders", path) + ".yy";
+
+        if (_project.FolderByPathLookup.TryGetValue(realPath, out var folder))
+        {
+            folderReference = Reference.FromFolder(folder);
+
+            _changesTracker.RegisterFolder(path);
+
+            return true;
+        }
+
+        folderReference = null;
+        return false;
     }
 }

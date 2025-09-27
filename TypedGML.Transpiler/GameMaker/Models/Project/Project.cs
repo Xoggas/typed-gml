@@ -64,9 +64,13 @@ public sealed class Project
     [Newtonsoft.Json.JsonIgnore]
     public Dictionary<string, Folder> FolderByPathLookup = [];
 
+    [Newtonsoft.Json.JsonIgnore]
+    public Dictionary<string, ResourceEntry> ResourceByNameLookup = [];
+
     [OnDeserialized]
     internal void OnDeserializedMethod(StreamingContext context)
     {
         FolderByPathLookup = Folders.ToDictionary(x => x.FolderPath);
+        ResourceByNameLookup = Resources.ToDictionary(x => x.Id.Name);
     }
 }

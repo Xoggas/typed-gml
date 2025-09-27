@@ -10,12 +10,12 @@ public sealed class GameMakerFileManager
     private readonly string _projectFilePath;
     private readonly Project _project;
 
-    public GameMakerFileManager(string projectFilePath, Project project, ChangesTracker changesTracker)
+    public GameMakerFileManager(string projectPath, string projectName, Project project, ChangesTracker changesTracker)
     {
-        _projectFilePath = projectFilePath;
+        _projectFilePath = Path.Combine(projectPath, projectName);
         _project = project;
         FolderModule = new FolderModule(project, changesTracker);
-        ScriptModule = new ScriptModule(project, changesTracker);
+        ScriptModule = new ScriptModule(projectPath, project, changesTracker);
     }
 
     public void CommitChanges()

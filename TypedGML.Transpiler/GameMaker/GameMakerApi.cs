@@ -45,7 +45,7 @@ public sealed class GameMakerApi
         }
 
         var changesTracker = new ChangesTracker(changesFilePath, changesFile);
-        var fileManager = new GameMakerFileManager(yypFilePath, projectFile, changesTracker);
+        var fileManager = new GameMakerFileManager(projectPath, yypFilePath, projectFile, changesTracker);
         return new GameMakerApi(fileManager, changesTracker);
     }
 

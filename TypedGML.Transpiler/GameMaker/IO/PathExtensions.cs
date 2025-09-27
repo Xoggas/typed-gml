@@ -2,8 +2,8 @@
 
 public static class PathExtensions
 {
-    public static string Combine(string path1, string path2)
+    public static string Combine(params string[] paths)
     {
-        return Path.Combine(path1, path2).Replace(Path.DirectorySeparatorChar, '/');
+        return Path.Combine(paths).Replace(Path.DirectorySeparatorChar, '/');
     }
 }

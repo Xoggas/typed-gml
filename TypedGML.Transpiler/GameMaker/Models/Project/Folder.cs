@@ -22,7 +22,7 @@ public sealed class Folder
 
     [JsonProperty("resourceVersion")]
     public string ResourceVersion { get; set; } = "2.0";
-
+    
     public static Folder Create(string folderName, string folderPath)
     {
         return new Folder

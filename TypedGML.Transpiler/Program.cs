@@ -33,7 +33,9 @@ const string content = """
 var api = GameMakerApi.Init(projectPath);
 api.FileManager.FolderModule.GetFolder("Scripts/Folder1");
 api.FileManager.FolderModule.GetFolder("Scripts/Folder1/Folder2");
-api.FileManager.FolderModule.GetFolder("Scripts/Folder1/Folder2/Folder3");
+
+var folder = api.FileManager.FolderModule.GetFolder("Scripts/Folder1/Folder2/Folder3");
+api.FileManager.ScriptModule.WriteScript("Script1", content, folder);
 
 // api.WriteScript("Scripts/Folder1/Folder2", "Script2", content);
 // api.WriteScript("Scripts/Folder1/", "Script1", content);
