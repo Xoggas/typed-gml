@@ -1,34 +1,33 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class Event
 {
-    [JsonPropertyName("$GMEvent")]
+    [JsonProperty("$GMEvent")]
     public string GameMakerEvent { get; set; } = "v1";
 
-    [JsonPropertyName("%Name")]
+    [JsonProperty("%Name")]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("collisionObjectId")]
+    [JsonProperty("collisionObjectId")]
     public Reference? CollisionObjectId { get; set; }
 
-    [JsonPropertyName("eventNum")]
+    [JsonProperty("eventNum")]
     public int EventNumber { get; set; }
 
-    [JsonPropertyName("eventType")]
-    [JsonConverter(typeof(JsonNumberEnumConverter<EventType>))]
+    [JsonProperty("eventType")]
     public EventType EventType { get; set; }
 
-    [JsonPropertyName("isDnD")]
+    [JsonProperty("isDnD")]
     public bool IsDnD { get; set; }
 
-    [JsonPropertyName("name")]
+    [JsonProperty("name")]
     public string InternalName { get; set; } = string.Empty;
 
-    [JsonPropertyName("resourceType")]
+    [JsonProperty("resourceType")]
     public string ResourceType { get; set; } = "GMEvent";
 
-    [JsonPropertyName("resourceVersion")]
+    [JsonProperty("resourceVersion")]
     public string ResourceVersion { get; set; } = "2.0";
 }

@@ -1,12 +1,12 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class Config
 {
-    [JsonPropertyName("children")]
+    [JsonProperty("children")]
     public List<object> Children { get; set; } = new();
 
-    [JsonPropertyName("name")]
+    [JsonProperty("name")]
     public string Name { get; set; } = string.Empty;
 }

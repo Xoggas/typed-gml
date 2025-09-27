@@ -1,90 +1,90 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class Object
 {
-    [JsonPropertyName("$GMObject")]
+    [JsonProperty("$GMObject")]
     public string GameMakerObject { get; set; } = string.Empty;
 
-    [JsonPropertyName("%Name")]
+    [JsonProperty("%Name")]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("eventList")]
+    [JsonProperty("eventList")]
     public List<Event> Events { get; set; } = [];
 
-    [JsonPropertyName("managed")]
+    [JsonProperty("managed")]
     public bool IsManaged { get; set; }
 
-    [JsonPropertyName("name")]
+    [JsonProperty("name")]
     public string InternalName { get; set; } = string.Empty;
 
-    [JsonPropertyName("overriddenProperties")]
+    [JsonProperty("overriddenProperties")]
     public List<object> OverriddenProperties { get; set; } = [];
 
-    [JsonPropertyName("parent")]
+    [JsonProperty("parent")]
     public Reference Parent { get; set; } = new();
 
-    [JsonPropertyName("parentObjectId")]
+    [JsonProperty("parentObjectId")]
     public Reference ParentObjectId { get; set; } = new();
 
-    [JsonPropertyName("persistent")]
+    [JsonProperty("persistent")]
     public bool Persistent { get; set; }
 
-    [JsonPropertyName("physicsAngularDamping")]
+    [JsonProperty("physicsAngularDamping")]
     public double PhysicsAngularDamping { get; set; }
 
-    [JsonPropertyName("physicsDensity")]
+    [JsonProperty("physicsDensity")]
     public double PhysicsDensity { get; set; }
 
-    [JsonPropertyName("physicsFriction")]
+    [JsonProperty("physicsFriction")]
     public double PhysicsFriction { get; set; }
 
-    [JsonPropertyName("physicsGroup")]
+    [JsonProperty("physicsGroup")]
     public int PhysicsGroup { get; set; }
 
-    [JsonPropertyName("physicsKinematic")]
+    [JsonProperty("physicsKinematic")]
     public bool PhysicsKinematic { get; set; }
 
-    [JsonPropertyName("physicsLinearDamping")]
+    [JsonProperty("physicsLinearDamping")]
     public double PhysicsLinearDamping { get; set; }
 
-    [JsonPropertyName("physicsObject")]
+    [JsonProperty("physicsObject")]
     public bool PhysicsObject { get; set; }
 
-    [JsonPropertyName("physicsRestitution")]
+    [JsonProperty("physicsRestitution")]
     public double PhysicsRestitution { get; set; }
 
-    [JsonPropertyName("physicsSensor")]
+    [JsonProperty("physicsSensor")]
     public bool PhysicsSensor { get; set; }
 
-    [JsonPropertyName("physicsShape")]
+    [JsonProperty("physicsShape")]
     public int PhysicsShape { get; set; }
 
-    [JsonPropertyName("physicsShapePoints")]
+    [JsonProperty("physicsShapePoints")]
     public List<object> PhysicsShapePoints { get; set; } = [];
 
-    [JsonPropertyName("physicsStartAwake")]
+    [JsonProperty("physicsStartAwake")]
     public bool PhysicsStartAwake { get; set; }
 
-    [JsonPropertyName("properties")]
+    [JsonProperty("properties")]
     public List<object> Properties { get; set; } = [];
 
-    [JsonPropertyName("resourceType")]
+    [JsonProperty("resourceType")]
     public string ResourceType { get; set; } = string.Empty;
 
-    [JsonPropertyName("resourceVersion")]
+    [JsonProperty("resourceVersion")]
     public string ResourceVersion { get; set; } = string.Empty;
 
-    [JsonPropertyName("solid")]
+    [JsonProperty("solid")]
     public bool Solid { get; set; }
 
-    [JsonPropertyName("spriteId")]
+    [JsonProperty("spriteId")]
     public Reference? SpriteId { get; set; }
 
-    [JsonPropertyName("spriteMaskId")]
+    [JsonProperty("spriteMaskId")]
     public Reference? SpriteMaskId { get; set; }
 
-    [JsonPropertyName("visible")]
+    [JsonProperty("visible")]
     public bool Visible { get; set; }
 }

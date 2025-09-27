@@ -1,9 +1,9 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class Metadata
 {
-    [JsonPropertyName("IDEVersion")]
+    [JsonProperty("IDEVersion")]
     public string IdeVersion { get; set; } = string.Empty;
 }

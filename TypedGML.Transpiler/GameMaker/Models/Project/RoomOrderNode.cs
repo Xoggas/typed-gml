@@ -1,9 +1,9 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class RoomOrderNode
 {
-    [JsonPropertyName("roomId")]
+    [JsonProperty("roomId")]
     public Reference RoomId { get; set; } = new();
 }

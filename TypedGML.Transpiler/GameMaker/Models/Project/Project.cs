@@ -1,60 +1,61 @@
 ﻿using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class Project
 {
-    [JsonPropertyName("$GMProject")]
+    [JsonProperty("$GMProject")]
     public string GameMakerProject { get; set; } = "v1";
 
-    [JsonPropertyName("%Name")]
+    [JsonProperty("%Name")]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("AudioGroups")]
+    [JsonProperty("AudioGroups")]
     public List<AudioGroup> AudioGroups { get; set; } = [];
 
-    [JsonPropertyName("configs")]
+    [JsonProperty("configs")]
     public Config Configs { get; set; } = new();
 
-    [JsonPropertyName("defaultScriptType")]
+    [JsonProperty("defaultScriptType")]
     public int DefaultScriptType { get; set; }
 
-    [JsonPropertyName("Folders")]
+    [JsonProperty("Folders")]
     public List<Folder> Folders { get; set; } = [];
 
-    [JsonPropertyName("ForcedPrefabProjectReferences")]
+    [JsonProperty("ForcedPrefabProjectReferences")]
     public List<object> ForcedPrefabProjectReferences { get; set; } = [];
 
-    [JsonPropertyName("IncludedFiles")]
+    [JsonProperty("IncludedFiles")]
     public List<object> IncludedFiles { get; set; } = [];
 
-    [JsonPropertyName("isEcma")]
+    [JsonProperty("isEcma")]
     public bool IsEcma { get; set; }
 
-    [JsonPropertyName("LibraryEmitters")]
+    [JsonProperty("LibraryEmitters")]
     public List<object> LibraryEmitters { get; set; } = [];
 
-    [JsonPropertyName("MetaData")]
+    [JsonProperty("MetaData")]
     public Metadata MetaData { get; set; } = new();
 
-    [JsonPropertyName("name")]
+    [JsonProperty("name")]
     public string InternalName { get; set; } = string.Empty;
 
-    [JsonPropertyName("resources")]
+    [JsonProperty("resources")]
     public List<ResourceEntry> Resources { get; set; } = [];
 
-    [JsonPropertyName("resourceType")]
+    [JsonProperty("resourceType")]
     public string ResourceType { get; set; } = "GMProject";
 
-    [JsonPropertyName("resourceVersion")]
+    [JsonProperty("resourceVersion")]
     public string ResourceVersion { get; set; } = "2.0";
 
-    [JsonPropertyName("RoomOrderNodes")]
+    [JsonProperty("RoomOrderNodes")]
     public List<RoomOrderNode> RoomOrderNodes { get; set; } = [];
 
-    [JsonPropertyName("templateType")]
+    [JsonProperty("templateType")]
     public string TemplateType { get; set; } = string.Empty;
 
-    [JsonPropertyName("TextureGroups")]
+    [JsonProperty("TextureGroups")]
     public List<TextureGroup> TextureGroups { get; set; } = [];
 }

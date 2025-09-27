@@ -1,24 +1,34 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class Folder
 {
-    [JsonPropertyName("$GMFolder")]
+    [JsonProperty("$GMFolder")]
     public string GameMakerFolder { get; set; } = string.Empty;
 
-    [JsonPropertyName("%Name")]
+    [JsonProperty("%Name")]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("folderPath")]
+    [JsonProperty("folderPath")]
     public string FolderPath { get; set; } = string.Empty;
 
-    [JsonPropertyName("name")]
+    [JsonProperty("name")]
     public string InternalName { get; set; } = string.Empty;
 
-    [JsonPropertyName("resourceType")]
+    [JsonProperty("resourceType")]
     public string ResourceType { get; set; } = "GMFolder";
 
-    [JsonPropertyName("resourceVersion")]
+    [JsonProperty("resourceVersion")]
     public string ResourceVersion { get; set; } = "2.0";
+
+    public static Folder Create(string folderName, string folderPath)
+    {
+        return new Folder
+        {
+            Name = folderName,
+            FolderPath = folderPath + ".yy",
+            InternalName = folderName
+        };
+    }
 }

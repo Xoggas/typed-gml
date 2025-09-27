@@ -1,51 +1,51 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class TextureGroup
 {
-    [JsonPropertyName("$GMTextureGroup")]
+    [JsonProperty("$GMTextureGroup")]
     public string GameMakerTextureGroup { get; set; } = string.Empty;
 
-    [JsonPropertyName("%Name")]
+    [JsonProperty("%Name")]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("autocrop")]
+    [JsonProperty("autocrop")]
     public bool AutoCrop { get; set; }
 
-    [JsonPropertyName("border")]
+    [JsonProperty("border")]
     public int Border { get; set; }
 
-    [JsonPropertyName("compressFormat")]
+    [JsonProperty("compressFormat")]
     public string CompressFormat { get; set; } = string.Empty;
 
-    [JsonPropertyName("customOptions")]
+    [JsonProperty("customOptions")]
     public string CustomOptions { get; set; } = string.Empty;
 
-    [JsonPropertyName("directory")]
+    [JsonProperty("directory")]
     public string Directory { get; set; } = string.Empty;
 
-    [JsonPropertyName("groupParent")]
+    [JsonProperty("groupParent")]
     public Reference? GroupParent { get; set; }
 
-    [JsonPropertyName("isScaled")]
+    [JsonProperty("isScaled")]
     public bool IsScaled { get; set; }
 
-    [JsonPropertyName("loadType")]
+    [JsonProperty("loadType")]
     public string LoadType { get; set; } = string.Empty;
 
-    [JsonPropertyName("mipsToGenerate")]
+    [JsonProperty("mipsToGenerate")]
     public int MipsToGenerate { get; set; }
 
-    [JsonPropertyName("name")]
+    [JsonProperty("name")]
     public string InternalName { get; set; } = string.Empty;
 
-    [JsonPropertyName("resourceType")]
+    [JsonProperty("resourceType")]
     public string ResourceType { get; set; } = "GMTextureGroup";
 
-    [JsonPropertyName("resourceVersion")]
+    [JsonProperty("resourceVersion")]
     public string ResourceVersion { get; set; } = "2.0";
 
-    [JsonPropertyName("targets")]
+    [JsonProperty("targets")]
     public int Targets { get; set; }
 }

@@ -1,24 +1,24 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class AudioGroup
 {
-    [JsonPropertyName("$GMAudioGroup")]
+    [JsonProperty("$GMAudioGroup")]
     public string GameMakerAudioGroup { get; set; } = string.Empty;
 
-    [JsonPropertyName("%Name")]
+    [JsonProperty("%Name")]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("name")]
+    [JsonProperty("name")]
     public string InternalName { get; set; } = string.Empty;
 
-    [JsonPropertyName("resourceType")]
+    [JsonProperty("resourceType")]
     public string ResourceType { get; set; } = "GMAudioGroup";
 
-    [JsonPropertyName("resourceVersion")]
+    [JsonProperty("resourceVersion")]
     public string ResourceVersion { get; set; } = "2.0";
 
-    [JsonPropertyName("targets")]
+    [JsonProperty("targets")]
     public int Targets { get; set; }
 }

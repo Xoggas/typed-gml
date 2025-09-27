@@ -1,30 +1,30 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class Script
 {
-    [JsonPropertyName("$GMScript")]
+    [JsonProperty("$GMScript")]
     public string GameMakerScript { get; set; } = "v1";
 
-    [JsonPropertyName("%Name")]
+    [JsonProperty("%Name")]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("isCompatibility")]
+    [JsonProperty("isCompatibility")]
     public bool IsCompatibility { get; set; } = false;
 
-    [JsonPropertyName("isDnD")]
+    [JsonProperty("isDnD")]
     public bool IsDnD { get; set; } = false;
 
-    [JsonPropertyName("name")]
+    [JsonProperty("name")]
     public string InternalName { get; set; } = string.Empty;
 
-    [JsonPropertyName("parent")]
+    [JsonProperty("parent")]
     public Reference Parent { get; set; } = new();
 
-    [JsonPropertyName("resourceType")]
+    [JsonProperty("resourceType")]
     public string ResourceType { get; set; } = "GMScript";
 
-    [JsonPropertyName("resourceVersion")]
+    [JsonProperty("resourceVersion")]
     public string ResourceVersion { get; set; } = "2.0";
 }

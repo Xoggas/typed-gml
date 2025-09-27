@@ -1,9 +1,9 @@
-﻿using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
 
 namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class ResourceEntry
 {
-    [JsonPropertyName("id")]
+    [JsonProperty("id")]
     public Reference Id { get; set; } = new();
 }
