@@ -1,5 +1,7 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
 using Newtonsoft.Json;
+using TypedGML.Transpiler.GameMaker.IO;
 
 namespace TypedGML.Transpiler.GameMaker;
 
@@ -58,4 +60,13 @@ public sealed class Project
 
     [JsonProperty("TextureGroups")]
     public List<TextureGroup> TextureGroups { get; set; } = [];
+
+    [Newtonsoft.Json.JsonIgnore]
+    public Dictionary<string, Folder> FolderByPathLookup = [];
+
+    [OnDeserialized]
+    internal void OnDeserializedMethod(StreamingContext context)
+    {
+        FolderByPathLookup = Folders.ToDictionary(x => x.FolderPath);
+    }
 }

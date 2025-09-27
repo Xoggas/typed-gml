@@ -1,8 +1,4 @@
-﻿using Newtonsoft.Json;
-using TypedGML.CLI;
-using TypedGML.CLI.GameMaker;
-
-// const string tgmlProjectFileName = "tgmlMetadata.json";
+﻿// const string tgmlProjectFileName = "tgmlMetadata.json";
 //
 // if (args.Length == 0)
 // {
@@ -27,10 +23,19 @@ using TypedGML.CLI.GameMaker;
 //     return;
 // }
 
-const string projectFilePath = @"C:\Users\xogga\OneDrive\Documents\Projects\TestGame\TestGame.yyp";
+using TypedGML.Transpiler.GameMaker;
 
-var gameMaker = GameMakerEngine.Create(projectFilePath);
+const string projectPath = @"C:\Users\xogga\OneDrive\Documents\Projects\TestGame";
+const string content = """
+                       show_debug_message("I'm working!");
+                       """;
 
-gameMaker.GetOrCreateFolder("Scripts/System/Collections/Generic");
+var api = GameMakerApi.Init(projectPath);
+api.FileManager.FolderModule.GetFolder("Scripts/Folder1");
+api.FileManager.FolderModule.GetFolder("Scripts/Folder1/Folder2");
+api.FileManager.FolderModule.GetFolder("Scripts/Folder1/Folder2/Folder3");
 
-gameMaker.CommitChanges();
+// api.WriteScript("Scripts/Folder1/Folder2", "Script2", content);
+// api.WriteScript("Scripts/Folder1/", "Script1", content);
+api.PerformCleanup();
+api.CommitChanges();

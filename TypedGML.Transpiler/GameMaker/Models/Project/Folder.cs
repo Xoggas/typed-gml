@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using TypedGML.Transpiler.GameMaker.IO;
 
 namespace TypedGML.Transpiler.GameMaker;
 
@@ -27,7 +28,7 @@ public sealed class Folder
         return new Folder
         {
             Name = folderName,
-            FolderPath = folderPath + ".yy",
+            FolderPath = PathExtensions.Combine("folders", folderPath) + ".yy",
             InternalName = folderName
         };
     }

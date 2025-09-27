@@ -1,4 +1,4 @@
-﻿namespace TypedGML.CLI;
+﻿namespace TypedGML.Transpiler;
 
 public sealed class TgmlProjectFile
 {

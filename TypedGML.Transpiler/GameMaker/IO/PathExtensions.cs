@@ -1,4 +1,4 @@
-﻿namespace TypedGML.Transpiler.GameMaker;
+﻿namespace TypedGML.Transpiler.GameMaker.IO;
 
 public static class PathExtensions
 {
