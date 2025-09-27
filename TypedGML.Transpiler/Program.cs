@@ -26,18 +26,29 @@
 using TypedGML.Transpiler.GameMaker;
 
 const string projectPath = @"C:\Users\xogga\OneDrive\Documents\Projects\TestGame";
-const string content = """
-                       show_debug_message("I'm working!");
-                       """;
+const string codePath = @"C:\Users\xogga\OneDrive\Documents\Projects\TestGame\tgml";
+
+// const string content = "show_debug_message(\"Hello\")";
+
+// for (var i = 0; i < 1000; i++)
+// {
+//     var path = Path.Combine(codePath, $"Script{i:0000}.tgml");
+//
+//     File.WriteAllText(path, content);
+// }
 
 var api = GameMakerApi.Init(projectPath);
-api.FileManager.FolderModule.GetFolder("Scripts/Folder1");
-api.FileManager.FolderModule.GetFolder("Scripts/Folder1/Folder2");
 
-var folder = api.FileManager.FolderModule.GetFolder("Scripts/Folder1/Folder2/Folder3");
-api.FileManager.ScriptModule.WriteScript("Script1", content, folder);
+var files = Directory.GetFiles(codePath, "*.tgml", SearchOption.AllDirectories);
 
-// api.WriteScript("Scripts/Folder1/Folder2", "Script2", content);
-// api.WriteScript("Scripts/Folder1/", "Script1", content);
+foreach (var file in files)
+{
+    var localFilePath = Path.GetRelativePath(codePath, file).Replace("\\", "/");
+    var localFolderPath = Path.Combine("Scripts", Path.GetDirectoryName(localFilePath)!).Replace("\\", "/");
+    var fileName = Path.GetFileNameWithoutExtension(localFilePath);
+    var content = File.ReadAllText(file);
+    api.WriteScript(localFolderPath, fileName, content);
+}
+
 api.PerformCleanup();
 api.CommitChanges();

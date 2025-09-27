@@ -16,54 +16,49 @@ public sealed class ScriptModule
         _changesTracker = changesTracker;
     }
 
-    public void WriteScript(string name, string content, Folder? parentFolder = null)
+    public void WriteScript(string name, string content, Folder parentFolder)
     {
-        if (ScriptExists(name))
-        {
-            _changesTracker.RegisterScript(name);
-            return;
-        }
-
-        if (parentFolder is null)
-        {
-            throw new ArgumentNullException(nameof(parentFolder));
-        }
-
         var folderReference = Reference.FromFolder(parentFolder);
-
-        var scriptMetadata = new Script
-        {
-            Name = name,
-            InternalName = name,
-            Parent = folderReference
-        };
-
         var scriptFolderPathLocal = PathExtensions.Combine("scripts", name);
         var scriptFolderPath = PathExtensions.Combine(_projectPath, scriptFolderPathLocal);
-        
         var scriptMetadataPathLocal = PathExtensions.Combine(scriptFolderPathLocal, name + ".yy");
         var scriptMetadataPath = PathExtensions.Combine(scriptFolderPath, name + ".yy");
-        var scriptMetadataJson = JsonConvert.SerializeObject(scriptMetadata, Formatting.Indented);
-        
         var scriptCodePath = PathExtensions.Combine(scriptFolderPath, name + ".gml");
 
-        Directory.CreateDirectory(scriptFolderPath);
-        File.WriteAllText(scriptMetadataPath, scriptMetadataJson);
+        if (TryFindScript(name, out Script? script) is false)
+        {
+            Directory.CreateDirectory(scriptFolderPath);
+
+            script = new Script
+            {
+                Name = name,
+                InternalName = name,
+                Parent = folderReference
+            };
+
+            var scriptFileReference = new Reference
+            {
+                Name = name,
+                Path = scriptMetadataPathLocal
+            };
+
+            var resourceEntry = new ResourceEntry
+            {
+                Id = scriptFileReference
+            };
+
+            _project.Resources.Add(resourceEntry);
+            _project.ResourceByNameLookup.Add(name, resourceEntry);
+        }
+        else
+        {
+            script.Parent = folderReference;
+        }
+
+        var scriptJson = JsonConvert.SerializeObject(script, Formatting.Indented);
+
+        File.WriteAllText(scriptMetadataPath, scriptJson);
         File.WriteAllText(scriptCodePath, content);
-
-        var scriptFileReference = new Reference
-        {
-            Name = name,
-            Path = scriptMetadataPathLocal
-        };
-
-        var resourceEntry = new ResourceEntry
-        {
-            Id = scriptFileReference
-        };
-
-        _project.Resources.Add(resourceEntry);
-        _project.ResourceByNameLookup.Add(name, resourceEntry);
 
         _changesTracker.RegisterScript(name);
     }
@@ -83,9 +78,18 @@ public sealed class ScriptModule
         Directory.Delete(scriptFolderPath, true);
     }
 
-    private bool ScriptExists(string name)
+    private bool TryFindScript(string name, [NotNullWhen(true)] out Script? script)
     {
         var scriptPath = Path.Combine(_projectPath, "scripts", name, name + ".yy");
-        return File.Exists(scriptPath);
+
+        if (File.Exists(scriptPath) is false)
+        {
+            script = null;
+            return false;
+        }
+
+        script = JsonConvert.DeserializeObject<Script>(File.ReadAllText(scriptPath));
+
+        return script is not null;
     }
 }

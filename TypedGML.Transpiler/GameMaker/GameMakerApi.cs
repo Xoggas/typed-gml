@@ -5,8 +5,6 @@ namespace TypedGML.Transpiler.GameMaker;
 
 public sealed class GameMakerApi
 {
-    public GameMakerFileManager FileManager => _fileManager;
-
     private readonly GameMakerFileManager _fileManager;
     private readonly ChangesTracker _changesTracker;
 
@@ -51,7 +49,8 @@ public sealed class GameMakerApi
 
     public void WriteScript(string path, string name, string content)
     {
-        throw new NotImplementedException();
+        var folder = _fileManager.FolderModule.GetFolder(path);
+        _fileManager.ScriptModule.WriteScript(name, content, folder);
     }
 
     public void PerformCleanup()
