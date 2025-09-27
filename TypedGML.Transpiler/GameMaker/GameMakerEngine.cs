@@ -59,17 +59,16 @@ public class GameMakerEngine
             pathAccumulator = PathExtensions.Combine(pathAccumulator, part);
 
             var folder = _project.Folders.FirstOrDefault(f => f.Name.Equals(part));
-
+            
             if (folder is not null)
             {
+                requestedFolder = folder;
                 continue;
             }
 
             folder = Folder.Create(part, pathAccumulator);
 
             _project.Folders.Add(folder);
-
-            requestedFolder = folder;
         }
 
         return Reference.FromFolder(requestedFolder);
