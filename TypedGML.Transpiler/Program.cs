@@ -23,6 +23,9 @@
 //     return;
 // }
 
+using System.Collections.Concurrent;
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Running;
 using TypedGML.Transpiler.GameMaker;
 
 const string projectPath = @"C:\Users\xogga\OneDrive\Documents\Projects\TestGame";
@@ -37,18 +40,54 @@ const string codePath = @"C:\Users\xogga\OneDrive\Documents\Projects\TestGame\tg
 //     File.WriteAllText(path, content);
 // }
 
-var api = GameMakerApi.Init(projectPath);
+// var api = GameMakerApi.Init(projectPath);
+//
+// var files = Directory.GetFiles(codePath, "*.tgml", SearchOption.AllDirectories);
+//
+// foreach (var file in files)
+// {
+//     var localFilePath = Path.GetRelativePath(codePath, file).Replace("\\", "/");
+//     var localFolderPath = Path.Combine("Scripts", Path.GetDirectoryName(localFilePath)!).Replace("\\", "/");
+//     var fileName = Path.GetFileNameWithoutExtension(localFilePath);
+//     var content = File.ReadAllText(file);
+//     api.WriteScript(localFolderPath, fileName, content);
+// }
+//
+// api.PerformCleanup();
+// api.CommitChanges();
 
-var files = Directory.GetFiles(codePath, "*.tgml", SearchOption.AllDirectories);
+BenchmarkRunner.Run<Benchmarks>();
 
-foreach (var file in files)
+public class Benchmarks
 {
-    var localFilePath = Path.GetRelativePath(codePath, file).Replace("\\", "/");
-    var localFolderPath = Path.Combine("Scripts", Path.GetDirectoryName(localFilePath)!).Replace("\\", "/");
-    var fileName = Path.GetFileNameWithoutExtension(localFilePath);
-    var content = File.ReadAllText(file);
-    api.WriteScript(localFolderPath, fileName, content);
-}
+    private List<string> _strings = [];
 
-api.PerformCleanup();
-api.CommitChanges();
+    [GlobalSetup]
+    public void Setup()
+    {
+        _strings = Enumerable.Range(0, 1_000_000).Select(_ => Guid.NewGuid().ToString()).ToList();
+    }
+
+    [Benchmark]
+    public List<string> ListBenchmark()
+    {
+        var list = new List<string>();
+
+        foreach (var item in _strings)
+        {
+            list.Add(item);
+        }
+
+        return list;
+    }
+
+    [Benchmark]
+    public ConcurrentBag<string> BagBenchmark()
+    {
+        var bag = new ConcurrentBag<string>();
+
+        Parallel.ForEach(_strings, x => bag.Add(x));
+
+        return bag;
+    }
+}

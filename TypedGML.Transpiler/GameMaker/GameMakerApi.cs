@@ -50,6 +50,7 @@ public sealed class GameMakerApi
     public void WriteScript(string path, string name, string content)
     {
         var folder = _fileManager.FolderModule.GetFolder(path);
+        
         _fileManager.ScriptModule.WriteScript(name, content, folder);
     }
 
