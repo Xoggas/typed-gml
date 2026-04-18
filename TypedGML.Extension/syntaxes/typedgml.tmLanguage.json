@@ -1,0 +1,233 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "TypedGML",
+  "scopeName": "source.tgml",
+  "fileTypes": ["tgml"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#raw-line" },
+    { "include": "#decorator" },
+    { "include": "#string" },
+    { "include": "#numeric" },
+    { "include": "#constants" },
+    { "include": "#type-declarations" },
+    { "include": "#modifiers" },
+    { "include": "#keywords-control" },
+    { "include": "#keywords-other" },
+    { "include": "#accessor-keywords" },
+    { "include": "#operators" },
+    { "include": "#type-name" },
+    { "include": "#function-call" }
+  ],
+  "repository": {
+
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.tgml",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.begin.tgml" } },
+          "endCaptures":   { "0": { "name": "punctuation.definition.comment.end.tgml" } }
+        },
+        {
+          "name": "comment.line.double-slash.tgml",
+          "begin": "//",
+          "end": "$",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.tgml" } }
+        }
+      ]
+    },
+
+    "raw-line": {
+      "comment": "Lines starting with # are emitted verbatim as raw GML",
+      "name": "meta.embedded.raw-gml.tgml",
+      "match": "#[^\\r\\n]*",
+      "captures": {
+        "0": { "name": "markup.raw.inline.tgml" }
+      }
+    },
+
+    "decorator": {
+      "comment": "@DecoratorName or @DecoratorName(args)",
+      "name": "meta.decorator.tgml",
+      "match": "(@)([a-zA-Z_][a-zA-Z_0-9]*(\\.[a-zA-Z_][a-zA-Z_0-9]*)*)",
+      "captures": {
+        "1": { "name": "punctuation.decorator.tgml" },
+        "2": { "name": "entity.name.tag.decorator.tgml" }
+      }
+    },
+
+    "string": {
+      "name": "string.quoted.double.tgml",
+      "begin": "\"",
+      "end": "\"",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.tgml" } },
+      "endCaptures":   { "0": { "name": "punctuation.definition.string.end.tgml" } },
+      "patterns": [{ "include": "#string-escape" }]
+    },
+
+    "string-escape": {
+      "name": "constant.character.escape.tgml",
+      "match": "\\\\(?:[\"'\\\\bfnrt]|u[0-9a-fA-F]{4})"
+    },
+
+    "numeric": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.tgml",
+          "match": "\\b0[xX][0-9a-fA-F]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.tgml",
+          "match": "\\b0[bB][01]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.tgml",
+          "match": "\\b[0-9]+\\.[0-9]+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.tgml",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.tgml",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.tgml",
+          "match": "\\bnull\\b"
+        }
+      ]
+    },
+
+    "type-declarations": {
+      "comment": "class / struct / enum / interface — capture keyword + name",
+      "patterns": [
+        {
+          "name": "meta.class.tgml",
+          "match": "\\b(class)\\s+([a-zA-Z_][a-zA-Z_0-9]*)",
+          "captures": {
+            "1": { "name": "storage.type.class.tgml" },
+            "2": { "name": "entity.name.type.class.tgml" }
+          }
+        },
+        {
+          "name": "meta.struct.tgml",
+          "match": "\\b(struct)\\s+([a-zA-Z_][a-zA-Z_0-9]*)",
+          "captures": {
+            "1": { "name": "storage.type.struct.tgml" },
+            "2": { "name": "entity.name.type.struct.tgml" }
+          }
+        },
+        {
+          "name": "meta.enum.tgml",
+          "match": "\\b(enum)\\s+([a-zA-Z_][a-zA-Z_0-9]*)",
+          "captures": {
+            "1": { "name": "storage.type.enum.tgml" },
+            "2": { "name": "entity.name.type.enum.tgml" }
+          }
+        },
+        {
+          "name": "meta.interface.tgml",
+          "match": "\\b(interface)\\s+([a-zA-Z_][a-zA-Z_0-9]*)",
+          "captures": {
+            "1": { "name": "storage.type.interface.tgml" },
+            "2": { "name": "entity.name.type.interface.tgml" }
+          }
+        }
+      ]
+    },
+
+    "modifiers": {
+      "name": "storage.modifier.tgml",
+      "match": "\\b(public|protected|private|static|global|readonly|const|abstract|sealed|virtual|override|constructor|nocheck)\\b"
+    },
+
+    "keywords-control": {
+      "name": "keyword.control.tgml",
+      "match": "\\b(if|else|while|for|repeat|switch|case|default|break|continue|return|with|try|catch|finally)\\b"
+    },
+
+    "keywords-other": {
+      "patterns": [
+        {
+          "name": "keyword.other.tgml",
+          "match": "\\b(using|namespace)\\b"
+        },
+        {
+          "name": "keyword.operator.new.tgml",
+          "match": "\\bnew\\b"
+        },
+        {
+          "name": "keyword.operator.type.tgml",
+          "match": "\\b(is|as|typeof|nameof|base)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.tgml",
+          "match": "\\b(and|or|not)\\b"
+        }
+      ]
+    },
+
+    "accessor-keywords": {
+      "comment": "get / set / field / value — property accessor context",
+      "name": "keyword.other.accessor.tgml",
+      "match": "\\b(get|set|field|value)\\b"
+    },
+
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.compound.tgml",
+          "match": "\\+=|-=|\\*=|/=|%="
+        },
+        {
+          "name": "keyword.operator.comparison.tgml",
+          "match": "==|!=|<=|>="
+        },
+        {
+          "name": "keyword.operator.arrow.tgml",
+          "match": "=>"
+        },
+        {
+          "name": "keyword.operator.assignment.tgml",
+          "match": "(?<![=!<>])=(?!=)"
+        },
+        {
+          "name": "keyword.operator.bitwise.tgml",
+          "match": "<<|&|\\||\\^|~"
+        },
+        {
+          "name": "keyword.operator.relational.tgml",
+          "match": "<|>"
+        },
+        {
+          "name": "keyword.operator.arithmetic.tgml",
+          "match": "\\+|-|\\*|/|%"
+        },
+        {
+          "name": "keyword.operator.ternary.tgml",
+          "match": "\\?"
+        }
+      ]
+    },
+
+    "type-name": {
+      "comment": "Capitalised identifiers used as type references (heuristic)",
+      "name": "entity.name.type.tgml",
+      "match": "\\b[A-Z][a-zA-Z_0-9]*\\b"
+    },
+
+    "function-call": {
+      "comment": "identifier immediately followed by (",
+      "name": "entity.name.function.tgml",
+      "match": "\\b([a-zA-Z_][a-zA-Z_0-9]*)(?=\\s*\\()"
+    }
+  }
+}

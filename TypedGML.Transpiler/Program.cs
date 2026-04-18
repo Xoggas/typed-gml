@@ -1,93 +1,30 @@
-﻿// const string tgmlProjectFileName = "tgmlMetadata.json";
-//
-// if (args.Length == 0)
-// {
-//     Console.WriteLine("Specify the project file path");
-//     return;
-// }
-//
-// var projectFolderPath = args[0];
-// var projectFilePath = Path.Combine(projectFolderPath, tgmlProjectFileName);
-//
-// if (File.Exists(projectFilePath) is false)
-// {
-//     Console.WriteLine("Project file not found");
-//     return;
-// }
-//
-// var tgmlProjectFile = JsonConvert.DeserializeObject<TgmlProjectFile>(File.ReadAllText(projectFilePath));
-//
-// if (tgmlProjectFile is null)
-// {
-//     Console.WriteLine("Invalid project file");
-//     return;
-// }
+using TypedGML.Transpiler;
 
-using System.Collections.Concurrent;
-using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Running;
-using TypedGML.Transpiler.GameMaker;
+const string codePath = @"C:\Users\xoggas\Documents\GitHub\typed-gml\TypedGML.Transpiler\Test.tgml";
+const string resultPath = @"C:\Users\xoggas\Documents\GitHub\typed-gml\TypedGML.Transpiler\Generated";
 
-const string projectPath = @"C:\Users\xogga\OneDrive\Documents\Projects\TestGame";
-const string codePath = @"C:\Users\xogga\OneDrive\Documents\Projects\TestGame\tgml";
+var result = TranspilerApi.Transpile([
+    new TgmlSourceFile("Test.tgml", File.ReadAllText(codePath))
+]);
 
-// const string content = "show_debug_message(\"Hello\")";
-
-// for (var i = 0; i < 1000; i++)
-// {
-//     var path = Path.Combine(codePath, $"Script{i:0000}.tgml");
-//
-//     File.WriteAllText(path, content);
-// }
-
-// var api = GameMakerApi.Init(projectPath);
-//
-// var files = Directory.GetFiles(codePath, "*.tgml", SearchOption.AllDirectories);
-//
-// foreach (var file in files)
-// {
-//     var localFilePath = Path.GetRelativePath(codePath, file).Replace("\\", "/");
-//     var localFolderPath = Path.Combine("Scripts", Path.GetDirectoryName(localFilePath)!).Replace("\\", "/");
-//     var fileName = Path.GetFileNameWithoutExtension(localFilePath);
-//     var content = File.ReadAllText(file);
-//     api.WriteScript(localFolderPath, fileName, content);
-// }
-//
-// api.PerformCleanup();
-// api.CommitChanges();
-
-BenchmarkRunner.Run<Benchmarks>();
-
-public class Benchmarks
+if (result.Success is false)
 {
-    private List<string> _strings = [];
-
-    [GlobalSetup]
-    public void Setup()
+    foreach (var diagnostic in result.Diagnostics)
     {
-        _strings = Enumerable.Range(0, 1_000_000).Select(_ => Guid.NewGuid().ToString()).ToList();
+        Console.WriteLine(diagnostic);
     }
 
-    [Benchmark]
-    public List<string> ListBenchmark()
+    return;
+}
+
+foreach (var f in result.Files)
+{
+    var path = Path.Combine(resultPath, f.Path);
+
+    if (!Directory.Exists(path))
     {
-        var list = new List<string>();
-
-        foreach (var item in _strings)
-        {
-            list.Add(item);
-        }
-
-        return list;
+        Directory.CreateDirectory(Path.GetDirectoryName(path) ?? throw new InvalidOperationException());
     }
 
-    [Benchmark]
-    public ConcurrentBag<string> BagBenchmark()
-    {
-        var bag = new ConcurrentBag<string>();
-
-        Parallel.ForEach(_strings, x => bag.Add(x));
-
-        return bag;
-    }
+    File.WriteAllText(path, f.Content);
 }
