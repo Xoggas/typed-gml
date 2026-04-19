@@ -5,7 +5,7 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// <summary>
 ///     Batch 3: Verifies that every generic type instantiation supplies exactly the right
 ///     number of type arguments.
-///     e.g. if <c>List&lt;T&gt;</c> is declared, using it as <c>List&lt;int, string&gt;</c>
+///     e.g. if <c>List&lt;T&gt;</c> is declared, using it as <c>List&lt;number, string&gt;</c>
 ///     or bare <c>List</c> are both errors.
 /// </summary>
 public sealed class GenericArityCheck : IAtomicCheck
@@ -121,6 +121,12 @@ public sealed class GenericArityCheck : IAtomicCheck
                 }
 
                 break;
+
+            case TgmlDelegateDecl dlg:
+                CheckTypeRef(ctx, file, dlg.ReturnType, dlg.TypeParams);
+                foreach (var param in dlg.Params)
+                    CheckTypeRef(ctx, file, param.Type, dlg.TypeParams);
+                break;
         }
     }
 
@@ -156,7 +162,7 @@ public sealed class GenericArityCheck : IAtomicCheck
             CheckTypeRef(ctx, file, arg, visible);
         }
 
-        if (IsBuiltIn(typeRef.Name.Full))
+        if (BuiltinTypeFacts.IsBuiltIn(typeRef.Name.Full))
         {
             return;
         }
@@ -167,13 +173,18 @@ public sealed class GenericArityCheck : IAtomicCheck
             return;
         }
 
-        if (!ctx.TypeTable.TryResolve(typeRef.Name.Full, out var resolvedDecl) || resolvedDecl is null)
+        var actual = typeRef.TypeArgs.Count;
+
+        if (!ctx.TypeTable.TryResolve(typeRef.Name.Full, actual, out var resolvedDecl) || resolvedDecl is null)
         {
-            return; // unknown type — InheritanceCheck will have reported it
+            resolvedDecl = ctx.TypeTable.All.FirstOrDefault(d =>
+                string.Equals(d.QualifiedName, typeRef.Name.Full, StringComparison.Ordinal) ||
+                string.Equals(d.Name, typeRef.Name.Full, StringComparison.Ordinal));
+            if (resolvedDecl is null)
+                return; // unknown type — InheritanceCheck will have reported it
         }
 
         var expected = resolvedDecl.TypeParams.Count;
-        var actual = typeRef.TypeArgs.Count;
 
         if (expected != actual)
         {
@@ -182,11 +193,5 @@ public sealed class GenericArityCheck : IAtomicCheck
                 $"expects {expected} type argument(s) but {actual} were supplied.",
                 file.FileName);
         }
-    }
-
-    private static bool IsBuiltIn(string name)
-    {
-        return name is "int" or "string" or "bool" or "void" or "object" or "any"
-            or "real" or "number" or "array" or "struct" or "undefined";
     }
 }

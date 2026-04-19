@@ -81,30 +81,17 @@ public sealed class DecoratorArgConstantCheck : IAtomicCheck
     {
         foreach (var arg in decorator.Args)
         {
-            if (!IsConstantExpr(arg))
+            if (!IsConstantExpr(arg.Value))
             {
                 ctx.AddError(
                     $"Decorator '@{decorator.SimpleName}' argument must be a compile-time constant " +
                     $"(literal value). Non-constant expressions are not allowed in decorators.",
-                    file.FileName, arg.Line, arg.Column);
+                    file.FileName, arg.Value.Line, arg.Value.Column);
             }
         }
     }
 
-    /// <summary>
-    ///     Returns <c>true</c> if <paramref name="expr"/> is a compile-time constant:
-    ///     a literal, <c>null</c>, or a unary negation/complement applied to a literal.
-    /// </summary>
     private static bool IsConstantExpr(TgmlExpression expr) =>
-        expr switch
-        {
-            TgmlBoolLiteralExpr   => true,
-            TgmlIntLiteralExpr    => true,
-            TgmlRealLiteralExpr   => true,
-            TgmlStringLiteralExpr => true,
-            TgmlNullExpr          => true,
-            TgmlUnaryExpr u       => u.Operator is "-" or "~" or "not" && IsConstantExpr(u.Operand),
-            _                     => false
-        };
+        ConstantExpressionFacts.IsCompileTimeConstant(expr);
 }
 

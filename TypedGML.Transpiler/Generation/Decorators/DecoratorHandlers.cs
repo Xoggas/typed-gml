@@ -1,4 +1,5 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Checking;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Generation.Decorators;
 
@@ -62,5 +63,26 @@ public sealed class NativePropertyDecoratorHandler : IDecoratorHandler
         }
 
         member.Metadata["NativePropertyName"] = propName;
+    }
+}
+
+/// <summary>
+///     Handles <c>@Asset("asset_name")</c> — binds a static registry member to a raw GML asset identifier.
+///     Stores "AssetName" in the member's Metadata.
+/// </summary>
+public sealed class AssetDecoratorHandler : IDecoratorHandler
+{
+    public string DecoratorName => AssetFacts.DecoratorName;
+
+    public void ApplyToMember(TgmlDecorator decorator, TgmlMemberDecl member, TranspileContext ctx)
+    {
+        var assetName = decorator.GetFirstStringArg();
+        if (assetName is null)
+        {
+            ctx.AddError($"@Asset on '{member.Name}' requires a string argument.");
+            return;
+        }
+
+        member.Metadata[AssetFacts.AssetNameMetadata] = assetName;
     }
 }

@@ -18,8 +18,7 @@ public enum ClassModifier
 public enum ScopeModifier
 {
     None,
-    Static,
-    Global
+    Static
 }
 
 /// <summary>Virtual / override / abstract / sealed modifier for methods and properties.</summary>
@@ -30,6 +29,13 @@ public enum VirtualModifier
     Abstract,
     Override,
     Sealed
+}
+
+public enum ConversionModifier
+{
+    None,
+    Implicit,
+    Explicit
 }
 
 /// <summary>Parsed field modifier flags.</summary>

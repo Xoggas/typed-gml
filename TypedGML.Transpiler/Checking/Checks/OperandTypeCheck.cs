@@ -26,7 +26,12 @@ public sealed class OperandTypeCheck : IAtomicCheck
             case TgmlClassDecl cls:
                 foreach (var field in cls.Fields)
                     if (field.Initializer is not null)
-                        MakeChecker(ctx, file, cls).CheckExpr(field.Initializer);
+                        MakeChecker(ctx, file, cls).CheckAssignCompatibility(
+                            DefaultExpressionFacts.DescribeType(field.Type),
+                            field.Initializer,
+                            field.Initializer.Line,
+                            field.Initializer.Column,
+                            $"Cannot assign '{{1}}' to field of type '{field.Type.Name.Full}'.");
 
                 foreach (var ctor in cls.Constructors)
                     CheckConstructor(ctx, file, cls, ctor);
@@ -44,7 +49,12 @@ public sealed class OperandTypeCheck : IAtomicCheck
             case TgmlStructDecl str:
                 foreach (var field in str.Fields)
                     if (field.Initializer is not null)
-                        MakeChecker(ctx, file, str).CheckExpr(field.Initializer);
+                        MakeChecker(ctx, file, str).CheckAssignCompatibility(
+                            DefaultExpressionFacts.DescribeType(field.Type),
+                            field.Initializer,
+                            field.Initializer.Line,
+                            field.Initializer.Column,
+                            $"Cannot assign '{{1}}' to field of type '{field.Type.Name.Full}'.");
 
                 foreach (var ctor in str.Constructors)
                     CheckConstructor(ctx, file, str, ctor);
@@ -62,7 +72,7 @@ public sealed class OperandTypeCheck : IAtomicCheck
             case TgmlInterfaceDecl iface:
                 foreach (var method in iface.Methods.Where(m => m.Body is not null))
                 {
-                    var checker = MakeChecker(ctx, file, iface, method.ReturnType.Name.Full);
+                    var checker = MakeChecker(ctx, file, iface, DefaultExpressionFacts.DescribeType(method.ReturnType));
                     foreach (var p in method.Params) checker.Symbols.Define(p.Name, p.Type);
                     checker.CheckBlock(method.Body!);
                 }
@@ -76,7 +86,7 @@ public sealed class OperandTypeCheck : IAtomicCheck
     {
         var checker = MakeChecker(ctx, file, owner);
         foreach (var p in ctor.Params) checker.Symbols.Define(p.Name, p.Type);
-        foreach (var arg in ctor.BaseArgs ?? []) checker.CheckExpr(arg);
+        checker.CheckBaseConstructorCall(ctor);
         checker.CheckBlock(ctor.Body);
     }
 
@@ -84,7 +94,7 @@ public sealed class OperandTypeCheck : IAtomicCheck
         TgmlTypeDecl owner, TgmlMethodDecl method)
     {
         if (method.Body is null) return;
-        var checker = MakeChecker(ctx, file, owner, method.ReturnType.Name.Full);
+        var checker = MakeChecker(ctx, file, owner, DefaultExpressionFacts.DescribeType(method.ReturnType));
         foreach (var p in method.Params) checker.Symbols.Define(p.Name, p.Type);
         checker.CheckBlock(method.Body);
     }
@@ -93,11 +103,18 @@ public sealed class OperandTypeCheck : IAtomicCheck
         TgmlTypeDecl owner, TgmlPropertyDecl prop)
     {
         if (prop.Getter?.Body is { } getterBody)
-            MakeChecker(ctx, file, owner, prop.Type.Name.Full).CheckBlock(getterBody);
+        {
+            var checker = MakeChecker(ctx, file, owner, DefaultExpressionFacts.DescribeType(prop.Type));
+            if (prop.IndexParam is not null)
+                checker.Symbols.Define(prop.IndexParam.Name, prop.IndexParam.Type);
+            checker.CheckBlock(getterBody);
+        }
 
         if (prop.Setter?.Body is { } setterBody)
         {
             var checker = MakeChecker(ctx, file, owner);
+            if (prop.IndexParam is not null)
+                checker.Symbols.Define(prop.IndexParam.Name, prop.IndexParam.Type);
             checker.Symbols.Define("value", prop.Type);
             checker.CheckBlock(setterBody);
         }

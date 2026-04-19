@@ -36,12 +36,17 @@ public sealed class CheckPipeline
         var pipeline = new CheckPipeline();
 
         // ── Batch 1: Type Registration ────────────────────────────────────────
-        // Registers all types in the TypeTable, detects global duplicates and
+        // Registers all types in the TypeTable, detects duplicate declarations and
         // obvious structural mistakes (constructor mis-naming, duplicate members).
         pipeline.AddBatch(new CheckBatch { Name = "TypeRegistration" }
             .Add(new TypeRegistrationCheck())
             .Add(new DuplicateTypeCheck())
             .Add(new DuplicateMemberCheck())
+            .Add(new OperatorDeclarationCheck())
+            .Add(new AssetDecoratorCheck())
+            .Add(new AccessorModifierCheck())
+            .Add(new IndexerDeclarationCheck())
+            .Add(new NativePropertyBehaviorCheck())
             .Add(new ConstructorNameCheck())
             .Add(new DecoratorArgConstantCheck()));
 
@@ -56,12 +61,15 @@ public sealed class CheckPipeline
 
         // ── Batch 3: Generic Validation ───────────────────────────────────────
         pipeline.AddBatch(new CheckBatch { Name = "GenericValidation" }
+            .Add(new TypeReferenceCheck())
             .Add(new GenericArityCheck())
             .Add(new GenericConstraintCheck()));
 
         // ── Batch 4: Body Semantics ───────────────────────────────────────────
         // Checks that operate on statement / expression bodies.
         pipeline.AddBatch(new CheckBatch { Name = "BodySemantics" }
+            .Add(new DefaultParameterValueCheck())
+            .Add(new FieldKeywordContextCheck())
             .Add(new OperandTypeCheck())       // operator types, assignment, returns
             .Add(new AbstractInstantiationCheck())
             .Add(new ConstMutationCheck())

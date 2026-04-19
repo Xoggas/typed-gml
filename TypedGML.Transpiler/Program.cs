@@ -1,11 +1,27 @@
 using TypedGML.Transpiler;
 
-const string codePath = @"C:\Users\xoggas\Documents\GitHub\typed-gml\TypedGML.Transpiler\Test.tgml";
-const string resultPath = @"C:\Users\xoggas\Documents\GitHub\typed-gml\TypedGML.Transpiler\Generated";
+var projectPath = FindProjectDirectory();
+var resultPath = Path.Combine(projectPath, "Generated");
+var bclPath = Path.Combine(projectPath, "Bcl");
+var defaultScriptPath = Path.Combine(projectPath, "PositiveE2E.tgml");
+var requestedScriptPath = args.Length > 0 ? args[0] : defaultScriptPath;
+var scriptPath = Path.GetFullPath(requestedScriptPath, projectPath);
 
-var result = TranspilerApi.Transpile([
-    new TgmlSourceFile("Test.tgml", File.ReadAllText(codePath))
-]);
+if (!File.Exists(scriptPath))
+{
+    throw new FileNotFoundException($"Could not find TypedGML script '{scriptPath}'.", scriptPath);
+}
+
+var scriptName = Path.GetRelativePath(projectPath, scriptPath);
+
+var sources = Directory
+    .EnumerateFiles(bclPath, "*.tgml", SearchOption.AllDirectories)
+    .OrderBy(path => Path.GetRelativePath(bclPath, path), StringComparer.OrdinalIgnoreCase)
+    .Select(path => new TgmlSourceFile(Path.GetRelativePath(bclPath, path), File.ReadAllText(path)))
+    .Append(new TgmlSourceFile(scriptName, File.ReadAllText(scriptPath)))
+    .ToArray();
+
+var result = TranspilerApi.Transpile(sources);
 
 if (result.Success is false)
 {
@@ -17,14 +33,26 @@ if (result.Success is false)
     return;
 }
 
-foreach (var f in result.Files)
+foreach (var file in result.Files)
 {
-    var path = Path.Combine(resultPath, f.Path);
+    var outputPath = Path.Combine(resultPath, file.Path);
+    Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? throw new InvalidOperationException());
+    File.WriteAllText(outputPath, file.Content);
+}
 
-    if (!Directory.Exists(path))
+return;
+
+static string FindProjectDirectory()
+{
+    var current = new DirectoryInfo(AppContext.BaseDirectory);
+
+    while (current is not null)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path) ?? throw new InvalidOperationException());
+        if (File.Exists(Path.Combine(current.FullName, "TypedGML.Transpiler.csproj")))
+            return current.FullName;
+
+        current = current.Parent;
     }
 
-    File.WriteAllText(path, f.Content);
+    throw new InvalidOperationException("Could not locate TypedGML.Transpiler.csproj.");
 }

@@ -5,7 +5,8 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// <summary>
 ///     Batch 1: Reports an error when a type contains two members with the same name
 ///     (fields and properties share one namespace; methods allow overloading by signature).
-///     Also errors on overloads that are ambiguous at GML runtime (e.g., int vs real).
+///     Also errors on overloads that are ambiguous at GML runtime when distinct
+///     numeric spellings erase to the same runtime <c>number</c> type.
 /// </summary>
 public sealed class DuplicateMemberCheck : IAtomicCheck
 {
@@ -101,7 +102,7 @@ public sealed class DuplicateMemberCheck : IAtomicCheck
             list.Add(parms);
         }
 
-        // Check runtime ambiguity: overloads of same count distinguishable only by int vs real
+        // Check runtime ambiguity: overloads of same count distinguishable only by numeric spellings
         foreach (var (name, overloads) in byName)
         {
             if (overloads.Count < 2) continue;
@@ -110,13 +111,13 @@ public sealed class DuplicateMemberCheck : IAtomicCheck
             {
                 var same = group.ToList();
                 if (same.Count < 2) continue;
-                // Check if all pairs are ambiguous (int/real only differences)
+                // Check if all pairs are ambiguous (numeric spellings only differences)
                 for (var i = 0; i < same.Count - 1; i++)
                 for (var j = i + 1; j < same.Count; j++)
                     if (AreRuntimeAmbiguous(same[i], same[j]))
                         ctx.AddError(
                             $"Method overloads '{typeName}.{name}' cannot be distinguished at GML runtime " +
-                            $"because 'int' and 'real' are both numeric. Consider using different parameter counts or types.",
+                            $"because numeric spellings erase to the same 'number' runtime type. Consider using different parameter counts or types.",
                             file.FileName);
             }
         }
@@ -149,14 +150,14 @@ public sealed class DuplicateMemberCheck : IAtomicCheck
                 if (AreRuntimeAmbiguous(same[i].Params, same[j].Params))
                     ctx.AddError(
                         $"Constructor overloads for '{typeName}' cannot be distinguished at GML runtime " +
-                        $"because 'int' and 'real' are both numeric.",
+                        $"because numeric spellings erase to the same 'number' runtime type.",
                         file.FileName);
         }
     }
 
     /// <summary>
     ///     Returns true when two parameter lists of equal length differ only in positions
-    ///     where one is 'int' and the other is 'real' (indistinguishable in GML).
+    ///     where both sides are numeric spellings indistinguishable at runtime.
     /// </summary>
     private static bool AreRuntimeAmbiguous(
         IReadOnlyList<TgmlParam> a, IReadOnlyList<TgmlParam> b)
@@ -167,11 +168,10 @@ public sealed class DuplicateMemberCheck : IAtomicCheck
             var ta = a[i].Type.Name.Full;
             var tb = b[i].Type.Name.Full;
             if (ta == tb) continue;
-            // If neither is an int/real pair, overloads CAN be distinguished
-            if (!IsIntOrReal(ta) || !IsIntOrReal(tb)) return false;
+            if (!IsNumericRuntimeType(ta) || !IsNumericRuntimeType(tb)) return false;
         }
-        return true; // all differences are int/real
+        return true;
     }
 
-    private static bool IsIntOrReal(string t) => t is "int" or "real";
+    private static bool IsNumericRuntimeType(string t) => t is "number" or "int" or "real";
 }

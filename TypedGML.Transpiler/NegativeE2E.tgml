@@ -1,0 +1,45 @@
+namespace Game.Negative;
+
+public class Player
+{
+}
+
+public class AccessBase
+{
+    public string Name { get; private set; }
+    public number Health { get; protected set; }
+
+    public constructor()
+    {
+        Name = "Base";
+        Health = 10;
+    }
+}
+
+public class SpriteRegistry
+{
+    @Asset("spr_Char1")
+    public static System.Sprite Character1 { get; set; }
+}
+
+public class BadDefaults
+{
+    public Player Choose(Player fallback = new Player())
+    {
+        return fallback;
+    }
+}
+
+public class BadUsage
+{
+    public void Run(AccessBase entity)
+    {
+        entity.Name = "Renamed";
+        entity.Health = 20;
+        SpriteRegistry.Character1 = null;
+
+        string label = "HP";
+        number value = 10;
+        var combined = label + value;
+    }
+}

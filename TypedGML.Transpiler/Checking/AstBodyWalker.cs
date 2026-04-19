@@ -78,7 +78,7 @@ public abstract class AstBodyWalker : IAtomicCheck
                 foreach (var m in iface.Methods.Where(m => m.Body is not null))
                 {
                     var wctx = new WalkContext
-                        { OwnerType = iface, ReturnTypeName = m.ReturnType.Name.Full, Params = m.Params };
+                        { OwnerType = iface, ReturnTypeName = DefaultExpressionFacts.DescribeType(m.ReturnType), Params = m.Params };
                     OnEnterCallable(ctx, file, wctx);
                     WalkBlock(ctx, file, m.Body!, wctx);
                     OnLeaveCallable(ctx, file, wctx);
@@ -104,7 +104,7 @@ public abstract class AstBodyWalker : IAtomicCheck
                 InConstructor = true, Params = cls.Constructor.Params
             };
             OnEnterCallable(ctx, file, wctx);
-            foreach (var arg in cls.Constructor.BaseArgs ?? []) WalkExpr(ctx, file, arg, wctx);
+            foreach (var arg in cls.Constructor.BaseArgs ?? []) WalkExpr(ctx, file, arg.Value, wctx);
             WalkBlock(ctx, file, cls.Constructor.Body, wctx);
             OnLeaveCallable(ctx, file, wctx);
         }
@@ -114,7 +114,7 @@ public abstract class AstBodyWalker : IAtomicCheck
             var wctx = new WalkContext
             {
                 OwnerType = cls, Member = method,
-                ReturnTypeName = method.ReturnType.Name.Full, Params = method.Params
+                ReturnTypeName = DefaultExpressionFacts.DescribeType(method.ReturnType), Params = method.Params
             };
             OnEnterCallable(ctx, file, wctx);
             foreach (var p in method.Params)
@@ -149,7 +149,7 @@ public abstract class AstBodyWalker : IAtomicCheck
             var wctx = new WalkContext
             {
                 OwnerType = str, Member = method,
-                ReturnTypeName = method.ReturnType.Name.Full, Params = method.Params
+                ReturnTypeName = DefaultExpressionFacts.DescribeType(method.ReturnType), Params = method.Params
             };
             OnEnterCallable(ctx, file, wctx);
             if (method.Body is not null) WalkBlock(ctx, file, method.Body, wctx);
@@ -163,7 +163,8 @@ public abstract class AstBodyWalker : IAtomicCheck
     {
         if (prop.Getter?.Body is { } getterBody)
         {
-            var wctx = new WalkContext { OwnerType = owner, Member = prop, ReturnTypeName = prop.Type.Name.Full };
+            var getterParams = prop.IndexParam is not null ? [prop.IndexParam] : Array.Empty<TgmlParam>();
+            var wctx = new WalkContext { OwnerType = owner, Member = prop, ReturnTypeName = DefaultExpressionFacts.DescribeType(prop.Type), Params = getterParams };
             OnEnterCallable(ctx, file, wctx);
             WalkBlock(ctx, file, getterBody, wctx);
             OnLeaveCallable(ctx, file, wctx);
@@ -171,10 +172,10 @@ public abstract class AstBodyWalker : IAtomicCheck
 
         if (prop.Setter?.Body is { } setterBody)
         {
-            var setterParams = new List<TgmlParam>
-            {
-                new() { Name = "value", Type = prop.Type }
-            };
+            var setterParams = new List<TgmlParam>();
+            if (prop.IndexParam is not null)
+                setterParams.Add(prop.IndexParam);
+            setterParams.Add(new TgmlParam { Name = "value", Type = prop.Type });
             var wctx = new WalkContext { OwnerType = owner, Member = prop, Params = setterParams };
             OnEnterCallable(ctx, file, wctx);
             WalkBlock(ctx, file, setterBody, wctx);
@@ -239,6 +240,9 @@ public abstract class AstBodyWalker : IAtomicCheck
                 }
 
                 break;
+            case TgmlWithStmt withStmt:
+                WalkBlock(ctx, file, withStmt.Body, wctx);
+                break;
             case TgmlReturnStmt ret:
                 if (ret.Value is not null) WalkExpr(ctx, file, ret.Value, wctx);
                 break;
@@ -276,10 +280,10 @@ public abstract class AstBodyWalker : IAtomicCheck
                 break;
             case TgmlMethodCallExpr mc:
                 WalkExpr(ctx, file, mc.Target, wctx);
-                foreach (var a in mc.Args) WalkExpr(ctx, file, a, wctx);
+                foreach (var a in mc.Args) WalkExpr(ctx, file, a.Value, wctx);
                 break;
             case TgmlFuncCallExpr fc:
-                foreach (var a in fc.Args) WalkExpr(ctx, file, a, wctx);
+                foreach (var a in fc.Args) WalkExpr(ctx, file, a.Value, wctx);
                 break;
             case TgmlFieldAccessExpr fa:
                 WalkExpr(ctx, file, fa.Target, wctx);
@@ -288,6 +292,10 @@ public abstract class AstBodyWalker : IAtomicCheck
                 WalkExpr(ctx, file, ix.Target, wctx);
                 WalkExpr(ctx, file, ix.Index, wctx);
                 break;
+            case TgmlInvokeExpr invoke:
+                WalkExpr(ctx, file, invoke.Target, wctx);
+                foreach (var a in invoke.Args) WalkExpr(ctx, file, a.Value, wctx);
+                break;
             case TgmlParenExpr p:
                 WalkExpr(ctx, file, p.Inner, wctx);
                 break;
@@ -295,7 +303,12 @@ public abstract class AstBodyWalker : IAtomicCheck
                 WalkExpr(ctx, file, c.Operand, wctx);
                 break;
             case TgmlNewObjectExpr n:
-                foreach (var a in n.Args) WalkExpr(ctx, file, a, wctx);
+                foreach (var a in n.Args) WalkExpr(ctx, file, a.Value, wctx);
+                break;
+            case TgmlBaseCallExpr bc:
+                foreach (var a in bc.Args) WalkExpr(ctx, file, a.Value, wctx);
+                break;
+            case TgmlDefaultExpr:
                 break;
             case TgmlNewArrayExpr na:
                 WalkExpr(ctx, file, na.Size, wctx);

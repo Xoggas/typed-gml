@@ -72,8 +72,8 @@ public sealed class StatementEmitter
     private void EmitGameObjectCreation(string varName, TgmlNewObjectExpr newObj, TgmlClassDecl cls, GmlWriter w)
     {
         var objGml = _ctx.GmlObjectName(cls);
-        var args = newObj.Args.Select(_expr.Emit).ToList();
-        var baseArgCount = cls.Constructor?.BaseArgs?.Count ?? 0;
+        var args = GetNormalizedCtorArgs(newObj).Select(_expr.Emit).ToList();
+        var baseArgCount = GetNormalizedBaseArgs(cls.Constructor).Count;
         var createArgs = args.Take(Math.Max(3, baseArgCount)).ToList();
         var initArgs = args.Skip(Math.Max(3, baseArgCount)).ToList();
 
@@ -91,6 +91,28 @@ public sealed class StatementEmitter
         }
     }
 
+    private IReadOnlyList<TgmlExpression> GetNormalizedCtorArgs(TgmlNewObjectExpr expr)
+    {
+        if (expr.Metadata.TryGetValue("NormalizedArgs", out var normalizedArgs) &&
+            normalizedArgs is List<TgmlExpression> normalized)
+        {
+            return normalized;
+        }
+
+        return expr.Args.Select(a => a.Value).ToList();
+    }
+
+    private static IReadOnlyList<TgmlExpression> GetNormalizedBaseArgs(TgmlConstructorDecl? ctor)
+    {
+        if (ctor?.Metadata.TryGetValue("NormalizedBaseArgs", out var normalizedArgs) == true &&
+            normalizedArgs is List<TgmlExpression> normalized)
+        {
+            return normalized;
+        }
+
+        return ctor?.BaseArgs?.Select(a => a.Value).ToList() ?? [];
+    }
+
     private void EmitExprStmt(TgmlExpressionStmt s, GmlWriter w)
     {
         // Special case: standalone new @ObjectClass(...)
@@ -99,6 +121,11 @@ public sealed class StatementEmitter
             td is TgmlClassDecl objCls && objCls.IsGameObject)
         {
             EmitGameObjectCreation("__inst", newObj, objCls, w);
+            return;
+        }
+
+        if (s.Expression is TgmlBaseCallExpr baseCall && TryEmitInlinedGameObjectBaseCall(baseCall, w))
+        {
             return;
         }
 
@@ -189,22 +216,23 @@ public sealed class StatementEmitter
 
     private void EmitWith(TgmlWithStmt s, GmlWriter w)
     {
-        // Resolve the GML type name for the with target
+        // @Object types iterate by object asset name; everything else uses
+        // the referenced instance/struct variable directly.
         var typeName = s.IterType.Name.Full;
         _ctx.TypeTable.TryResolve(typeName, out var td);
-        string gmlType;
+        string withTarget;
         if (td is TgmlClassDecl cls && cls.IsGameObject)
         {
-            gmlType = _ctx.GmlObjectName(cls);
+            withTarget = _ctx.GmlObjectName(cls);
         }
         else
         {
-            gmlType = s.IterType.GmlBaseName;
+            withTarget = s.VarName;
         }
 
         var prev = _ctx.WithAlias;
         _ctx.WithAlias = s.VarName;
-        w.WriteLine($"with ({gmlType})");
+        w.WriteLine($"with ({withTarget})");
         w.OpenBrace();
         EmitBlock(s.Body, w);
         w.CloseBrace();
@@ -213,6 +241,11 @@ public sealed class StatementEmitter
 
     private void EmitReturn(TgmlReturnStmt s, GmlWriter w)
     {
+        if (s.Value is TgmlBaseCallExpr baseCall && TryEmitInlinedGameObjectBaseCall(baseCall, w))
+        {
+            return;
+        }
+
         if (s.Value is not null)
         {
             w.WriteLine($"return {_expr.Emit(s.Value)};");
@@ -244,5 +277,62 @@ public sealed class StatementEmitter
             EmitBlock(s.FinallyBlock, w);
             w.CloseBrace();
         }
+    }
+
+    private bool TryEmitInlinedGameObjectBaseCall(TgmlBaseCallExpr expr, GmlWriter w)
+    {
+        if (_ctx.CurrentType is not TgmlClassDecl { IsGameObject: true })
+            return false;
+
+        if (_ctx.CurrentMethodOwnerType is not TgmlClassDecl methodOwner)
+            return false;
+
+        if (!_ctx.TryFindBaseMethod(methodOwner, expr.MethodName, out var baseDeclaringType, out var baseMethod) ||
+            baseMethod.Body is null)
+        {
+            return false;
+        }
+
+        var previousMethodName = _ctx.CurrentMethodName;
+        var previousMethodIsOverride = _ctx.CurrentMethodIsOverride;
+        var previousMethodOwnerType = _ctx.CurrentMethodOwnerType;
+        var previousNativeEventName = _ctx.CurrentNativeEventName;
+
+        var normalizedArgs = GetNormalizedBaseCallArgs(expr);
+        var aliases = new List<KeyValuePair<string, string>>();
+
+        for (var i = 0; i < Math.Min(baseMethod.Params.Count, normalizedArgs.Count); i++)
+        {
+            var param = baseMethod.Params[i];
+            var tempName = _ctx.AllocateTempIdentifier($"base_{expr.MethodName}_{param.Name}");
+            w.WriteLine($"var {tempName} = {_expr.Emit(normalizedArgs[i])};");
+            aliases.Add(new KeyValuePair<string, string>(param.Name, tempName));
+        }
+
+        _ctx.PushIdentifierAliases(aliases);
+        _ctx.CurrentMethodName = baseMethod.Name;
+        _ctx.CurrentMethodIsOverride = baseMethod.IsOverride;
+        _ctx.CurrentMethodOwnerType = baseDeclaringType;
+        _ctx.CurrentNativeEventName = previousNativeEventName;
+
+        EmitBlock(baseMethod.Body, w);
+
+        _ctx.PopIdentifierAliases();
+        _ctx.CurrentMethodName = previousMethodName;
+        _ctx.CurrentMethodIsOverride = previousMethodIsOverride;
+        _ctx.CurrentMethodOwnerType = previousMethodOwnerType;
+        _ctx.CurrentNativeEventName = previousNativeEventName;
+        return true;
+    }
+
+    private static IReadOnlyList<TgmlExpression> GetNormalizedBaseCallArgs(TgmlBaseCallExpr expr)
+    {
+        if (expr.Metadata.TryGetValue("NormalizedArgs", out var normalizedArgs) &&
+            normalizedArgs is List<TgmlExpression> normalized)
+        {
+            return normalized;
+        }
+
+        return expr.Args.Select(a => a.Value).ToList();
     }
 }

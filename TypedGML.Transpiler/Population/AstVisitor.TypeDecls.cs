@@ -97,5 +97,16 @@ public sealed partial class AstVisitor
             Properties = members.OfType<TgmlInterfacePropertyDecl>().ToList()
         };
     }
+
+    public override object? VisitDelegateDecl([NotNull] TypedGMLParser.DelegateDeclContext ctx)
+        => new TgmlDelegateDecl
+        {
+            Name = ctx.ID().GetText(),
+            Access = AccessMod(ctx.accessMod()),
+            Decorators = Decorators(ctx.decorator()),
+            TypeParams = TypeParams(ctx.typeParams()),
+            ReturnType = TypeRef(ctx.typeRef()),
+            Params = ParamList(ctx.paramList())
+        };
 }
 

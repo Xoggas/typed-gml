@@ -13,11 +13,11 @@ public sealed class DuplicateTypeCheck : IAtomicCheck
         foreach (var file in files)
         foreach (var type in file.TypeDecls)
         {
-            var qn = type.QualifiedName ?? type.Name;
+            var qn = $"{type.QualifiedName ?? type.Name}`{type.TypeParams.Count}";
             if (seen.TryGetValue(qn, out var firstFile))
             {
                 context.AddError(
-                    $"Duplicate type '{qn}' (also defined in '{firstFile}').",
+                    $"Duplicate type '{type.QualifiedName ?? type.Name}' (also defined in '{firstFile}').",
                     file.FileName);
             }
             else

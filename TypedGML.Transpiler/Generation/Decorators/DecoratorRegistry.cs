@@ -13,7 +13,8 @@ public sealed class DecoratorRegistry
     public static DecoratorRegistry Default { get; } = new DecoratorRegistry()
         .Register(new ObjectDecoratorHandler())
         .Register(new NativeEventDecoratorHandler())
-        .Register(new NativePropertyDecoratorHandler());
+        .Register(new NativePropertyDecoratorHandler())
+        .Register(new AssetDecoratorHandler());
 
     public DecoratorRegistry Register(IDecoratorHandler handler)
     {

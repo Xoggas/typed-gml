@@ -31,6 +31,14 @@ public sealed partial class AstVisitor
             Index = (TgmlExpression)Visit(ctx.expression(1))!
         };
 
+    public override object? VisitInvokeExpr([NotNull] TypedGMLParser.InvokeExprContext ctx)
+        => new TgmlInvokeExpr
+        {
+            Line = Line(ctx),
+            Target = (TgmlExpression)Visit(ctx.expression())!,
+            Args = ArgList(ctx.argList())
+        };
+
     public override object? VisitUnaryExpr([NotNull] TypedGMLParser.UnaryExprContext ctx)
         => new TgmlUnaryExpr
         {
@@ -146,6 +154,9 @@ public sealed partial class AstVisitor
     public override object? VisitNameofExpr([NotNull] TypedGMLParser.NameofExprContext ctx)
         => new TgmlNameofExpr { Line = Line(ctx), Operand = (TgmlExpression)Visit(ctx.expression())! };
 
+    public override object? VisitDefaultOfExpr([NotNull] TypedGMLParser.DefaultOfExprContext ctx)
+        => new TgmlDefaultExpr { Line = Line(ctx), Type = TypeRef(ctx.typeRef()) };
+
     public override object? VisitBaseCallExpr([NotNull] TypedGMLParser.BaseCallExprContext ctx)
         => new TgmlBaseCallExpr { Line = Line(ctx), MethodName = NameId(ctx.nameId()), Args = ArgList(ctx.argList()) };
 
@@ -181,6 +192,13 @@ public sealed partial class AstVisitor
     public override object? VisitFuncCallExpr([NotNull] TypedGMLParser.FuncCallExprContext ctx)
         => new TgmlFuncCallExpr { Line = Line(ctx), FunctionName = NameId(ctx.nameId()), Args = ArgList(ctx.argList()) };
 
+    public override object? VisitArg([NotNull] TypedGMLParser.ArgContext ctx)
+        => new TgmlArgument
+        {
+            Name = ctx.nameId() is { } nameId ? NameId(nameId) : null,
+            Value = (TgmlExpression)Visit(ctx.expression())!
+        };
+
     public override object? VisitParenExpr([NotNull] TypedGMLParser.ParenExprContext ctx)
         => new TgmlParenExpr { Line = Line(ctx), Inner = (TgmlExpression)Visit(ctx.expression())! };
 
@@ -195,6 +213,9 @@ public sealed partial class AstVisitor
 
     public override object? VisitNullExpr([NotNull] TypedGMLParser.NullExprContext ctx)
         => new TgmlNullExpr { Line = Line(ctx) };
+
+    public override object? VisitDefaultExpr([NotNull] TypedGMLParser.DefaultExprContext ctx)
+        => new TgmlDefaultExpr { Line = Line(ctx) };
 
     public override object? VisitBoolExpr([NotNull] TypedGMLParser.BoolExprContext ctx)
         => new TgmlBoolLiteralExpr { Line = Line(ctx), Value = ctx.boolLiteral().TRUE() is not null };

@@ -6,11 +6,8 @@
 /// </summary>
 public static class TypeCompatibility
 {
-    private static readonly HashSet<string> NumericTypes = ["int", "real"];
-    private static readonly HashSet<string> PrimitiveTypes = ["int", "real", "bool", "string"];
-
-    public static bool IsNumeric(string? t) => t is not null && NumericTypes.Contains(t);
-    public static bool IsPrimitive(string? t) => t is not null && PrimitiveTypes.Contains(t);
+    public static bool IsNumeric(string? t) => BuiltinTypeFacts.IsNumeric(t);
+    public static bool IsPrimitive(string? t) => BuiltinTypeFacts.IsPrimitive(t);
 
     /// <summary>
     ///     True when a value of type <paramref name="rhs" /> can be assigned to a variable
@@ -20,7 +17,7 @@ public static class TypeCompatibility
     {
         if (lhs == rhs) return true;
         if (rhs == "null") return true;              // null → anything
-        if (IsNumeric(lhs) && IsNumeric(rhs)) return true; // int ↔ real
+        if (IsNumeric(lhs) && IsNumeric(rhs)) return true; // numeric family
         return false;
     }
 

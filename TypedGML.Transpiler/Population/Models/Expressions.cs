@@ -4,11 +4,18 @@ namespace TypedGML.Transpiler.Population.Models;
 
 // ── All expression node types ────────────────────────────────────────────────
 
+public sealed class TgmlArgument
+{
+    public string? Name { get; init; }
+    public required TgmlExpression Value { get; init; }
+}
+
 /// <summary>Base class for all TypedGML expression nodes.</summary>
 public abstract class TgmlExpression
 {
     public int Line { get; init; }
     public int Column { get; init; }
+    public Dictionary<string, object> Metadata { get; } = new();
 }
 
 // ── Postfix ──────────────────────────────────────────────────────────────────
@@ -17,7 +24,7 @@ public sealed class TgmlMethodCallExpr : TgmlExpression
 {
     public required TgmlExpression Target { get; init; }
     public required string MethodName { get; init; }
-    public List<TgmlExpression> Args { get; init; } = new();
+    public List<TgmlArgument> Args { get; init; } = new();
 }
 
 public sealed class TgmlFieldAccessExpr : TgmlExpression
@@ -30,6 +37,12 @@ public sealed class TgmlIndexExpr : TgmlExpression
 {
     public required TgmlExpression Target { get; init; }
     public required TgmlExpression Index { get; init; }
+}
+
+public sealed class TgmlInvokeExpr : TgmlExpression
+{
+    public required TgmlExpression Target { get; init; }
+    public List<TgmlArgument> Args { get; init; } = new();
 }
 
 // ── Unary ─────────────────────────────────────────────────────────────────────
@@ -103,7 +116,7 @@ public sealed class TgmlAssignExpr : TgmlExpression
 public sealed class TgmlNewObjectExpr : TgmlExpression
 {
     public required TgmlTypeRef Type { get; init; }
-    public List<TgmlExpression> Args { get; init; } = new();
+    public List<TgmlArgument> Args { get; init; } = new();
 }
 
 public sealed class TgmlNewArrayExpr : TgmlExpression
@@ -124,12 +137,17 @@ public sealed class TgmlNameofExpr : TgmlExpression
     public required TgmlExpression Operand { get; init; }
 }
 
+public sealed class TgmlDefaultExpr : TgmlExpression
+{
+    public TgmlTypeRef? Type { get; init; }
+}
+
 // ── Base access ───────────────────────────────────────────────────────────────
 
 public sealed class TgmlBaseCallExpr : TgmlExpression
 {
     public required string MethodName { get; init; }
-    public List<TgmlExpression> Args { get; init; } = new();
+    public List<TgmlArgument> Args { get; init; } = new();
 }
 
 public sealed class TgmlBaseAccessExpr : TgmlExpression
@@ -158,7 +176,7 @@ public sealed class TgmlArrayInitExpr : TgmlExpression
 public sealed class TgmlFuncCallExpr : TgmlExpression
 {
     public required string FunctionName { get; init; }
-    public List<TgmlExpression> Args { get; init; } = new();
+    public List<TgmlArgument> Args { get; init; } = new();
 }
 
 public sealed class TgmlParenExpr : TgmlExpression

@@ -17,10 +17,11 @@ public sealed class TgmlPropertyDecl : TgmlMemberDecl
 {
     public required TgmlTypeRef Type { get; init; }
     public required PropertyModifiers Modifiers { get; init; }
+    public TgmlParam? IndexParam { get; init; }
     public List<TgmlAccessorDecl> Accessors { get; init; } = new();
 
     public TgmlAccessorDecl? Getter => Accessors.FirstOrDefault(a => a.IsGet);
     public TgmlAccessorDecl? Setter => Accessors.FirstOrDefault(a => a.IsSet);
-    public bool IsGlobal => Modifiers.Scope == ScopeModifier.Global;
     public bool IsStatic => Modifiers.Scope == ScopeModifier.Static;
+    public bool IsIndexer => IndexParam is not null;
 }

@@ -1,0 +1,180 @@
+namespace System;
+
+public abstract class GameObject
+{
+    @NativeProperty("x")
+    public number X { get; set; }
+
+    @NativeProperty("y")
+    public number Y { get; set; }
+
+    @NativeProperty("depth")
+    public number Depth { get; set; }
+
+    @NativeProperty("visible")
+    public bool Visible { get; set; }
+
+    @NativeProperty("image_index")
+    public number ImageIndex { get; set; }
+
+    @NativeProperty("image_speed")
+    public number ImageSpeed { get; set; }
+
+    public constructor()
+    {
+        Visible = true;
+        ImageSpeed = 1;
+    }
+
+    public void Hide()
+    {
+        Visible = false;
+    }
+
+    public void MoveTo(number newX, number newY)
+    {
+        X = newX;
+        Y = newY;
+    }
+
+    public void Show()
+    {
+        Visible = true;
+    }
+
+    public void Translate(number dx, number dy)
+    {
+        X += dx;
+        Y += dy;
+    }
+
+    public void DestroySelf()
+    {
+        instance_destroy();
+    }
+
+    @NativeEvent("Create")
+    public virtual void Create()
+    {
+    }
+
+    @NativeEvent("Destroy")
+    public virtual void Destroy()
+    {
+    }
+
+    @NativeEvent("Step")
+    public virtual void Step()
+    {
+    }
+
+    @NativeEvent("Draw")
+    public virtual void Draw()
+    {
+    }
+
+    @NativeEvent("Alarm")
+    public virtual void Alarm()
+    {
+    }
+
+    @NativeEvent("Collision")
+    public virtual void Collision()
+    {
+    }
+
+    @NativeEvent("KeyDown")
+    public virtual void KeyDown()
+    {
+    }
+
+    @NativeEvent("KeyUp")
+    public virtual void KeyUp()
+    {
+    }
+
+    @NativeEvent("KeyPressed")
+    public virtual void KeyPressed()
+    {
+    }
+
+    @NativeEvent("MouseDown")
+    public virtual void MouseDown()
+    {
+    }
+
+    @NativeEvent("MouseUp")
+    public virtual void MouseUp()
+    {
+    }
+
+    @NativeEvent("MouseMoved")
+    public virtual void MouseMoved()
+    {
+    }
+
+    @NativeEvent("BeginStep")
+    public virtual void BeginStep()
+    {
+    }
+
+    @NativeEvent("EndStep")
+    public virtual void EndStep()
+    {
+    }
+
+    @NativeEvent("DrawGui")
+    public virtual void DrawGui()
+    {
+    }
+
+    @NativeEvent("PreDraw")
+    public virtual void PreDraw()
+    {
+    }
+
+    @NativeEvent("PostDraw")
+    public virtual void PostDraw()
+    {
+    }
+
+    @NativeEvent("RoomStart")
+    public virtual void RoomStart()
+    {
+    }
+
+    @NativeEvent("RoomEnd")
+    public virtual void RoomEnd()
+    {
+    }
+
+    @NativeEvent("GameStart")
+    public virtual void GameStart()
+    {
+    }
+
+    @NativeEvent("GameEnd")
+    public virtual void GameEnd()
+    {
+    }
+
+    @NativeEvent("CleanUp")
+    public virtual void CleanUp()
+    {
+    }
+
+    @NativeEvent("AsyncSystem")
+    public virtual void AsyncSystem()
+    {
+    }
+
+    @NativeEvent("AsyncHttp")
+    public virtual void AsyncHttp()
+    {
+    }
+
+    @NativeEvent("AsyncSaving")
+    public virtual void AsyncSaving()
+    {
+    }
+}

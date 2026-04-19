@@ -134,3 +134,5 @@ _NCrunch*
 
 .idea/
 /.vs
+/.dotnet
+/TypedGML.Transpiler/Generated

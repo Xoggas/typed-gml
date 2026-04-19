@@ -1,0 +1,58 @@
+namespace System.Collections;
+
+public class Queue<T>
+{
+    private T[] _items;
+
+    public number Count
+    {
+        get;
+        private set;
+    }
+
+    public constructor()
+    {
+        _items = [];
+        Count = 0;
+    }
+
+    public void Clear()
+    {
+        _items = [];
+        Count = 0;
+    }
+
+    public T nocheck Dequeue()
+    {
+        if (Count <= 0)
+        {
+            return default(T);
+        }
+
+        var value = _items[0];
+        #array_delete(_items, 0, 1);
+        Count = Count - 1;
+        return value;
+    }
+
+    public void nocheck Enqueue(T item)
+    {
+        #array_push(_items, item);
+        Count = Count + 1;
+    }
+
+    public T Peek()
+    {
+        if (Count <= 0)
+        {
+            return default(T);
+        }
+
+        return _items[0];
+    }
+
+    public T[] ToArray()
+    {
+        return _items;
+    }
+}

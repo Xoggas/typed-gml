@@ -77,7 +77,6 @@ public sealed partial class AstVisitor : TypedGMLBaseVisitor<object?>
         ctx?.GetText() switch
         {
             "static" => ScopeModifier.Static,
-            "global" => ScopeModifier.Global,
             _ => ScopeModifier.None
         };
 
@@ -115,9 +114,7 @@ public sealed partial class AstVisitor : TypedGMLBaseVisitor<object?>
                 _ => AccessModifier.Private
             }
             : AccessModifier.Private;
-        var scope = ctx.scopeMod() is { } sm
-            ? sm.GetText() == "global" ? ScopeModifier.Global : ScopeModifier.Static
-            : ScopeModifier.None;
+        var scope = ctx.scopeMod() is not null ? ScopeModifier.Static : ScopeModifier.None;
 
         IToken? virtTok = null;
         for (var i = 0; i < ctx.ChildCount; i++)
@@ -181,8 +178,8 @@ public sealed partial class AstVisitor : TypedGMLBaseVisitor<object?>
     private List<TgmlParam> ParamList(TypedGMLParser.ParamListContext? ctx)
         => ctx is null ? [] : ctx.param().Select(p => (TgmlParam)Visit(p)!).ToList();
 
-    private List<TgmlExpression> ArgList(TypedGMLParser.ArgListContext? ctx)
-        => ctx is null ? [] : ctx.expression().Select(e => (TgmlExpression)Visit(e)!).ToList();
+    private List<TgmlArgument> ArgList(TypedGMLParser.ArgListContext? ctx)
+        => ctx is null ? [] : ctx.arg().Select(a => (TgmlArgument)Visit(a)!).ToList();
 
     private static int Line(ParserRuleContext ctx) => ctx.Start.Line;
     private static int Column(ParserRuleContext ctx) => ctx.Start.Column;

@@ -23,6 +23,7 @@ public sealed class Generator
         _emitters = new List<ICodeEmitter>
         {
             new GameObjectEmitter(),
+            new DelegateEmitter(),
             new ScriptClassEmitter(),
             new EnumEmitter()
             // Interfaces produce no GML code (type-check only)

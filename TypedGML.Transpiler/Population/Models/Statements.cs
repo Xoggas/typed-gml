@@ -23,6 +23,7 @@ public sealed class TgmlLocalVarDecl : TgmlStatement
     public required TgmlTypeRef Type { get; init; }
     public required string Name { get; init; }
     public TgmlExpression? Initializer { get; init; }
+    public bool IsImplicitlyTyped => Type.Name.Full == "var" && Type.ArrayDepth == 0 && Type.TypeArgs.Count == 0;
 }
 
 // ── Expression statement ──────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ public sealed class TgmlForInitDecl : TgmlForInit
     public required TgmlTypeRef Type { get; init; }
     public required string Name { get; init; }
     public TgmlExpression? Initializer { get; init; }
+    public bool IsImplicitlyTyped => Type.Name.Full == "var" && Type.ArrayDepth == 0 && Type.TypeArgs.Count == 0;
 }
 
 public sealed class TgmlForInitExpr : TgmlForInit

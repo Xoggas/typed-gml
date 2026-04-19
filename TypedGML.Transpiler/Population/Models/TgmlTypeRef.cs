@@ -1,6 +1,6 @@
 ﻿namespace TypedGML.Transpiler.Population.Models;
 
-/// <summary>A type reference, e.g. "List&lt;string&gt;[]" or "int".</summary>
+/// <summary>A type reference, e.g. "List&lt;string&gt;[]" or "number".</summary>
 public sealed class TgmlTypeRef
 {
     public required TgmlQualifiedName Name { get; init; }

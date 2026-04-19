@@ -41,33 +41,90 @@ public sealed partial class AstVisitor
         };
     }
 
+    public override object? VisitIndexerDecl([NotNull] TypedGMLParser.IndexerDeclContext ctx)
+    {
+        var mods = ParsePropertyModifiers(ctx.propertyModifiers());
+        return new TgmlPropertyDecl
+        {
+            Name = NameId(ctx.nameId()),
+            Access = mods.Access,
+            Modifiers = mods,
+            Type = TypeRef(ctx.typeRef()),
+            IndexParam = (TgmlParam)Visit(ctx.param())!,
+            Decorators = Decorators(ctx.decorator()),
+            Accessors = ctx.accessorDecl().Select(a => (TgmlAccessorDecl)Visit(a)!).ToList()
+        };
+    }
+
     public override object? VisitAccessorDecl([NotNull] TypedGMLParser.AccessorDeclContext ctx)
     {
         var isGet = ctx.GET() is not null;
         AccessModifier? accMod = ctx.accessMod() is { } am ? AccessMod(am) : null;
-        return new TgmlAccessorDecl { IsGet = isGet, AccessMod = accMod, Body = ctx.block() is { } b ? (TgmlBlock)Visit(b)! : null };
+        var body = ctx.block() is { } b
+            ? (TgmlBlock)Visit(b)!
+            : ctx.expression() is { } expr
+                ? WrapAccessorExpression((TgmlExpression)Visit(expr)!, isGet, Line(ctx))
+                : null;
+        return new TgmlAccessorDecl { IsGet = isGet, AccessMod = accMod, Body = body };
     }
 
     public override object? VisitMethodDecl([NotNull] TypedGMLParser.MethodDeclContext ctx)
     {
         var mods = ParseMethodModifiers(ctx.methodModifiers());
+        var decorators = Decorators(ctx.decorator());
+        var body = ctx.block() is { } b ? (TgmlBlock)Visit(b)! : null;
+        var parameters = ParamList(ctx.paramList());
+
+        if (ctx.OPERATOR() is null)
+        {
+            return new TgmlMethodDecl
+            {
+                Name = NameId(ctx.nameId()),
+                Access = mods.Access,
+                Modifiers = mods,
+                IsNocheck = ctx.NOCHECK() is not null,
+                ReturnType = TypeRef(ctx.typeRef()),
+                TypeParams = TypeParams(ctx.typeParams()),
+                Params = parameters,
+                Decorators = decorators,
+                Body = body
+            };
+        }
+
+        if (ctx.overloadableOperator() is { } overloadableOperator)
+        {
+            var operatorToken = GetOverloadableOperatorToken(overloadableOperator);
+            return new TgmlMethodDecl
+            {
+                Name = $"operator {operatorToken}",
+                Access = mods.Access,
+                Modifiers = mods,
+                ReturnType = TypeRef(ctx.typeRef()),
+                Params = parameters,
+                Decorators = decorators,
+                Body = body,
+                OperatorToken = operatorToken
+            };
+        }
+
+        var conversion = ctx.IMPLICIT() is not null ? ConversionModifier.Implicit : ConversionModifier.Explicit;
+        var targetType = TypeRef(ctx.typeRef());
         return new TgmlMethodDecl
         {
-            Name = NameId(ctx.nameId()),
+            Name = $"operator {(conversion == ConversionModifier.Implicit ? "implicit" : "explicit")} {targetType}",
             Access = mods.Access,
             Modifiers = mods,
-            IsNocheck = ctx.NOCHECK() is not null,
-            ReturnType = TypeRef(ctx.typeRef()),
-            TypeParams = TypeParams(ctx.typeParams()),
-            Params = ParamList(ctx.paramList()),
-            Decorators = Decorators(ctx.decorator()),
-            Body = ctx.block() is { } b ? (TgmlBlock)Visit(b)! : null
+            ReturnType = targetType,
+            Params = parameters,
+            Decorators = decorators,
+            Body = body,
+            Conversion = conversion
         };
     }
 
     public override object? VisitConstructorDecl([NotNull] TypedGMLParser.ConstructorDeclContext ctx)
     {
-        List<TgmlExpression>? baseArgs = null;
+        List<TgmlArgument>? baseArgs = null;
         if (ctx.argList() is { } al)
             baseArgs = ArgList(al);
         else if (ctx.BASE() is not null)
@@ -127,5 +184,26 @@ public sealed partial class AstVisitor
 
     public override object? VisitDecorator([NotNull] TypedGMLParser.DecoratorContext ctx)
         => new TgmlDecorator { Name = QName(ctx.qualifiedName()), Args = ArgList(ctx.argList()) };
+
+    private static string GetOverloadableOperatorToken(TypedGMLParser.OverloadableOperatorContext ctx)
+    {
+        if (ctx.GT().Length == 2)
+            return ">>";
+
+        return ctx.GetText();
+    }
+
+    private static TgmlBlock WrapAccessorExpression(TgmlExpression expression, bool isGet, int line)
+    {
+        TgmlStatement statement = isGet
+            ? new TgmlReturnStmt { Line = line, Value = expression }
+            : new TgmlExpressionStmt { Line = line, Expression = expression };
+
+        return new TgmlBlock
+        {
+            Line = line,
+            Statements = [statement]
+        };
+    }
 }
 

@@ -17,15 +17,14 @@ public sealed class TypeMacroEmitter
     private static readonly (string Name, int Id)[] BuiltinTypes =
     [
         ("void",       0),
-        ("int",       -1),
-        ("real",      -2),
-        ("string",    -3),
-        ("bool",      -4),
-        ("any",       -5),
-        ("array",     -6),
-        ("struct",    -7),
-        ("object",    -8),
-        ("undefined", -9)
+        ("number",    -1),
+        ("string",    -2),
+        ("bool",      -3),
+        ("any",       -4),
+        ("array",     -5),
+        ("struct",    -6),
+        ("object",    -7),
+        ("undefined", -8)
     ];
 
     public GeneratedFile Emit(TranspileContext ctx)
@@ -40,9 +39,10 @@ public sealed class TypeMacroEmitter
 
         w.WriteLine();
         w.WriteLine("// ── User-defined types ───────────────────────────────────────────────────");
-        foreach (var (name, id) in ctx.TypeTable.AllTypeIds().OrderBy(t => t.Id))
+        foreach (var decl in ctx.TypeTable.All.Where(t => t is not TypedGML.Transpiler.Population.Models.TgmlDelegateDecl))
         {
-            var gmlName = name.Replace(".", "_");
+            var id = ctx.TypeTable.GetTypeId(decl);
+            var gmlName = (decl.QualifiedName ?? decl.Name).Replace(".", "_");
             w.WriteLine($"#macro __TYPE_{gmlName} {id}");
         }
 

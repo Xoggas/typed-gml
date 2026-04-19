@@ -4,7 +4,7 @@
 public sealed class TgmlDecorator
 {
     public required TgmlQualifiedName Name { get; init; }
-    public List<TgmlExpression> Args { get; init; } = new();
+    public List<TgmlArgument> Args { get; init; } = new();
 
     /// <summary>Simple (last-segment) decorator name, e.g. "Object".</summary>
     public string SimpleName => Name.Simple;
@@ -12,7 +12,7 @@ public sealed class TgmlDecorator
     /// <summary>Returns the first string literal arg value, or null.</summary>
     public string? GetFirstStringArg()
     {
-        if (Args.Count > 0 && Args[0] is TgmlStringLiteralExpr s)
+        if (Args.Count > 0 && Args[0].Value is TgmlStringLiteralExpr s)
         {
             return s.Value;
         }

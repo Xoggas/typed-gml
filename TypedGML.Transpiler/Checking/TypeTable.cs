@@ -8,35 +8,44 @@ namespace TypedGML.Transpiler.Checking;
 /// </summary>
 public sealed class TypeTable
 {
-    private readonly Dictionary<string, TgmlTypeDecl> _byQualified = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, TgmlTypeDecl> _bySimple = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, int> _typeIds = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Name, int Arity), TgmlTypeDecl> _byQualified = new();
+    private readonly Dictionary<(string Name, int Arity), TgmlTypeDecl> _bySimple = new();
+    private readonly Dictionary<(string Name, int Arity), int> _typeIds = new();
+    private readonly List<TgmlTypeDecl> _registered = new();
     private int _nextId = 1;
 
     /// <summary>All registered types in registration order.</summary>
-    public IReadOnlyDictionary<string, TgmlTypeDecl> All => _byQualified;
+    public IReadOnlyList<TgmlTypeDecl> All => _registered;
 
     public void Register(TgmlTypeDecl decl, string qualifiedName)
     {
-        _byQualified[qualifiedName] = decl;
-        _bySimple.TryAdd(decl.Name, decl);
-        if (!_typeIds.ContainsKey(qualifiedName))
+        var arity = decl.TypeParams.Count;
+        _byQualified[(qualifiedName, arity)] = decl;
+        _bySimple[(decl.Name, arity)] = decl;
+        if (!_typeIds.ContainsKey((qualifiedName, arity)))
         {
-            _typeIds[qualifiedName] = _nextId++;
+            _typeIds[(qualifiedName, arity)] = _nextId++;
         }
 
         decl.QualifiedName = qualifiedName;
+        _registered.Add(decl);
     }
 
     public bool TryResolve(string name, out TgmlTypeDecl? decl)
     {
-        if (_byQualified.TryGetValue(name, out decl))
+        if (TryResolve(name, 0, out decl))
         {
             return true;
         }
 
-        if (_bySimple.TryGetValue(name, out decl))
+        var matches = _registered
+            .Where(d => string.Equals(d.QualifiedName, name, StringComparison.Ordinal) ||
+                        string.Equals(d.Name, name, StringComparison.Ordinal))
+            .Distinct()
+            .ToList();
+        if (matches.Count == 1)
         {
+            decl = matches[0];
             return true;
         }
 
@@ -44,19 +53,35 @@ public sealed class TypeTable
         return false;
     }
 
+    public bool TryResolve(string name, int typeArgCount, out TgmlTypeDecl? decl)
+    {
+        if (_byQualified.TryGetValue((name, typeArgCount), out decl))
+            return true;
+
+        if (_bySimple.TryGetValue((name, typeArgCount), out decl))
+            return true;
+
+        decl = null;
+        return false;
+    }
+
     public int GetTypeId(string qualifiedName)
     {
-        return _typeIds.GetValueOrDefault(qualifiedName, -1);
+        if (_typeIds.TryGetValue((qualifiedName, 0), out var exact))
+            return exact;
+
+        var candidate = _registered.FirstOrDefault(d => string.Equals(d.QualifiedName, qualifiedName, StringComparison.Ordinal));
+        return candidate is null ? -1 : GetTypeId(candidate);
     }
 
     public int GetTypeId(TgmlTypeDecl decl)
     {
-        return decl.QualifiedName is not null && _typeIds.TryGetValue(decl.QualifiedName, out var id) ? id : -1;
+        return decl.QualifiedName is not null && _typeIds.TryGetValue((decl.QualifiedName, decl.TypeParams.Count), out var id) ? id : -1;
     }
 
     /// <summary>All (qualifiedName, id) pairs in registration order.</summary>
     public IEnumerable<(string Name, int Id)> AllTypeIds()
     {
-        return _typeIds.Select(kv => (kv.Key, kv.Value));
+        return _registered.Select(decl => (decl.QualifiedName ?? decl.Name, GetTypeId(decl)));
     }
 }

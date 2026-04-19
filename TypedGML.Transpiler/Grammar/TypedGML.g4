@@ -29,6 +29,7 @@ typeDecl
     | structDecl
     | enumDecl
     | interfaceDecl
+    | delegateDecl
     ;
 
 // public abstract? class Name<T: IConstraint> : Base, IFace { ... }
@@ -64,6 +65,13 @@ interfaceDecl
       accessMod INTERFACE ID typeParams?
       inheritanceList?
       LBRACE interfaceMemberDecl* RBRACE
+    ;
+
+delegateDecl
+    : decorator*
+      accessMod DELEGATE typeRef ID typeParams?
+      LPAREN paramList? RPAREN
+      SEMI
     ;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -128,6 +136,7 @@ nameId
 memberDecl
     : fieldDecl
     | propertyDecl
+    | indexerDecl
     | methodDecl
     | constructorDecl
     | typeDecl
@@ -139,19 +148,25 @@ fieldDecl
       fieldModifiers typeRef nameId (ASSIGN expression)? SEMI
     ;
 
-// public (static|global)? virtual? Type Name { get { } set { } }
-// "global" compiles to  global.Name  in GML; only valid on properties, not fields.
+// public static? virtual? Type Name { get { } set { } }
 propertyDecl
     : decorator*
       propertyModifiers typeRef nameId
       LBRACE accessorDecl+ RBRACE
     ;
 
+indexerDecl
+    : decorator*
+      propertyModifiers typeRef nameId
+      LBRACKET param RBRACKET
+      LBRACE accessorDecl+ RBRACE
+    ;
+
 // get { ... }  /  get;  /  private set { ... }  /  set;
 // Inside bodies: use `field` for the backing field, `value` for the incoming value.
 accessorDecl
-    : accessMod? GET (block | SEMI)
-    | accessMod? SET (block | SEMI)
+    : accessMod? GET (block | ARROW expression SEMI | SEMI)
+    | accessMod? SET (block | ARROW expression SEMI | SEMI)
     ;
 
 // public static? virtual? ReturnType nocheck? Name<T>(params) { ... }
@@ -161,6 +176,35 @@ methodDecl
       methodModifiers typeRef NOCHECK? nameId typeParams?
       LPAREN paramList? RPAREN
       (block | SEMI)
+    | decorator*
+      methodModifiers typeRef OPERATOR overloadableOperator
+      LPAREN paramList? RPAREN
+      (block | SEMI)
+    | decorator*
+      methodModifiers (IMPLICIT | EXPLICIT) OPERATOR typeRef
+      LPAREN paramList? RPAREN
+      (block | SEMI)
+    ;
+
+overloadableOperator
+    : PLUS
+    | MINUS
+    | STAR
+    | SLASH
+    | PERCENT
+    | BITAND
+    | BITOR
+    | BITXOR
+    | BITNOT
+    | EQ
+    | NEQ
+    | LT
+    | GT
+    | LE
+    | GE
+    | LSHIFT
+    | GT GT
+    | NOT
     ;
 
 // public constructor(var p: int) : base(p) { ... }
@@ -214,10 +258,8 @@ classMod
     | VIRTUAL
     ;
 
-// static and global are mutually exclusive; enforced semantically.
 scopeMod
     : STATIC
-    | GLOBAL
     ;
 
 fieldModifiers
@@ -226,7 +268,6 @@ fieldModifiers
     | accessMod STATIC?
     ;
 
-// global is only valid on properties, not fields; enforced semantically.
 propertyModifiers
     : accessMod scopeMod? (VIRTUAL | ABSTRACT | OVERRIDE | SEALED)?
     ;
@@ -249,7 +290,11 @@ param
     ;
 
 argList
-    : expression (COMMA expression)*
+    : arg (COMMA arg)*
+    ;
+
+arg
+    : (nameId COLON)? expression
     ;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -377,7 +422,8 @@ rawStmt
 
 expression
     // ── Postfix ───────────────────────────────────────────────────────────────
-    : expression PERIOD nameId LPAREN argList? RPAREN                     # methodCallExpr
+    : expression LPAREN argList? RPAREN                                   # invokeExpr
+    | expression PERIOD nameId LPAREN argList? RPAREN                     # methodCallExpr
     | expression PERIOD nameId                                            # fieldAccessExpr
     | expression LBRACKET expression RBRACKET                         # indexExpr
 
@@ -431,6 +477,7 @@ expression
     // ── Intrinsics ────────────────────────────────────────────────────────────
     | TYPEOF LPAREN typeRef RPAREN                                    # typeofExpr
     | NAMEOF LPAREN expression RPAREN                                 # nameofExpr
+    | DEFAULT LPAREN typeRef RPAREN                                   # defaultOfExpr
 
     // ── Base access ───────────────────────────────────────────────────────────
     | BASE PERIOD nameId LPAREN argList? RPAREN                           # baseCallExpr
@@ -449,6 +496,7 @@ expression
     | VALUE                                                           # valueKeywordExpr
     | ID                                                              # idExpr
     | NULL                                                            # nullExpr
+    | DEFAULT                                                         # defaultExpr
     | boolLiteral                                                     # boolExpr
     | realLiteral                                                     # realExpr
     | intLiteral                                                      # intExpr
@@ -498,6 +546,10 @@ OVERRIDE  : 'override' ;
 // ── Declaration keywords ──────────────────────────────────────────────────────
 CONSTRUCTOR : 'constructor' ;
 NOCHECK     : 'nocheck'     ;
+OPERATOR    : 'operator'    ;
+IMPLICIT    : 'implicit'    ;
+EXPLICIT    : 'explicit'    ;
+DELEGATE    : 'delegate'    ;
 
 // ── Type operations ───────────────────────────────────────────────────────────
 NEW    : 'new'    ;

@@ -38,6 +38,10 @@ public sealed class ScriptClassEmitter : ICodeEmitter
         var exprEmit = new ExpressionEmitter(ctx);
         var w = new GmlWriter();
 
+        EmitUserDefinedOperatorHelpers(decl, methods, ctx, w);
+        if (methods.Any(m => m.IsUserDefinedOperator))
+            w.WriteLine();
+
         var typeIds = BuildTypesStruct(decl, ctx);
         var typeArgParamNames = Enumerable.Range(0, typeParams.Count).Select(i => $"__t{i}").ToList();
         int typeArgOffset = typeArgParamNames.Count;
@@ -59,7 +63,7 @@ public sealed class ScriptClassEmitter : ICodeEmitter
             if (typeParams.Count > 0)
                 w.WriteLine($"__genericArgs = [{string.Join(", ", typeArgParamNames)}];");
 
-            var ancestorChain = CollectAncestorChain(decl, constructor?.BaseArgs, ctx.TypeTable);
+            var ancestorChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(constructor), ctx.TypeTable);
 
             // Ancestor param bindings (direct-parent → root order)
             foreach (var (ancestor, baseArgs) in ancestorChain)
@@ -81,11 +85,16 @@ public sealed class ScriptClassEmitter : ICodeEmitter
                 EmitClassBody(ancestor, aBaseArgs, ctx, exprEmit, stmtEmit, w);
 
             // Own content
-            EmitOwnFields(fields, gmlName, exprEmit, w);
+            EmitOwnFields(fields, gmlName, exprEmit, w, decl is TgmlStructDecl);
 
             foreach (var prop in properties)
-                if ((prop.Getter?.IsAuto == true || prop.Setter?.IsAuto == true) && !prop.IsGlobal)
-                    w.WriteLine($"__backing_{prop.Name} = undefined;");
+            {
+                if (AssetFacts.TryGetAssetName(prop, out _))
+                    continue;
+
+                if (RequiresBackingField(prop, ctx))
+                    w.WriteLine($"__backing_{prop.Name} = {GetDefaultStorageValue(prop.Type, exprEmit, decl is TgmlStructDecl)};");
+            }
 
             if (constructor?.Body is { } ctorBody)
                 stmtEmit.EmitBlock(ctorBody, w);
@@ -94,6 +103,9 @@ public sealed class ScriptClassEmitter : ICodeEmitter
 
             foreach (var prop in properties)
             {
+                if (AssetFacts.TryGetAssetName(prop, out _))
+                    continue;
+
                 w.WriteLine();
                 EmitProperty(prop, ctx, w);
             }
@@ -111,27 +123,40 @@ public sealed class ScriptClassEmitter : ICodeEmitter
                 w.WriteLine($"__genericArgs = [{string.Join(", ", typeArgParamNames)}];");
 
             // Shared ancestor fields/statics (any overload triggers same inheritance)
-            var sharedChain = CollectAncestorChain(decl, constructors[0].BaseArgs, ctx.TypeTable);
+            var sharedChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(constructors[0]), ctx.TypeTable);
             foreach (var (ancestor, _) in Enumerable.Reverse(sharedChain))
             {
                 var aGmlName = ancestor.QualifiedName?.Replace(".", "_") ?? ancestor.Name;
-                EmitOwnFields(ancestor.Fields, aGmlName, exprEmit, w);
+                EmitOwnFields(ancestor.Fields, aGmlName, exprEmit, w, false);
                 foreach (var prop in ancestor.Properties)
-                    if ((prop.Getter?.IsAuto == true || prop.Setter?.IsAuto == true) && !prop.IsGlobal)
+                {
+                    if (AssetFacts.TryGetAssetName(prop, out _))
+                        continue;
+
+                    if (RequiresBackingField(prop, ctx))
                         w.WriteLine($"__backing_{prop.Name} = undefined;");
+                }
                 EmitOverloadedMethods(ancestor.Methods, ctx, w);
                 foreach (var prop in ancestor.Properties)
                 {
+                    if (AssetFacts.TryGetAssetName(prop, out _))
+                        continue;
+
                     w.WriteLine();
                     EmitProperty(prop, ctx, w);
                 }
             }
 
             // Own fields (shared, before dispatch)
-            EmitOwnFields(fields, gmlName, exprEmit, w);
+            EmitOwnFields(fields, gmlName, exprEmit, w, decl is TgmlStructDecl);
             foreach (var prop in properties)
-                if ((prop.Getter?.IsAuto == true || prop.Setter?.IsAuto == true) && !prop.IsGlobal)
-                    w.WriteLine($"__backing_{prop.Name} = undefined;");
+            {
+                if (AssetFacts.TryGetAssetName(prop, out _))
+                    continue;
+
+                if (RequiresBackingField(prop, ctx))
+                    w.WriteLine($"__backing_{prop.Name} = {GetDefaultStorageValue(prop.Type, exprEmit, decl is TgmlStructDecl)};");
+            }
 
             // Per-overload dispatch (sorted: most specific first, fallback last)
             var ctorDispatch = constructors
@@ -165,7 +190,7 @@ public sealed class ScriptClassEmitter : ICodeEmitter
                     w.WriteLine($"var {overload.Params[pi].Name} = argument[{pi + typeArgOffset}];");
 
                 // Build ancestor chain for this specific overload's base args
-                var overloadChain = CollectAncestorChain(decl, overload.BaseArgs, ctx.TypeTable);
+                var overloadChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(overload), ctx.TypeTable);
 
                 // Ancestor param bindings for this overload
                 foreach (var (ancestor, aBaseArgs) in overloadChain)
@@ -201,6 +226,9 @@ public sealed class ScriptClassEmitter : ICodeEmitter
             EmitOverloadedMethods(methods, ctx, w);
             foreach (var prop in properties)
             {
+                if (AssetFacts.TryGetAssetName(prop, out _))
+                    continue;
+
                 w.WriteLine();
                 EmitProperty(prop, ctx, w);
             }
@@ -244,7 +272,7 @@ public sealed class ScriptClassEmitter : ICodeEmitter
 
             // Find the constructor that matches the args we're passing (by count)
             var matchedCtor = FindMatchingConstructor(parentDecl, currentBaseArgs);
-            currentBaseArgs = matchedCtor?.BaseArgs;
+            currentBaseArgs = GetNormalizedBaseArgs(matchedCtor);
             currentBases = parentDecl.BaseTypes;
         }
 
@@ -269,6 +297,20 @@ public sealed class ScriptClassEmitter : ICodeEmitter
         return byCount.Count == 1 ? byCount[0] : ancestor.Constructors[0];
     }
 
+    private static List<TgmlExpression>? GetNormalizedBaseArgs(TgmlConstructorDecl? ctor)
+    {
+        if (ctor is null)
+            return null;
+
+        if (ctor.Metadata.TryGetValue("NormalizedBaseArgs", out var normalizedArgs) &&
+            normalizedArgs is List<TgmlExpression> normalized)
+        {
+            return normalized;
+        }
+
+        return ctor.BaseArgs?.Select(a => a.Value).ToList();
+    }
+
     /// <summary>
     ///     Inlines an ancestor's non-static fields, backing fields, constructor body,
     ///     static methods and property accessors into the currently-emitting constructor.
@@ -282,11 +324,16 @@ public sealed class ScriptClassEmitter : ICodeEmitter
         GmlWriter w)
     {
         var ancestorGmlName = ancestor.QualifiedName?.Replace(".", "_") ?? ancestor.Name;
-        EmitOwnFields(ancestor.Fields, ancestorGmlName, exprEmit, w);
+        EmitOwnFields(ancestor.Fields, ancestorGmlName, exprEmit, w, false);
 
         foreach (var prop in ancestor.Properties)
-            if ((prop.Getter?.IsAuto == true || prop.Setter?.IsAuto == true) && !prop.IsGlobal)
+        {
+            if (AssetFacts.TryGetAssetName(prop, out _))
+                continue;
+
+            if (RequiresBackingField(prop, ctx))
                 w.WriteLine($"__backing_{prop.Name} = undefined;");
+        }
 
         var matchedCtor = FindMatchingConstructor(ancestor, baseArgs);
         if (matchedCtor?.Body is { } body)
@@ -296,6 +343,9 @@ public sealed class ScriptClassEmitter : ICodeEmitter
 
         foreach (var prop in ancestor.Properties)
         {
+            if (AssetFacts.TryGetAssetName(prop, out _))
+                continue;
+
             w.WriteLine();
             EmitProperty(prop, ctx, w);
         }
@@ -305,28 +355,55 @@ public sealed class ScriptClassEmitter : ICodeEmitter
 
     private static void EmitOwnFields(
         List<TgmlFieldDecl> fields, string ownerGmlName,
-        ExpressionEmitter exprEmit, GmlWriter w)
+        ExpressionEmitter exprEmit, GmlWriter w, bool useValueTypeDefaults)
     {
         foreach (var field in fields)
         {
+            if (AssetFacts.TryGetAssetName(field, out _))
+                continue;
+
             if (field.IsStatic)
             {
                 var globalName = $"global.{ownerGmlName}_{field.Name}";
-                var initVal = field.Initializer is not null ? exprEmit.Emit(field.Initializer) : "undefined";
+                var initVal = field.Initializer is not null
+                    ? exprEmit.Emit(field.Initializer)
+                    : GetDefaultStorageValue(field.Type, exprEmit, useValueTypeDefaults);
                 w.WriteLine($"{globalName} = {initVal};");
             }
             else
             {
-                var initVal = field.Initializer is not null ? exprEmit.Emit(field.Initializer) : "undefined";
+                var initVal = field.Initializer is not null
+                    ? exprEmit.Emit(field.Initializer)
+                    : GetDefaultStorageValue(field.Type, exprEmit, useValueTypeDefaults);
                 w.WriteLine($"self.{field.Name} = {initVal};");
             }
         }
+    }
+
+    private static string GetDefaultStorageValue(TgmlTypeRef type, ExpressionEmitter exprEmit, bool useValueTypeDefaults)
+    {
+        if (!useValueTypeDefaults)
+            return "undefined";
+
+        return exprEmit.Emit(new TgmlDefaultExpr { Type = type });
     }
 
     private static string BuildTypesStruct(TgmlTypeDecl decl, GenerationContext ctx)
     {
         var names = TypeHierarchyHelper.CollectAllGmlTypeNames(decl, ctx.TypeTable);
         return string.Join(", ", names.Select(n => $"__TYPE_{n}: true"));
+    }
+
+    private static bool RequiresBackingField(TgmlPropertyDecl prop, GenerationContext ctx)
+    {
+        if (prop.IsIndexer)
+            return false;
+
+        if (AssetFacts.TryGetAssetName(prop, out _))
+            return false;
+
+        return (prop.Getter?.IsAuto == true || prop.Setter?.IsAuto == true) &&
+               ctx.GetNativePropertyName(prop) is null;
     }
 
     // ── Overloaded method emission ────────────────────────────────────────────
@@ -342,7 +419,7 @@ public sealed class ScriptClassEmitter : ICodeEmitter
         if (methods.Count == 0) return;
 
         var groups = methods
-            .Where(m => !m.IsAbstract)
+            .Where(m => !m.IsAbstract && !m.IsUserDefinedOperator)
             .GroupBy(m => m.Name)
             .ToList();
 
@@ -365,7 +442,7 @@ public sealed class ScriptClassEmitter : ICodeEmitter
                 }
 
                 // Dispatcher: sort by specificity so the most type-checkable overloads
-                // are tested first, leaving the least-specific (int/real fallback) last.
+                // are tested first, leaving the least-specific numeric fallback last.
                 var dispatchOrder = overloads
                     .Select((m, idx) => (Method: m, Idx: idx))
                     .OrderByDescending(x => MethodSpecificity(x.Method))
@@ -411,6 +488,48 @@ public sealed class ScriptClassEmitter : ICodeEmitter
         w.OpenBrace();
         if (method.Body is not null) stmtEmit.EmitBlock(method.Body, w);
         w.CloseBrace();
+    }
+
+    private static void EmitUserDefinedOperatorHelpers(
+        TgmlTypeDecl owner,
+        IReadOnlyList<TgmlMethodDecl> methods,
+        GenerationContext ctx,
+        GmlWriter w)
+    {
+        var helpers = methods.Where(m => m.IsUserDefinedOperator && m.Body is not null).ToList();
+        if (helpers.Count == 0)
+            return;
+
+        var stmtEmit = new StatementEmitter(ctx);
+        var previousCurrentType = ctx.CurrentType;
+        var previousMethodName = ctx.CurrentMethodName;
+        var previousMethodIsOverride = ctx.CurrentMethodIsOverride;
+        var previousMethodOwnerType = ctx.CurrentMethodOwnerType;
+        var previousNativeEventName = ctx.CurrentNativeEventName;
+
+        ctx.CurrentType = owner;
+        ctx.CurrentNativeEventName = null;
+        ctx.CurrentMethodOwnerType = owner as TgmlClassDecl;
+
+        foreach (var method in helpers)
+        {
+            ctx.CurrentMethodName = method.Name;
+            ctx.CurrentMethodIsOverride = method.IsOverride;
+
+            var helperName = OperatorFacts.GetHelperName(owner, method);
+            var paramStr = string.Join(", ", method.Params.Select(p => p.Name));
+            w.WriteLine($"function {helperName}({paramStr})");
+            w.OpenBrace();
+            stmtEmit.EmitBlock(method.Body!, w);
+            w.CloseBrace();
+            w.WriteLine();
+        }
+
+        ctx.CurrentType = previousCurrentType;
+        ctx.CurrentMethodName = previousMethodName;
+        ctx.CurrentMethodIsOverride = previousMethodIsOverride;
+        ctx.CurrentMethodOwnerType = previousMethodOwnerType;
+        ctx.CurrentNativeEventName = previousNativeEventName;
     }
 
     // ── Dispatch condition builders ───────────────────────────────────────────
@@ -479,7 +598,7 @@ public sealed class ScriptClassEmitter : ICodeEmitter
     /// <summary>
     ///     Overload specificity score for a method: sum of per-param scores.
     ///     Higher = should be dispatched first (before less-specific fallback).
-    ///     int/real score 0 (GML can't distinguish them); string/bool/array/struct score higher.
+    ///     number score 0 (GML can't distinguish numeric shapes); string/bool/array/struct score higher.
     /// </summary>
     private static int MethodSpecificity(TgmlMethodDecl m) =>
         m.Params.Sum(p => ParamTypeSpecificity(p.Type.Name.Full));
@@ -492,13 +611,13 @@ public sealed class ScriptClassEmitter : ICodeEmitter
         tgmlType switch
         {
             "string" or "bool" or "array" => 3,
-            "int" or "real" => 0,
+            "number" or "int" or "real" => 0,
             _ => 2 // user-defined class / struct
         };
 
     /// <summary>
     ///     Returns a GML runtime type-test expression for <paramref name="tgmlType"/>,
-    ///     or <c>null</c> when no reliable check exists (e.g., int vs real).
+    ///     or <c>null</c> when no reliable check exists (e.g., numeric overloads).
     /// </summary>
     private static string? GmlTypeCheck(string tgmlType, string argExpr) =>
         tgmlType switch
@@ -506,23 +625,29 @@ public sealed class ScriptClassEmitter : ICodeEmitter
             "string" => $"is_string({argExpr})",
             "bool"   => $"is_bool({argExpr})",
             "array"  => $"is_array({argExpr})",
-            "int" or "real" => null, // indistinguishable at GML runtime
+            "number" or "int" or "real" => null, // indistinguishable at GML runtime
             _ => $"is_struct({argExpr})"   // user-defined class/struct
         };
 
     private static void EmitProperty(TgmlPropertyDecl prop, GenerationContext ctx, GmlWriter w)
     {
         var stmtEmit = new StatementEmitter(ctx);
+        if (prop.IsIndexer)
+        {
+            EmitIndexer(prop, ctx, stmtEmit, w, isStatic: true);
+            return;
+        }
+
+        var nativePropertyName = ctx.GetNativePropertyName(prop);
         ctx.CurrentPropertyName = prop.Name;
-        ctx.IsGlobalProperty = prop.IsGlobal;
 
         if (prop.Getter is { } getter)
         {
             ctx.InsideGetter = true;
             ctx.InsideSetter = false;
 
-            if (prop.IsGlobal && getter.IsAuto)
-                w.WriteLine($"static get_{prop.Name} = function() {{ return global.{prop.Name}; }};");
+            if (nativePropertyName is not null && getter.IsAuto)
+                w.WriteLine($"static get_{prop.Name} = function() {{ return {nativePropertyName}; }};");
             else if (getter.IsAuto)
                 w.WriteLine($"static get_{prop.Name} = function() {{ return __backing_{prop.Name}; }};");
             else
@@ -539,8 +664,8 @@ public sealed class ScriptClassEmitter : ICodeEmitter
             ctx.InsideGetter = false;
             ctx.InsideSetter = true;
 
-            if (prop.IsGlobal && setter.IsAuto)
-                w.WriteLine($"static set_{prop.Name} = function(value) {{ global.{prop.Name} = value; }};");
+            if (nativePropertyName is not null && setter.IsAuto)
+                w.WriteLine($"static set_{prop.Name} = function(value) {{ {nativePropertyName} = value; }};");
             else if (setter.IsAuto)
                 w.WriteLine($"static set_{prop.Name} = function(value) {{ __backing_{prop.Name} = value; }};");
             else
@@ -555,7 +680,42 @@ public sealed class ScriptClassEmitter : ICodeEmitter
         ctx.InsideGetter = false;
         ctx.InsideSetter = false;
         ctx.CurrentPropertyName = null;
-        ctx.IsGlobalProperty = false;
+    }
+
+    private static void EmitIndexer(TgmlPropertyDecl prop, GenerationContext ctx, StatementEmitter stmtEmit, GmlWriter w, bool isStatic)
+    {
+        var indexParamName = prop.IndexParam?.Name ?? "index";
+        var prefix = isStatic ? "static " : string.Empty;
+
+        if (prop.Getter is { } getter)
+        {
+            ctx.InsideGetter = true;
+            ctx.InsideSetter = false;
+            ctx.CurrentPropertyName = null;
+
+            w.WriteLine($"{prefix}get_Item = function({indexParamName})");
+            w.OpenBrace();
+            if (getter.Body is not null)
+                stmtEmit.EmitBlock(getter.Body, w);
+            w.CloseBrace();
+        }
+
+        if (prop.Setter is { } setter)
+        {
+            ctx.InsideGetter = false;
+            ctx.InsideSetter = true;
+            ctx.CurrentPropertyName = null;
+
+            w.WriteLine($"{prefix}set_Item = function({indexParamName}, value)");
+            w.OpenBrace();
+            if (setter.Body is not null)
+                stmtEmit.EmitBlock(setter.Body, w);
+            w.CloseBrace();
+        }
+
+        ctx.InsideGetter = false;
+        ctx.InsideSetter = false;
+        ctx.CurrentPropertyName = null;
     }
 }
 
