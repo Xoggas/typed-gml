@@ -2,13 +2,7 @@ using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking;
 
-public sealed record BoundCallArguments(
-    IReadOnlyList<TgmlParam> Parameters,
-    IReadOnlyList<TgmlExpression> Arguments,
-    int ExactMatchCount,
-    int DefaultsUsed);
-
-public static class CallArgumentBinder
+public static partial class CallArgumentBinder
 {
     public static bool TryBind(
         IReadOnlyList<TgmlParam> parameters,
@@ -23,40 +17,11 @@ public static class CallArgumentBinder
 
         foreach (var arg in suppliedArgs)
         {
-            int targetIndex;
-            if (arg.Name is null)
+            var targetIndex = ResolveTargetIndex(parameters, boundArgs, arg, ref nextPositionalIndex, out error);
+            if (targetIndex < 0)
             {
-                targetIndex = nextPositionalIndex;
-                while (targetIndex < boundArgs.Length && boundArgs[targetIndex] is not null)
-                    targetIndex++;
-
-                if (targetIndex >= boundArgs.Length)
-                {
-                    bound = null;
-                    error = "Too many arguments.";
-                    return false;
-                }
-
-                nextPositionalIndex = targetIndex + 1;
-            }
-            else
-            {
-                targetIndex = -1;
-                for (var i = 0; i < parameters.Count; i++)
-                {
-                    if (!string.Equals(parameters[i].Name, arg.Name, StringComparison.Ordinal))
-                        continue;
-
-                    targetIndex = i;
-                    break;
-                }
-
-                if (targetIndex < 0)
-                {
-                    bound = null;
-                    error = $"Unknown parameter '{arg.Name}'.";
-                    return false;
-                }
+                bound = null;
+                return false;
             }
 
             if (boundArgs[targetIndex] is not null)
@@ -66,53 +31,22 @@ public static class CallArgumentBinder
                 return false;
             }
 
-            DefaultExpressionFacts.TryApplyContextualType(arg.Value, DefaultExpressionFacts.DescribeType(parameters[targetIndex].Type));
+            var parameterType = DefaultExpressionFacts.DescribeType(parameters[targetIndex].Type);
+            DefaultExpressionFacts.TryApplyContextualType(arg.Value, parameterType);
+
             var inferredType = inferType?.Invoke(arg.Value);
             if (inferredType is not null &&
-                !(canAssign?.Invoke(DefaultExpressionFacts.DescribeType(parameters[targetIndex].Type), arg.Value) ??
-                  TypeCompatibility.AreAssignable(DefaultExpressionFacts.DescribeType(parameters[targetIndex].Type), inferredType)))
+                !(canAssign?.Invoke(parameterType, arg.Value) ?? TypeCompatibility.AreAssignable(parameterType, inferredType)))
             {
                 bound = null;
-                error = $"Cannot assign argument of type '{inferredType}' to parameter '{parameters[targetIndex].Name}' of type '{DefaultExpressionFacts.DescribeType(parameters[targetIndex].Type)}'.";
+                error = $"Cannot assign argument of type '{inferredType}' to parameter '{parameters[targetIndex].Name}' of type '{parameterType}'.";
                 return false;
             }
 
             boundArgs[targetIndex] = arg.Value;
         }
 
-        var exactMatches = 0;
-        var defaultsUsed = 0;
-        var orderedArgs = new List<TgmlExpression>(parameters.Count);
-
-        for (var i = 0; i < parameters.Count; i++)
-        {
-            var argExpr = boundArgs[i];
-            if (argExpr is null)
-            {
-                if (parameters[i].Default is null)
-                {
-                    bound = null;
-                    error = $"No argument was given for required parameter '{parameters[i].Name}'.";
-                    return false;
-                }
-
-                argExpr = parameters[i].Default;
-                DefaultExpressionFacts.TryApplyContextualType(argExpr!, DefaultExpressionFacts.DescribeType(parameters[i].Type));
-                defaultsUsed++;
-            }
-            else
-            {
-                var inferredType = inferType?.Invoke(argExpr);
-                if (inferredType == DefaultExpressionFacts.DescribeType(parameters[i].Type))
-                    exactMatches++;
-            }
-
-            orderedArgs.Add(argExpr!);
-        }
-
-        bound = new BoundCallArguments(parameters, orderedArgs, exactMatches, defaultsUsed);
-        error = null;
-        return true;
+        return TryFinalizeBinding(parameters, boundArgs, inferType, out bound, out error);
     }
 
     public static bool TryResolveOverload<TCandidate>(
@@ -135,13 +69,9 @@ public static class CallArgumentBinder
         foreach (var candidate in candidates)
         {
             if (TryBind(parameterSelector(candidate), suppliedArgs, inferType, canAssign, out var candidateBound, out var candidateError))
-            {
                 successes.Add((candidate, candidateBound!));
-            }
             else if (firstError is null)
-            {
                 firstError = candidateError;
-            }
         }
 
         if (successes.Count == 0)
@@ -161,9 +91,9 @@ public static class CallArgumentBinder
             .OrderByDescending(x => x.Bound.ExactMatchCount)
             .ThenBy(x => x.Bound.DefaultsUsed)
             .ToList();
-
         var best = ordered[0];
         var second = ordered[1];
+
         if (best.Bound.ExactMatchCount == second.Bound.ExactMatchCount &&
             best.Bound.DefaultsUsed == second.Bound.DefaultsUsed)
         {
@@ -176,33 +106,80 @@ public static class CallArgumentBinder
         return true;
     }
 
-    public static bool TryBind(
+    private static int ResolveTargetIndex(
         IReadOnlyList<TgmlParam> parameters,
-        IReadOnlyList<TgmlArgument> suppliedArgs,
-        Func<TgmlExpression, string?>? inferType,
-        out BoundCallArguments? bound,
+        IReadOnlyList<TgmlExpression?> boundArgs,
+        TgmlArgument arg,
+        ref int nextPositionalIndex,
         out string? error)
     {
-        return TryBind(parameters, suppliedArgs, inferType, null, out bound, out error);
+        if (arg.Name is null)
+        {
+            var targetIndex = nextPositionalIndex;
+            while (targetIndex < boundArgs.Count && boundArgs[targetIndex] is not null)
+                targetIndex++;
+
+            if (targetIndex >= boundArgs.Count)
+            {
+                error = "Too many arguments.";
+                return -1;
+            }
+
+            nextPositionalIndex = targetIndex + 1;
+            error = null;
+            return targetIndex;
+        }
+
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            if (string.Equals(parameters[i].Name, arg.Name, StringComparison.Ordinal))
+            {
+                error = null;
+                return i;
+            }
+        }
+
+        error = $"Unknown parameter '{arg.Name}'.";
+        return -1;
     }
 
-    public static bool TryResolveOverload<TCandidate>(
-        IReadOnlyList<TCandidate> candidates,
-        Func<TCandidate, IReadOnlyList<TgmlParam>> parameterSelector,
-        IReadOnlyList<TgmlArgument> suppliedArgs,
+    private static bool TryFinalizeBinding(
+        IReadOnlyList<TgmlParam> parameters,
+        IReadOnlyList<TgmlExpression?> boundArgs,
         Func<TgmlExpression, string?>? inferType,
-        out TCandidate? resolvedCandidate,
         out BoundCallArguments? bound,
         out string? error)
     {
-        return TryResolveOverload(
-            candidates,
-            parameterSelector,
-            suppliedArgs,
-            inferType,
-            null,
-            out resolvedCandidate,
-            out bound,
-            out error);
+        var exactMatches = 0;
+        var defaultsUsed = 0;
+        var orderedArgs = new List<TgmlExpression>(parameters.Count);
+
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            var argExpr = boundArgs[i];
+            if (argExpr is null)
+            {
+                if (parameters[i].Default is null)
+                {
+                    bound = null;
+                    error = $"No argument was given for required parameter '{parameters[i].Name}'.";
+                    return false;
+                }
+
+                argExpr = parameters[i].Default;
+                DefaultExpressionFacts.TryApplyContextualType(argExpr!, DefaultExpressionFacts.DescribeType(parameters[i].Type));
+                defaultsUsed++;
+            }
+            else if (inferType?.Invoke(argExpr) == DefaultExpressionFacts.DescribeType(parameters[i].Type))
+            {
+                exactMatches++;
+            }
+
+            orderedArgs.Add(argExpr!);
+        }
+
+        bound = new BoundCallArguments(parameters, orderedArgs, exactMatches, defaultsUsed);
+        error = null;
+        return true;
     }
 }

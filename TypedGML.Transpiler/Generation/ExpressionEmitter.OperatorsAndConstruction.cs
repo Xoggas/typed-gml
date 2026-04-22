@@ -1,0 +1,171 @@
+using TypedGML.Transpiler.Checking;
+using TypedGML.Transpiler.Population.Models;
+
+namespace TypedGML.Transpiler.Generation;
+
+public sealed partial class ExpressionEmitter
+{
+    private string EmitUnary(TgmlUnaryExpr e)
+    {
+        if (TryGetResolvedOperatorHelper(e, out var operatorHelper))
+            return $"{operatorHelper}({Emit(e.Operand)})";
+
+        return $"{(e.Operator == "not" ? "!" : e.Operator)}{Emit(e.Operand)}";
+    }
+
+    private string EmitBinary(TgmlBinaryExpr e)
+    {
+        if (TryGetResolvedOperatorHelper(e, out var operatorHelper))
+            return $"{operatorHelper}({Emit(e.Left)}, {Emit(e.Right)})";
+
+        var op = e.Operator switch
+        {
+            "and" => "&&",
+            "or" => "||",
+            _ => e.Operator
+        };
+        return $"{Emit(e.Left)} {op} {Emit(e.Right)}";
+    }
+
+    private string EmitCast(TgmlCastExpr e)
+        => TryGetResolvedConversionHelper(e.Operand, out var conversionHelper)
+            ? $"{conversionHelper}({EmitCore(e.Operand)})"
+            : Emit(e.Operand);
+
+    private string EmitInvoke(TgmlInvokeExpr e) => EmitDelegateInvoke(e.Target, e, GetNormalizedArgs(e, e.Args));
+
+    private string EmitIs(TgmlIsExpr e)
+    {
+        var obj = Emit(e.Operand);
+        return $"(is_struct({obj}) && variable_struct_exists({obj}.__types, __TYPE_{GmlTypeName(e.CheckType)}))";
+    }
+
+    private string EmitAs(TgmlAsExpr e)
+    {
+        var obj = Emit(e.Operand);
+        return $"((is_struct({obj}) && variable_struct_exists({obj}.__types, __TYPE_{GmlTypeName(e.TargetType)})) ? {obj} : undefined)";
+    }
+
+    private string EmitNewObject(TgmlNewObjectExpr e)
+    {
+        var typeName = e.Type.Name.Full;
+        _ctx.TypeTable.TryResolve(typeName, out var decl);
+
+        if (decl is TgmlClassDecl cls && cls.IsGameObject)
+        {
+            var objName = _ctx.GmlObjectName(cls);
+            var args = GetNormalizedArgs(e, e.Args).Select(Emit).ToList();
+            var createArgs = args.Count >= 3
+                ? args.Take(3).Concat(new[] { objName })
+                : args.Take(args.Count).Concat(new[] { "0", "0", "\"Instances\"", objName }.Skip(3 - args.Count + 1));
+            return $"instance_create_layer({string.Join(", ", createArgs)})";
+        }
+
+        var gmlName = decl?.QualifiedName?.Replace(".", "_") ?? e.Type.GmlBaseName;
+        var typeArgIds = e.Type.TypeArgs.Select(EmitTypeRefAsRuntimeId).ToList();
+        var userArgs = GetNormalizedArgs(e, e.Args).Select(Emit).ToList();
+        return $"new {gmlName}({string.Join(", ", typeArgIds.Concat(userArgs))})";
+    }
+
+    private string EmitNewImplicit(TgmlNewImplicitExpr e)
+    {
+        var typeName = e.Metadata.TryGetValue("InferredType", out var inferredType) ? inferredType as string : null;
+        if (typeName is null)
+            return "undefined";
+
+        _ctx.TypeTable.TryResolve(typeName, out var decl);
+        var gmlName = decl?.QualifiedName?.Replace(".", "_") ?? typeName;
+        return $"new {gmlName}({string.Join(", ", GetNormalizedArgs(e, e.Args).Select(Emit))})";
+    }
+
+    private string EmitTypeRefAsRuntimeId(TgmlTypeRef typeRef)
+    {
+        var name = typeRef.Name.Full;
+        if (_ctx.TypeTable.TryResolve(name, out var decl) && decl?.QualifiedName is { } qn)
+            return $"__TYPE_{qn.Replace(".", "_")}";
+
+        return $"__TYPE_{name}";
+    }
+
+    private string EmitBaseCall(TgmlBaseCallExpr e)
+    {
+        var args = string.Join(", ", GetNormalizedArgs(e, e.Args).Select(Emit));
+        if (_ctx.CurrentType is TgmlClassDecl cls && cls.IsGameObject)
+            return $"undefined /* base.{e.MethodName} is inlined for GameObjects */";
+
+        if (_ctx.CurrentType is TgmlClassDecl scriptCls)
+        {
+            var parentTypeName = scriptCls.BaseTypes.FirstOrDefault()?.Name.Full;
+            if (parentTypeName is not null)
+            {
+                _ctx.TypeTable.TryResolve(parentTypeName, out var parentDecl);
+                if (parentDecl is TgmlClassDecl parentCls)
+                {
+                    var parentGml = parentCls.QualifiedName?.Replace(".", "_") ?? parentTypeName;
+                    return $"{parentGml}_{e.MethodName}(self, {args})".TrimEnd(',', ' ').Replace("(self, )", "(self)");
+                }
+            }
+        }
+
+        return $"/* base.{e.MethodName}({args}) */";
+    }
+
+    private string EmitBaseAccess(TgmlBaseAccessExpr e)
+        => _ctx.CurrentType is TgmlClassDecl { IsGameObject: true } ? e.MemberName : $"/* base.{e.MemberName} */";
+
+    private string EmitLambda(TgmlLambdaExpr e)
+    {
+        var paramStr = string.Join(", ", e.Params.Select(p => p.Name));
+        if (e.ExprBody is not null)
+            return $"function({paramStr}) {{ return {Emit(e.ExprBody)}; }}";
+        if (e.BlockBody is not null)
+        {
+            var w = new GmlWriter();
+            new StatementEmitter(_ctx).Emit(e.BlockBody, w);
+            return $"function({paramStr})\n{{\n{w}}}";
+        }
+
+        return $"function({paramStr}) {{}}";
+    }
+
+    private IReadOnlyList<TgmlExpression> GetNormalizedArgs(TgmlExpression owner, IReadOnlyList<TgmlArgument> rawArgs)
+    {
+        if (owner.Metadata.TryGetValue("NormalizedArgs", out var normalizedArgs) &&
+            normalizedArgs is List<TgmlExpression> normalized)
+        {
+            return normalized;
+        }
+
+        return rawArgs.Select(a => a.Value).ToList();
+    }
+
+    private static bool TryGetResolvedOperatorHelper(TgmlExpression expr, out string helperName)
+    {
+        if (expr.Metadata.TryGetValue(ResolvedOperatorOwnerMetadata, out var ownerValue) &&
+            expr.Metadata.TryGetValue(ResolvedOperatorMethodMetadata, out var methodValue) &&
+            ownerValue is TgmlTypeDecl owner &&
+            methodValue is TgmlMethodDecl method)
+        {
+            helperName = OperatorFacts.GetHelperName(owner, method);
+            return true;
+        }
+
+        helperName = string.Empty;
+        return false;
+    }
+
+    private static bool TryGetResolvedConversionHelper(TgmlExpression expr, out string helperName)
+    {
+        if (expr.Metadata.TryGetValue(ResolvedConversionOwnerMetadata, out var ownerValue) &&
+            expr.Metadata.TryGetValue(ResolvedConversionMethodMetadata, out var methodValue) &&
+            ownerValue is TgmlTypeDecl owner &&
+            methodValue is TgmlMethodDecl method)
+        {
+            helperName = OperatorFacts.GetHelperName(owner, method);
+            return true;
+        }
+
+        helperName = string.Empty;
+        return false;
+    }
+}
