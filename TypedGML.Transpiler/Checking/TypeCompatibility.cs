@@ -18,6 +18,10 @@ public static class TypeCompatibility
         if (lhs == rhs) return true;
         if (rhs == "null") return true;              // null → anything
         if (IsNumeric(lhs) && IsNumeric(rhs)) return true; // numeric family
+
+        // Primitive ↔ BCL wrapper equivalence
+        if (ArePrimitiveEquivalent(lhs, rhs)) return true;
+
         return false;
     }
 
@@ -26,7 +30,29 @@ public static class TypeCompatibility
     {
         if (a == b) return true;
         if (IsNumeric(a) && IsNumeric(b)) return true;
+        if (ArePrimitiveEquivalent(a, b)) return true;
         return false;
     }
+
+    /// <summary>
+    ///     True when one type is a GML primitive and the other is its BCL wrapper class,
+    ///     e.g. <c>string</c> ↔ <c>System.String</c>.
+    /// </summary>
+    public static bool ArePrimitiveEquivalent(string a, string b)
+    {
+        return (IsStringType(a) && IsStringType(b)) ||
+               (IsBoolType(a) && IsBoolType(b)) ||
+               (IsNumeric(a) && IsNumericWrapper(b)) ||
+               (IsNumericWrapper(a) && IsNumeric(b));
+    }
+
+    private static bool IsStringType(string t) =>
+        t == "string" || t == "System.String";
+
+    private static bool IsBoolType(string t) =>
+        t == "bool" || t == "System.Bool";
+
+    private static bool IsNumericWrapper(string t) =>
+        t == "System.Number";
 }
 

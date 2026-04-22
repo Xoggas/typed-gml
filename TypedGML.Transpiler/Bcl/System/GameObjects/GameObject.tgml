@@ -20,7 +20,7 @@ public abstract class GameObject
     @NativeProperty("image_speed")
     public number ImageSpeed { get; set; }
 
-    public constructor()
+    public constructor(number x, number y, string layer)
     {
         Visible = true;
         ImageSpeed = 1;
@@ -48,9 +48,9 @@ public abstract class GameObject
         Y += dy;
     }
 
+    @NativeCall("instance_destroy")
     public void DestroySelf()
     {
-        instance_destroy();
     }
 
     @NativeEvent("Create")

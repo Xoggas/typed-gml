@@ -7,7 +7,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class OperatorDeclarationCheck : IAtomicCheck
 {
-    public string Name => "OperatorDeclarationCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {

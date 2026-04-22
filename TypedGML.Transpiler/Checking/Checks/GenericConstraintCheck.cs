@@ -1,4 +1,4 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking.Checks;
 
@@ -6,7 +6,7 @@ namespace TypedGML.Transpiler.Checking.Checks;
 ///     Batch 3: For every generic type instantiation, verifies that each supplied type argument
 ///     satisfies the corresponding type parameter's constraint (<c>T : IFoo</c>).
 ///     <para>
-///         Constraint satisfaction is transitive — a type satisfies a constraint if it, or any of
+///         Constraint satisfaction is transitive � a type satisfies a constraint if it, or any of
 ///         its base types / interfaces, matches the constraint type.
 ///     </para>
 ///     <para>
@@ -16,7 +16,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class GenericConstraintCheck : IAtomicCheck
 {
-    public string Name => "GenericConstraintCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {
@@ -27,7 +26,7 @@ public sealed class GenericConstraintCheck : IAtomicCheck
         }
     }
 
-    // ── traversal ───────────────────────────────────────────────────────────
+    // -- traversal -----------------------------------------------------------
 
     private static void CheckTypeDecl(TranspileContext ctx, TgmlFile file, TgmlTypeDecl decl)
     {
@@ -141,7 +140,7 @@ public sealed class GenericConstraintCheck : IAtomicCheck
         }
     }
 
-    // ── core check ──────────────────────────────────────────────────────────
+    // -- core check ----------------------------------------------------------
 
     private static void CheckTypeRef(TranspileContext ctx, TgmlFile file,
         TgmlTypeRef typeRef, IEnumerable<TgmlTypeParam> visibleTypeParams)
@@ -185,7 +184,7 @@ public sealed class GenericConstraintCheck : IAtomicCheck
 
             if (!ctx.TypeTable.TryResolve(argRef.Name.Full, out var argDecl) || argDecl is null)
             {
-                continue; // unknown type — already reported by InheritanceCheck
+                continue; // unknown type � already reported by InheritanceCheck
             }
 
             if (!SatisfiesConstraint(argDecl, constraint, ctx))
@@ -199,7 +198,7 @@ public sealed class GenericConstraintCheck : IAtomicCheck
         }
     }
 
-    // ── constraint satisfaction ──────────────────────────────────────────────
+    // -- constraint satisfaction ----------------------------------------------
 
     /// <summary>
     ///     Returns true if <paramref name="argDecl" /> itself, or any of its base types, matches

@@ -42,14 +42,15 @@ public sealed class StatementEmitter
 
     public void EmitBlock(TgmlBlock block, GmlWriter w)
     {
+        _ctx.PushLocalScope([]);
         foreach (var stmt in block.Statements)
-        {
             Emit(stmt, w);
-        }
+        _ctx.PopLocalScope();
     }
 
     private void EmitLocalVar(TgmlLocalVarDecl s, GmlWriter w)
     {
+        _ctx.DeclareLocal(s.Name);
         if (s.Initializer is not null)
         {
             // Special case: var e = new @ObjectClass(...) → split into two statements
@@ -73,14 +74,49 @@ public sealed class StatementEmitter
     {
         var objGml = _ctx.GmlObjectName(cls);
         var args = GetNormalizedCtorArgs(newObj).Select(_expr.Emit).ToList();
-        var baseArgCount = GetNormalizedBaseArgs(cls.Constructor).Count;
-        var createArgs = args.Take(Math.Max(3, baseArgCount)).ToList();
-        var initArgs = args.Skip(Math.Max(3, baseArgCount)).ToList();
+
+        // Find the constructor that matches the number of provided arguments.
+        // Fall back to the first constructor if no exact match is found.
+        var matchedCtor = cls.Constructors.FirstOrDefault(c => c.Params.Count == args.Count)
+                          ?? cls.Constructor;
+
+        var baseArgs = GetNormalizedBaseArgs(matchedCtor);
+
+        // Determine which constructor params are "forwarded" to base() as bare identifiers.
+        // Any param NOT forwarded is "extra" and goes to the Init script.
+        var forwardedParamNames = new HashSet<string>(
+            baseArgs.OfType<TgmlIdExpr>().Select(e => e.Name),
+            StringComparer.Ordinal);
+
+        // Build a mapping from param name to the actual caller-provided arg expression.
+        var paramToArg = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (matchedCtor != null)
+        {
+            for (var i = 0; i < matchedCtor.Params.Count && i < args.Count; i++)
+                paramToArg[matchedCtor.Params[i].Name] = args[i];
+        }
+
+        // createArgs: emit each base arg, substituting param references with caller args.
+        var createArgs = baseArgs.Select(bArg =>
+        {
+            if (bArg is TgmlIdExpr idExpr && paramToArg.TryGetValue(idExpr.Name, out var callerArg))
+                return callerArg;
+            return _expr.Emit(bArg);
+        }).ToList();
 
         // Ensure 3 positional args for instance_create_layer
         while (createArgs.Count < 3)
-        {
             createArgs.Add("0");
+
+        // initArgs: actual caller args for params NOT forwarded to base()
+        var initArgs = new List<string>();
+        if (matchedCtor != null)
+        {
+            for (var i = 0; i < matchedCtor.Params.Count && i < args.Count; i++)
+            {
+                if (!forwardedParamNames.Contains(matchedCtor.Params[i].Name))
+                    initArgs.Add(args[i]);
+            }
         }
 
         w.WriteLine($"var {varName} = instance_create_layer({string.Join(", ", createArgs)}, {objGml});");

@@ -8,7 +8,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class DefaultParameterValueCheck : IAtomicCheck
 {
-    public string Name => "DefaultParameterValueCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {
@@ -58,10 +57,21 @@ public sealed class DefaultParameterValueCheck : IAtomicCheck
     {
         var checker = new ExprChecker(ctx, file, new SymbolTable(), owner);
 
+        var seenDefault = false;
         foreach (var parameter in parameters)
         {
             if (parameter.Default is null)
+            {
+                if (seenDefault)
+                {
+                    ctx.AddError(
+                        $"Non-default parameter '{parameter.Name}' cannot follow a parameter with a default value.",
+                        file.FileName);
+                }
                 continue;
+            }
+
+            seenDefault = true;
 
             DefaultExpressionFacts.TryApplyContextualType(parameter.Default, DefaultExpressionFacts.DescribeType(parameter.Type));
 

@@ -1,4 +1,25 @@
-public class Test
+@Object("obj_A")
+public class A : GameObject
 {
-    public readonly number X { get; set; }
+    public number X;
+
+    public constructor(number x) : base(0, 0, "layer_default")
+    {
+        this.X = x;
+    }
+
+    public constructor() : base(0, 0, "layer_default")
+    {
+        this.X = 0;
+        
+        Console.Log(this.ToString());
+    }
+}
+
+
+public static class Console
+{
+    public static void Log(string message)
+    {
+    }
 }

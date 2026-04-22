@@ -5,6 +5,8 @@ public abstract class TgmlMemberDecl
 {
     public required string Name { get; init; }
     public required AccessModifier Access { get; init; }
+    public int Line { get; init; }
+    public int Column { get; init; }
     public List<TgmlDecorator> Decorators { get; init; } = new();
 
     /// <summary>Arbitrary metadata populated by decorator handlers and the checking pipeline.</summary>

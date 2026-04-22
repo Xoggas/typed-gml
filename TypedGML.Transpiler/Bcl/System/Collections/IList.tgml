@@ -1,0 +1,12 @@
+﻿namespace System.Collections;
+
+// Ordered, index-accessible collection.
+public interface IList<T> : ICollection<T>
+{
+    void Add(T item);
+
+    bool Remove(T item);
+
+    T RemoveAt(number index);
+}
+

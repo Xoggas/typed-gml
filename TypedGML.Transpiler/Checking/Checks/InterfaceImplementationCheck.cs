@@ -1,4 +1,4 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking.Checks;
 
@@ -11,7 +11,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class InterfaceImplementationCheck : IAtomicCheck
 {
-    public string Name => "InterfaceImplementationCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {
@@ -43,7 +42,7 @@ public sealed class InterfaceImplementationCheck : IAtomicCheck
         }
     }
 
-    // ── Interface contract ────────────────────────────────────────────────────
+    // -- Interface contract ----------------------------------------------------
 
     private static void CheckInterface(TranspileContext ctx, TgmlFile file,
         string implName, TgmlInterfaceDecl iface,
@@ -68,7 +67,7 @@ public sealed class InterfaceImplementationCheck : IAtomicCheck
                 CheckInterface(ctx, file, implName, bi, methods, props);
     }
 
-    // ── Abstract member contract ──────────────────────────────────────────────
+    // -- Abstract member contract ----------------------------------------------
 
     private static void CheckAbstractMembers(TranspileContext ctx, TgmlFile file,
         string implName, TgmlClassDecl parent,
@@ -87,7 +86,7 @@ public sealed class InterfaceImplementationCheck : IAtomicCheck
                     file.FileName);
     }
 
-    // ── Collection helpers ────────────────────────────────────────────────────
+    // -- Collection helpers ----------------------------------------------------
 
     /// <summary>
     ///     All method names that are concretely implemented in <paramref name="cls" /> or

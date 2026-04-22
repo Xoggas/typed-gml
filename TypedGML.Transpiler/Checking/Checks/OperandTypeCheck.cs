@@ -1,4 +1,4 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking.Checks;
 
@@ -8,7 +8,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class OperandTypeCheck : IAtomicCheck
 {
-    public string Name => "OperandTypeCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {
@@ -17,7 +16,7 @@ public sealed class OperandTypeCheck : IAtomicCheck
             CheckTypeDecl(context, file, type);
     }
 
-    // ── Type-declaration traversal ────────────────────────────────────────────
+    // -- Type-declaration traversal --------------------------------------------
 
     private static void CheckTypeDecl(TranspileContext ctx, TgmlFile file, TgmlTypeDecl decl)
     {
@@ -94,7 +93,9 @@ public sealed class OperandTypeCheck : IAtomicCheck
         TgmlTypeDecl owner, TgmlMethodDecl method)
     {
         if (method.Body is null) return;
-        var checker = MakeChecker(ctx, file, owner, DefaultExpressionFacts.DescribeType(method.ReturnType));
+        var checker = MakeChecker(ctx, file, owner,
+            DefaultExpressionFacts.DescribeType(method.ReturnType),
+            method.Modifiers.IsStatic);
         foreach (var p in method.Params) checker.Symbols.Define(p.Name, p.Type);
         checker.CheckBlock(method.Body);
     }
@@ -121,6 +122,6 @@ public sealed class OperandTypeCheck : IAtomicCheck
     }
 
     private static ExprChecker MakeChecker(TranspileContext ctx, TgmlFile file,
-        TgmlTypeDecl? owner = null, string returnType = "void")
-        => new(ctx, file, new SymbolTable(), owner, returnType);
+        TgmlTypeDecl? owner = null, string returnType = "void", bool isStaticContext = false)
+        => new(ctx, file, new SymbolTable(), owner, returnType, isStaticContext);
 }

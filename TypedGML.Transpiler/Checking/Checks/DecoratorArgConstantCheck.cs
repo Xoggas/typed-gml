@@ -1,4 +1,4 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking.Checks;
 
@@ -10,7 +10,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class DecoratorArgConstantCheck : IAtomicCheck
 {
-    public string Name => "DecoratorArgConstantCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {
@@ -19,7 +18,7 @@ public sealed class DecoratorArgConstantCheck : IAtomicCheck
             CheckTypeDecl(context, file, type);
     }
 
-    // ── Traversal ─────────────────────────────────────────────────────────────
+    // -- Traversal -------------------------------------------------------------
 
     private static void CheckTypeDecl(TranspileContext ctx, TgmlFile file, TgmlTypeDecl decl)
     {
@@ -75,7 +74,7 @@ public sealed class DecoratorArgConstantCheck : IAtomicCheck
                 CheckDecorator(ctx, file, decorator);
     }
 
-    // ── Core check ────────────────────────────────────────────────────────────
+    // -- Core check ------------------------------------------------------------
 
     private static void CheckDecorator(TranspileContext ctx, TgmlFile file, TgmlDecorator decorator)
     {

@@ -14,6 +14,8 @@ public sealed class DecoratorRegistry
         .Register(new ObjectDecoratorHandler())
         .Register(new NativeEventDecoratorHandler())
         .Register(new NativePropertyDecoratorHandler())
+        .Register(new NativeCallDecoratorHandler())
+        .Register(new NativeInstanceCallDecoratorHandler())
         .Register(new AssetDecoratorHandler());
 
     public DecoratorRegistry Register(IDecoratorHandler handler)

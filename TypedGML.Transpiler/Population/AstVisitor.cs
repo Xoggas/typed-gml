@@ -70,6 +70,7 @@ public sealed partial class AstVisitor : TypedGMLBaseVisitor<object?>
             "abstract" => ClassModifier.Abstract,
             "sealed" => ClassModifier.Sealed,
             "virtual" => ClassModifier.Virtual,
+            "static" => ClassModifier.Virtual, // static maps to Virtual in the model
             _ => ClassModifier.None
         };
 
@@ -115,11 +116,17 @@ public sealed partial class AstVisitor : TypedGMLBaseVisitor<object?>
             }
             : AccessModifier.Private;
         var scope = ctx.scopeMod() is not null ? ScopeModifier.Static : ScopeModifier.None;
+        var isReadonly = false;
 
         IToken? virtTok = null;
         for (var i = 0; i < ctx.ChildCount; i++)
         {
             var t = ctx.GetChild(i).GetText();
+            if (t == "readonly")
+            {
+                isReadonly = true;
+                continue;
+            }
             if (t is "virtual" or "abstract" or "override" or "sealed")
             {
                 virtTok = (ctx.GetChild(i) as ITerminalNode)?.Symbol;
@@ -134,7 +141,7 @@ public sealed partial class AstVisitor : TypedGMLBaseVisitor<object?>
             "override" => VirtualModifier.Override,
             "sealed" => VirtualModifier.Sealed,
             _ => VirtualModifier.None
-        });
+        }, isReadonly);
     }
 
     private static MethodModifiers ParseMethodModifiers(TypedGMLParser.MethodModifiersContext ctx)

@@ -1,9 +1,9 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking.Checks;
 
 /// <summary>
-///     Batch 1: Detects methods whose name matches the enclosing type's name — the classic
+///     Batch 1: Detects methods whose name matches the enclosing type's name � the classic
 ///     mistake of writing <c>public Player(...) { }</c> instead of
 ///     <c>public constructor(...) { }</c>.
 ///     Also catches empty member names produced by ANTLR error-recovery, converting them
@@ -11,7 +11,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class ConstructorNameCheck : IAtomicCheck
 {
-    public string Name => "ConstructorNameCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {
@@ -44,12 +43,12 @@ public sealed class ConstructorNameCheck : IAtomicCheck
             if (string.IsNullOrEmpty(method.Name))
             {
                 ctx.AddError(
-                    $"A member in '{decl.Name}' could not be parsed — check for missing keywords or typos.",
+                    $"A member in '{decl.Name}' could not be parsed � check for missing keywords or typos.",
                     file.FileName);
                 continue;
             }
 
-            // Method name matches the enclosing type name → likely a mislabeled constructor
+            // Method name matches the enclosing type name ? likely a mislabeled constructor
             if (method.Name == decl.Name)
             {
                 ctx.AddError(

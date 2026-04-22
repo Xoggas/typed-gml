@@ -1,4 +1,4 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking.Checks;
 
@@ -10,7 +10,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class GenericArityCheck : IAtomicCheck
 {
-    public string Name => "GenericArityCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {
@@ -21,7 +20,7 @@ public sealed class GenericArityCheck : IAtomicCheck
         }
     }
 
-    // ── traversal ───────────────────────────────────────────────────────────
+    // -- traversal -----------------------------------------------------------
 
     private static void CheckTypeDecl(TranspileContext ctx, TgmlFile file, TgmlTypeDecl decl)
     {
@@ -149,7 +148,7 @@ public sealed class GenericArityCheck : IAtomicCheck
         }
     }
 
-    // ── core check ──────────────────────────────────────────────────────────
+    // -- core check ----------------------------------------------------------
 
     private static void CheckTypeRef(TranspileContext ctx, TgmlFile file,
         TgmlTypeRef typeRef, IEnumerable<TgmlTypeParam> visibleTypeParams)
@@ -181,7 +180,7 @@ public sealed class GenericArityCheck : IAtomicCheck
                 string.Equals(d.QualifiedName, typeRef.Name.Full, StringComparison.Ordinal) ||
                 string.Equals(d.Name, typeRef.Name.Full, StringComparison.Ordinal));
             if (resolvedDecl is null)
-                return; // unknown type — InheritanceCheck will have reported it
+                return; // unknown type � InheritanceCheck will have reported it
         }
 
         var expected = resolvedDecl.TypeParams.Count;

@@ -148,6 +148,9 @@ public sealed partial class AstVisitor
         => new TgmlNewArrayExpr
             { Line = Line(ctx), ElementType = TypeRef(ctx.typeRef()), Size = (TgmlExpression)Visit(ctx.expression())! };
 
+    public override object? VisitNewImplicitExpr([NotNull] TypedGMLParser.NewImplicitExprContext ctx)
+        => new TgmlNewImplicitExpr { Line = Line(ctx), Args = ArgList(ctx.argList()) };
+
     public override object? VisitTypeofExpr([NotNull] TypedGMLParser.TypeofExprContext ctx)
         => new TgmlTypeofExpr { Line = Line(ctx), Type = TypeRef(ctx.typeRef()) };
 

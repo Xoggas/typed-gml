@@ -2,6 +2,15 @@ namespace System;
 
 public class Random
 {
+    @NativeCall("random")
+    private static number GmlRandom(number max) {}
+
+    @NativeCall("irandom_range")
+    private static number GmlIrandomRange(number min, number max) {}
+
+    @NativeCall("array_length")
+    private static number ArrayLength<T>(T[] items) {}
+
     public bool Chance(number probability)
     {
         if (probability <= 0)
@@ -14,18 +23,18 @@ public class Random
             return true;
         }
 
-        return random(1) <= probability;
+        return GmlRandom(1) <= probability;
     }
 
     public T Pick<T>(T[] items)
     {
-        number count = array_length(items);
+        number count = ArrayLength(items);
         if (count == 0)
         {
             return default(T);
         }
 
-        number index = irandom_range(0, count - 1);
+        number index = GmlIrandomRange(0, count - 1);
         return items[index];
     }
 
@@ -36,6 +45,6 @@ public class Random
             return minInclusive;
         }
 
-        return irandom_range(minInclusive, maxExclusive - 1);
+        return GmlIrandomRange(minInclusive, maxExclusive - 1);
     }
 }

@@ -1,4 +1,4 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking.Checks;
 
@@ -8,7 +8,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class CircularInheritanceCheck : IAtomicCheck
 {
-    public string Name => "CircularInheritanceCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {

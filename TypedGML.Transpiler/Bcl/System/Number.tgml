@@ -1,0 +1,43 @@
+﻿namespace System;
+
+public class Number
+{
+    @NativeCall("abs")
+    public static number Abs(number value) {}
+
+    @NativeCall("floor")
+    public static number Floor(number value) {}
+
+    @NativeCall("ceil")
+    public static number Ceil(number value) {}
+
+    @NativeCall("round")
+    public static number Round(number value) {}
+
+    @NativeCall("sqrt")
+    public static number Sqrt(number value) {}
+
+    @NativeCall("power")
+    public static number Pow(number value, number exp) {}
+
+    @NativeCall("clamp")
+    public static number Clamp(number value, number min, number max) {}
+
+    @NativeCall("min")
+    public static number Min(number a, number b) {}
+
+    @NativeCall("max")
+    public static number Max(number a, number b) {}
+
+    @NativeCall("lerp")
+    public static number Lerp(number a, number b, number amount) {}
+
+    @NativeCall("string")
+    public static implicit operator string(Number value) {}
+
+    @NativeCall("real")
+    public static number Parse(string value) {}
+
+    @NativeCall("is_real")
+    public static bool IsNumber(number value) {}
+}

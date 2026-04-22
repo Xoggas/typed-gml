@@ -1,4 +1,4 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking.Checks;
 
@@ -9,7 +9,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class OverrideCorrectnessCheck : IAtomicCheck
 {
-    public string Name => "OverrideCorrectnessCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {
@@ -21,7 +20,7 @@ public sealed class OverrideCorrectnessCheck : IAtomicCheck
         }
     }
 
-    // ── Class checks ──────────────────────────────────────────────────────────
+    // -- Class checks ----------------------------------------------------------
 
     private static void CheckClass(TranspileContext ctx, TgmlFile file, TgmlClassDecl cls)
     {
@@ -66,7 +65,7 @@ public sealed class OverrideCorrectnessCheck : IAtomicCheck
                     file.FileName);
     }
 
-    // ── Inheritance-chain searches ────────────────────────────────────────────
+    // -- Inheritance-chain searches --------------------------------------------
 
     private static bool FindOverridableMethod(TranspileContext ctx,
         IEnumerable<TgmlTypeRef> baseRefs, string name)

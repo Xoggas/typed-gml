@@ -1,4 +1,4 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking;
 
@@ -10,7 +10,7 @@ namespace TypedGML.Transpiler.Checking;
 ///         <item>Assignment target / value type compatibility</item>
 ///         <item>Return expression type vs. declared return type</item>
 ///     </list>
-///     Type inference is conservative — only literals, casts, locals, and
+///     Type inference is conservative � only literals, casts, locals, and
 ///     owner-type members are inferred.  Unknown types are silently skipped
 ///     (no false positives).
 /// </summary>
@@ -30,24 +30,27 @@ public sealed class ExprChecker
     private readonly TgmlFile _file;
     private readonly TgmlTypeDecl? _owner;
     private readonly string _returnType; // "void" or declared return type name
+    private readonly bool _isStaticContext;
 
     public ExprChecker(
         TranspileContext ctx,
         TgmlFile file,
         SymbolTable symbols,
         TgmlTypeDecl? owner = null,
-        string returnType = "void")
+        string returnType = "void",
+        bool isStaticContext = false)
     {
         _ctx = ctx;
         _file = file;
         Symbols = symbols;
         _owner = owner;
         _returnType = returnType;
+        _isStaticContext = isStaticContext;
     }
 
     public SymbolTable Symbols { get; }
 
-    // ── Statement walker ──────────────────────────────────────────────────────
+    // -- Statement walker ------------------------------------------------------
 
     public void CheckBlock(TgmlBlock block)
     {
@@ -70,6 +73,8 @@ public sealed class ExprChecker
                     DefineImplicitLocal(v.Name, v.Initializer, v.Line, v.Column, "local variable");
                 else
                 {
+                    if (v.Initializer is TgmlNewImplicitExpr ni)
+                        ni.Metadata["InferredType"] = DefaultExpressionFacts.DescribeType(v.Type);
                     if (v.Initializer is not null)
                         CheckAssignCompatibility(DefaultExpressionFacts.DescribeType(v.Type), v.Initializer,
                             v.Line, v.Column, $"Cannot assign '{{1}}' to variable of type '{v.Type.Name.Full}'.");
@@ -164,7 +169,7 @@ public sealed class ExprChecker
         }
     }
 
-    // ── Return checking ───────────────────────────────────────────────────────
+    // -- Return checking -------------------------------------------------------
 
     private void CheckReturn(TgmlReturnStmt ret)
     {
@@ -181,7 +186,7 @@ public sealed class ExprChecker
 
         if (ret.Value is null)
         {
-            // bare return; in non-void context — warn only (branch might be unreachable)
+            // bare return; in non-void context � warn only (branch might be unreachable)
             _ctx.AddWarning($"Missing return value; method declares return type '{_returnType}'.",
                 _file.FileName, ret.Line, ret.Column);
             return;
@@ -191,7 +196,7 @@ public sealed class ExprChecker
             $"Return type mismatch: cannot convert '{{1}}' to '{_returnType}'.");
     }
 
-    // ── Expression type-checker ───────────────────────────────────────────────
+    // -- Expression type-checker -----------------------------------------------
 
     public void CheckExpr(TgmlExpression expr) => InferType(expr);
 
@@ -222,6 +227,7 @@ public sealed class ExprChecker
             TgmlMethodCallExpr mc => VisitMethodCall(mc),
             TgmlFuncCallExpr fc => VisitFuncCall(fc),
             TgmlNewObjectExpr no => VisitNewObject(no),
+            TgmlNewImplicitExpr ni => VisitNewImplicit(ni),
             TgmlBaseCallExpr bc => VisitBaseCall(bc),
             TgmlNewArrayExpr na => VisitNewArray(na),
             TgmlIndexExpr ix => VisitIndex(ix),
@@ -239,7 +245,7 @@ public sealed class ExprChecker
         return inferred;
     }
 
-    // ── Inference helpers ─────────────────────────────────────────────────────
+    // -- Inference helpers -----------------------------------------------------
 
     private string? InferIdType(TgmlIdExpr id)
     {
@@ -262,10 +268,20 @@ public sealed class ExprChecker
         }
 
         // 3. Field on the owning type
-        var field = FindFieldInHierarchy(_owner, id.Name);
-        if (field is not null && field.IsStatic && AssetFacts.TryGetAssetName(field, out var fieldAssetName))
-            id.Metadata[AssetReferenceNameMetadata] = fieldAssetName;
-        return field is null ? null : DefaultExpressionFacts.DescribeType(field.Type);
+        var (field, fieldDeclType) = FindFieldWithDecl(_owner, id.Name);
+        if (field is not null)
+        {
+            if (fieldDeclType is not null &&
+                !PropertyAccessHelper.CanAccess(_ctx.TypeTable, _owner, fieldDeclType, field.Access))
+            {
+                Error(id, $"Field '{id.Name}' is inaccessible due to its protection level.");
+                return null;
+            }
+            if (field.IsStatic && AssetFacts.TryGetAssetName(field, out var fieldAssetName))
+                id.Metadata[AssetReferenceNameMetadata] = fieldAssetName;
+            return DefaultExpressionFacts.DescribeType(field.Type);
+        }
+        return null;
     }
 
     /// <summary>
@@ -436,7 +452,11 @@ public sealed class ExprChecker
         else
         {
             if (lt is not null)
+            {
                 DefaultExpressionFacts.TryApplyContextualType(expr.Value, lt);
+                if (expr.Value is TgmlNewImplicitExpr niAssign)
+                    niAssign.Metadata["InferredType"] = lt;
+            }
             var rt = InferType(expr.Value);
             CheckPropertyWrite(expr.Target, requireRead: false);
             if (lt is not null && !CanConvertExpression(lt, expr.Value, allowExplicit: false, apply: true))
@@ -450,7 +470,7 @@ public sealed class ExprChecker
         return lt;
     }
 
-    // ── Visitor stubs (recurse, return null) ─────────────────────────────────
+    // -- Visitor stubs (recurse, return null) ---------------------------------
 
     private string? VisitArrayInit(TgmlArrayInitExpr expr)
     {
@@ -463,13 +483,51 @@ public sealed class ExprChecker
         var targetType = InferType(mc.Target);
         foreach (var a in mc.Args) CheckExpr(a.Value);
 
-        if (targetType is null ||
-            !_ctx.TypeTable.TryResolve(targetType, out var targetDecl) ||
+        // Map primitive types to their BCL wrapper class for member lookup
+        var resolvedTargetType = MapPrimitiveType(targetType);
+
+        if (resolvedTargetType is null ||
+            !_ctx.TypeTable.TryResolve(resolvedTargetType, out var targetDecl) ||
             targetDecl is null)
         {
-            if (mc.Args.Any(a => a.Name is not null))
-                Error(mc, $"Named arguments cannot be used because method '{mc.MethodName}' could not be resolved.");
-            return null;
+                // Check if target is a bare type name (static member access)
+                if (mc.Target is TgmlIdExpr { Name: var typeName } &&
+                    _ctx.TypeTable.TryResolve(typeName, out var typeDecl) && typeDecl is not null)
+                {
+                    var typeCandidates = FindMethodsInHierarchy(typeDecl, mc.MethodName);
+                    if (typeCandidates.Count == 0)
+                    {
+                        Error(mc, $"Type '{typeName}' does not define a method '{mc.MethodName}'.");
+                        return null;
+                    }
+                    if (typeCandidates.Any(m => !m.Modifiers.IsStatic))
+                    {
+                        Error(mc, $"Cannot call instance method '{mc.MethodName}' on type '{typeName}'. Did you mean to call it on an instance?");
+                        return null;
+                    }
+
+                    // Bind arguments and apply conversions for static method calls
+                    if (!CallArgumentBinder.TryResolveOverload(
+                            typeCandidates,
+                            m => m.Params,
+                            mc.Args,
+                            InferType,
+                            CanAssignImplicitly,
+                            out var resolvedStaticMethod,
+                            out var staticBound,
+                            out var staticError))
+                    {
+                        Error(mc, $"No overload of '{mc.MethodName}' in '{typeName}' matches the supplied arguments: {staticError}");
+                        return null;
+                    }
+
+                    mc.Metadata["NormalizedArgs"] = staticBound!.Arguments.ToList();
+                    ApplyBoundArgumentConversions(staticBound.Parameters, staticBound.Arguments);
+                    return DefaultExpressionFacts.DescribeType(resolvedStaticMethod!.ReturnType);
+                }
+                else if (mc.Args.Any(a => a.Name is not null))
+                    Error(mc, $"Named arguments cannot be used because method '{mc.MethodName}' could not be resolved.");
+                return null;
         }
 
         var candidates = FindMethodsInHierarchy(targetDecl, mc.MethodName);
@@ -478,8 +536,7 @@ public sealed class ExprChecker
             if (TryResolveDelegateMemberInvoke(mc, targetDecl, out var delegateReturnType))
                 return delegateReturnType;
 
-            if (mc.Args.Any(a => a.Name is not null))
-                Error(mc, $"Named arguments cannot be used because method '{mc.MethodName}' could not be resolved.");
+            Error(mc, $"Type '{resolvedTargetType}' does not define a method '{mc.MethodName}'.");
             return null;
         }
 
@@ -496,6 +553,10 @@ public sealed class ExprChecker
             Error(mc, $"No overload of method '{mc.MethodName}' matches the supplied arguments: {error}");
             return null;
         }
+
+        // Propagate NativeInstanceCallName so the emitter knows to pass the instance as first arg
+        if (resolvedMethod!.Metadata.TryGetValue("NativeInstanceCallName", out var nicn) && nicn is string nicnStr)
+            mc.Metadata["NativeInstanceCallName"] = nicnStr;
 
         mc.Metadata["NormalizedArgs"] = bound!.Arguments.ToList();
         ApplyBoundArgumentConversions(bound.Parameters, bound.Arguments);
@@ -533,6 +594,10 @@ public sealed class ExprChecker
 
         fc.Metadata["NormalizedArgs"] = bound!.Arguments.ToList();
         ApplyBoundArgumentConversions(bound.Parameters, bound.Arguments);
+
+        if (_isStaticContext && !resolvedMethod!.Modifiers.IsStatic)
+            Error(fc, $"Cannot call instance method '{fc.FunctionName}' from a static context.");
+
         return DefaultExpressionFacts.DescribeType(resolvedMethod!.ReturnType);
     }
 
@@ -574,6 +639,47 @@ public sealed class ExprChecker
         }
 
         return DefaultExpressionFacts.DescribeType(no.Type);
+    }
+
+    private string? VisitNewImplicit(TgmlNewImplicitExpr ni)
+    {
+        // Type must have been set by the assignment context via ApplyNewImplicitType
+        if (!ni.Metadata.TryGetValue("InferredType", out var inf) || inf is not string typeName)
+        {
+            Error(ni, "Cannot use 'new()' without a type context. Specify the type explicitly.");
+            return null;
+        }
+
+        foreach (var a in ni.Args) CheckExpr(a.Value);
+
+        if (!_ctx.TypeTable.TryResolve(typeName, out var decl) || decl is null)
+            return typeName;
+
+        var constructors = decl switch
+        {
+            TgmlClassDecl cls => cls.Constructors.Cast<TgmlConstructorDecl>().ToList(),
+            TgmlStructDecl str => str.Constructors.Cast<TgmlConstructorDecl>().ToList(),
+            _ => []
+        };
+
+        if (constructors.Count == 0)
+        {
+            if (ni.Args.Count > 0)
+                Error(ni, $"Type '{typeName}' does not define a constructor that accepts arguments.");
+        }
+        else if (!CallArgumentBinder.TryResolveOverload(
+                     constructors, c => c.Params, ni.Args, InferType, CanAssignImplicitly,
+                     out _, out var bound, out var error))
+        {
+            Error(ni, $"No constructor overload for '{typeName}' matches the supplied arguments: {error}");
+        }
+        else
+        {
+            ni.Metadata["NormalizedArgs"] = bound!.Arguments.ToList();
+            ApplyBoundArgumentConversions(bound.Parameters, bound.Arguments);
+        }
+
+        return typeName;
     }
 
     private string? VisitBaseCall(TgmlBaseCallExpr bc)
@@ -674,7 +780,9 @@ public sealed class ExprChecker
         var targetType = InferType(fa.Target);
         if (targetType is null) return null;
 
-        if (!_ctx.TypeTable.TryResolve(targetType, out var targetDecl) || targetDecl is null)
+        var resolvedTargetType = MapPrimitiveType(targetType);
+        if (resolvedTargetType is null ||
+            !_ctx.TypeTable.TryResolve(resolvedTargetType, out var targetDecl) || targetDecl is null)
             return null;
 
         var prop = PropertyAccessHelper.FindPropertyInHierarchy(_ctx.TypeTable, targetDecl, fa.FieldName);
@@ -684,8 +792,17 @@ public sealed class ExprChecker
             return DefaultExpressionFacts.DescribeType(prop.Property.Type);
         }
 
-        var field = FindFieldInHierarchy(targetDecl, fa.FieldName);
-        return field is null ? null : DefaultExpressionFacts.DescribeType(field.Type);
+        var (field, fieldDeclaringType) = FindFieldWithDecl(targetDecl, fa.FieldName);
+        if (field is null)
+        {
+            Error(fa, $"Type '{targetType}' does not contain a member '{fa.FieldName}'.");
+            return null;
+        }
+
+        if (!PropertyAccessHelper.CanAccess(_ctx.TypeTable, _owner, fieldDeclaringType!, field.Access))
+            Error(fa, $"Field '{fa.FieldName}' is inaccessible due to its protection level.");
+
+        return DefaultExpressionFacts.DescribeType(field.Type);
     }
 
     private string? VisitLambda(TgmlLambdaExpr lam)
@@ -820,7 +937,14 @@ public sealed class ExprChecker
     private bool ValidateLambdaAgainstDelegate(TgmlLambdaExpr lambda, DelegateSignature signature, bool apply)
     {
         if (lambda.Params.Count != signature.Parameters.Count)
+        {
+            if (apply)
+            {
+                Error(lambda, $"Lambda has {lambda.Params.Count} parameter(s) but delegate '{signature.TypeName}' expects {signature.Parameters.Count}.");
+                return true; // suppress generic "cannot convert" error from caller
+            }
             return false;
+        }
 
         var paramBindings = new List<TgmlParam>(signature.Parameters.Count);
         for (var i = 0; i < signature.Parameters.Count; i++)
@@ -829,7 +953,14 @@ public sealed class ExprChecker
             var delegateParam = signature.Parameters[i];
             var lambdaParamType = DefaultExpressionFacts.DescribeType(lambdaParam.Type);
             if (lambdaParamType != "?" && lambdaParamType != delegateParam.TypeName)
+            {
+                if (apply)
+                {
+                    Error(lambda, $"Lambda parameter '{lambdaParam.Name}' has type '{lambdaParamType}' but delegate '{signature.TypeName}' expects '{delegateParam.TypeName}'.");
+                    return true; // suppress generic error
+                }
                 return false;
+            }
 
             paramBindings.Add(new TgmlParam
             {
@@ -865,6 +996,9 @@ public sealed class ExprChecker
         else if (lambda.BlockBody is not null)
         {
             inner.CheckBlock(lambda.BlockBody);
+
+            if (signature.ReturnType != "void" && !BlockAlwaysReturns(lambda.BlockBody))
+                Error(lambda, $"Lambda assigned to '{signature.TypeName}' must return a value of type '{signature.ReturnType}' on all code paths.");
         }
 
         inner.Symbols.PopScope();
@@ -1077,8 +1211,33 @@ public sealed class ExprChecker
         if (targetType == "object")
             return sourceType != "void";
 
+        // System.Object is the universal base — any class, struct, or interface is assignable to it.
+        if (targetType is "System.Object" or "Object" &&
+            TryResolveTypeDecl(sourceType, out var srcDecl2) &&
+            srcDecl2 is TgmlClassDecl or TgmlStructDecl or TgmlInterfaceDecl)
+            return true;
+
         if (targetType == "struct")
             return TryResolveTypeDecl(sourceType, out var structDecl) && structDecl is TgmlStructDecl;
+
+        // Resolve both sides to qualified names and re-check primitive equivalence.
+        // Handles e.g. param type "Bool" (unqualified, inside System namespace) vs primitive "bool".
+        var resolvedTarget = TryResolveTypeDecl(targetType, out var tDecl) ? (tDecl?.QualifiedName ?? targetType) : targetType;
+        var resolvedSource = TryResolveTypeDecl(sourceType, out var sDecl) ? (sDecl?.QualifiedName ?? sourceType) : sourceType;
+        if (TypeCompatibility.ArePrimitiveEquivalent(resolvedTarget, resolvedSource))
+            return true;
+
+        // T[] is implicitly assignable to ICollection<T> and IList<T>
+        if (sourceType.EndsWith("[]", StringComparison.Ordinal))
+        {
+            var elementType = sourceType[..^2];
+            var baseTarget = targetType;
+            var ltIdx = baseTarget.IndexOf('<');
+            if (ltIdx >= 0) baseTarget = baseTarget[..ltIdx];
+            if (baseTarget is "ICollection" or "System.Collections.ICollection"
+                          or "IList" or "System.Collections.IList")
+                return true;
+        }
 
         return IsReferenceAssignable(targetType, sourceType);
     }
@@ -1143,6 +1302,16 @@ public sealed class ExprChecker
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
         CollectConversionCandidates(sourceType, sourceType, targetType, allowExplicit, candidates, seen);
+
+        // Also search the BCL primitive wrapper (e.g. bool → System.Bool) for conversions
+        var mappedSource = MapPrimitiveType(sourceType);
+        if (mappedSource is not null && mappedSource != sourceType)
+            CollectConversionCandidates(mappedSource, sourceType, targetType, allowExplicit, candidates, seen);
+
+        // Also search System.Object for implicit conversions that apply to all types
+        if (_ctx.TypeTable.TryResolve("System.Object", out var objDecl) && objDecl is not null)
+            CollectConversionCandidates("System.Object", sourceType, targetType, allowExplicit, candidates, seen);
+
         if (targetType != sourceType)
             CollectConversionCandidates(targetType, sourceType, targetType, allowExplicit, candidates, seen);
 
@@ -1356,8 +1525,7 @@ public sealed class ExprChecker
             return;
 
         var key = type.QualifiedName ?? type.Name;
-        if (!visited.Add(key))
-            return;
+        if (!visited.Add(key)) return;
 
         switch (type)
         {
@@ -1399,6 +1567,18 @@ public sealed class ExprChecker
 
         if (bases is null)
             return visited;
+
+        // Implicit System.Object base for all classes/structs with no explicit base
+        if (bases.Count == 0 &&
+            decl is TgmlClassDecl or TgmlStructDecl &&
+            qualifiedName != "System.Object" &&
+            _ctx.TypeTable.TryResolve("System.Object", out var objDecl) && objDecl is not null)
+        {
+            visited.Add("Object");
+            visited.Add("System.Object");
+            CollectReachableTypeNames(objDecl, visited);
+            return visited;
+        }
 
         foreach (var baseRef in bases)
         {
@@ -1445,7 +1625,7 @@ public sealed class ExprChecker
         expr.Metadata.Remove(ResolvedConversionMethodMetadata);
     }
 
-    // ── Utilities ─────────────────────────────────────────────────────────────
+    // -- Utilities -------------------------------------------------------------
 
     /// <summary>Checks that <paramref name="valueExpr" />'s type is assignable to <paramref name="targetType" />.</summary>
     public void CheckAssignCompatibility(string targetType, TgmlExpression valueExpr, int line, int col,
@@ -1555,7 +1735,17 @@ public sealed class ExprChecker
             CheckExpr(arg.Value);
 
         if (_owner is not TgmlClassDecl ownerClass || ctor.BaseArgs is null)
+        {
+            // If base class has declared constructors but this ctor has no base() call, error.
+            if (_owner is TgmlClassDecl ownerCls2 && ctor.BaseArgs is null)
+            {
+                var baseClass2 = ResolveBaseClass(ownerCls2);
+                if (baseClass2 is not null && baseClass2.Constructors.Count > 0)
+                    Error(ctor.Line, ctor.Column,
+                        $"Constructor in '{ownerCls2.Name}' must call base constructor with 'base(...)'. Base class '{baseClass2.Name}' has {baseClass2.Constructors.Count} constructor(s).");
+            }
             return;
+        }
 
         var baseClass = ResolveBaseClass(ownerClass);
         if (baseClass is null || baseClass.Constructors.Count == 0)
@@ -1602,8 +1792,18 @@ public sealed class ExprChecker
         if (prop is not null)
             return DefaultExpressionFacts.DescribeType(prop.Property.Type);
 
-        var field = FindFieldInHierarchy(_owner, id.Name);
-        return field is null ? null : DefaultExpressionFacts.DescribeType(field.Type);
+        var (field, fieldDeclType2) = FindFieldWithDecl(_owner, id.Name);
+        if (field is not null)
+        {
+            if (fieldDeclType2 is not null &&
+                !PropertyAccessHelper.CanAccess(_ctx.TypeTable, _owner, fieldDeclType2, field.Access))
+            {
+                Error(id, $"Field '{id.Name}' is inaccessible due to its protection level.");
+                return null;
+            }
+            return DefaultExpressionFacts.DescribeType(field.Type);
+        }
+        return null;
     }
 
     private string? InferLValueFieldAccessType(TgmlFieldAccessExpr expr)
@@ -1624,8 +1824,17 @@ public sealed class ExprChecker
         if (prop is not null)
             return DefaultExpressionFacts.DescribeType(prop.Property.Type);
 
-        var field = FindFieldInHierarchy(targetDecl, expr.FieldName);
-        return field is null ? null : DefaultExpressionFacts.DescribeType(field.Type);
+        var (field, fieldDeclaringType) = FindFieldWithDecl(targetDecl, expr.FieldName);
+        if (field is null)
+        {
+            Error(expr, $"Type '{targetType}' does not contain a member '{expr.FieldName}'.");
+            return null;
+        }
+
+        if (!PropertyAccessHelper.CanAccess(_ctx.TypeTable, _owner, fieldDeclaringType!, field.Access))
+            Error(expr, $"Field '{expr.FieldName}' is inaccessible due to its protection level.");
+
+        return DefaultExpressionFacts.DescribeType(field.Type);
     }
 
     private bool TryResolveAssetAccess(TgmlExpression target, out string assetName, out string assetType)
@@ -1894,6 +2103,48 @@ public sealed class ExprChecker
         return FindFieldInHierarchy(type, name, new HashSet<string>(StringComparer.Ordinal));
     }
 
+    /// <summary>Returns the field and the type in which it was declared.</summary>
+    private (TgmlFieldDecl? Field, TgmlTypeDecl? DeclaringType) FindFieldWithDecl(TgmlTypeDecl? type, string name)
+    {
+        return FindFieldWithDecl(type, name, new HashSet<string>(StringComparer.Ordinal));
+    }
+
+    private (TgmlFieldDecl? Field, TgmlTypeDecl? DeclaringType) FindFieldWithDecl(
+        TgmlTypeDecl? type, string name, HashSet<string> visited)
+    {
+        if (type is null) return (null, null);
+
+        var key = type.QualifiedName ?? type.Name;
+        if (!visited.Add(key)) return (null, null);
+
+        var own = type switch
+        {
+            TgmlClassDecl cls => cls.Fields.FirstOrDefault(f => f.Name == name),
+            TgmlStructDecl str => str.Fields.FirstOrDefault(f => f.Name == name),
+            _ => null
+        };
+        if (own is not null) return (own, type);
+
+        var baseRefs = type switch
+        {
+            TgmlClassDecl cls => cls.BaseTypes,
+            TgmlStructDecl str => str.BaseTypes,
+            _ => null
+        };
+        if (baseRefs is null) return (null, null);
+
+        foreach (var baseRef in baseRefs)
+        {
+            if (!_ctx.TypeTable.TryResolve(baseRef.Name.Full, out var baseDecl) || baseDecl is null)
+                continue;
+
+            var found = FindFieldWithDecl(baseDecl, name, visited);
+            if (found.Field is not null) return found;
+        }
+
+        return (null, null);
+    }
+
     private TgmlClassDecl? ResolveBaseClass(TgmlClassDecl ownerClass)
     {
         foreach (var baseRef in ownerClass.BaseTypes)
@@ -1959,8 +2210,33 @@ public sealed class ExprChecker
                 return found;
         }
 
+        // Implicit fallback to System.Object for types with no explicit base
+        if (type is TgmlClassDecl { BaseTypes.Count: 0 } or TgmlStructDecl { BaseTypes.Count: 0 })
+        {
+            var typeFqn = type.QualifiedName ?? type.Name;
+            if (typeFqn != "System.Object" &&
+                _ctx.TypeTable.TryResolve("System.Object", out var objDecl) && objDecl is not null)
+            {
+                var objFound = FindMethodsInHierarchy(objDecl, name, visited);
+                if (objFound.Count > 0) return objFound;
+            }
+        }
+
         return [];
     }
+
+    /// <summary>
+    ///     Maps a primitive TypedGML type name to its BCL wrapper class for member lookup.
+    ///     e.g. "string" → "System.String", "number" → "System.Number"
+    /// </summary>
+    private static string? MapPrimitiveType(string? typeName) => typeName switch
+    {
+        "string" => "System.String",
+        "number" or "int" or "real" => "System.Number",
+        "bool" => "System.Bool",
+        _ when typeName is not null && typeName.EndsWith("[]") => "System.Array",
+        _ => typeName
+    };
 
     private TgmlFieldDecl? FindFieldInHierarchy(TgmlTypeDecl? type, string name, HashSet<string> visited)
     {
@@ -1996,5 +2272,30 @@ public sealed class ExprChecker
 
         return null;
     }
+
+    /// <summary>
+    ///     Returns true when every code path through <paramref name="block"/> ends in a
+    ///     <c>return</c> (unconditional return at top level, or if-else where every branch returns).
+    /// </summary>
+    private static bool BlockAlwaysReturns(TgmlBlock block)
+    {
+        foreach (var stmt in block.Statements)
+        {
+            if (StmtAlwaysReturns(stmt)) return true;
+        }
+        return false;
+    }
+
+    private static bool StmtAlwaysReturns(TgmlStatement stmt) =>
+        stmt switch
+        {
+            TgmlReturnStmt => true,
+            TgmlBlock b => BlockAlwaysReturns(b),
+            TgmlIfStmt i =>
+                i.ElseBlock is not null &&
+                i.Branches.All(br => BlockAlwaysReturns(br.Body)) &&
+                BlockAlwaysReturns(i.ElseBlock),
+            _ => false
+        };
 }
 

@@ -1,429 +1,358 @@
 ﻿using TypedGML.Transpiler.Checking;
+using TypedGML.Transpiler.Generation.Helpers;
 using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Generation.Emitters;
 
 /// <summary>
-///     Emits script classes as self-contained GML constructor functions.
-///     Every ancestor's members are inlined directly — no GML prototype chain needed.
-///
-///     Method overloading: when N overloads share the same name, they are emitted as
-///     <c>static Method_0</c>, <c>static Method_1</c>, … plus a runtime dispatcher
-///     <c>static Method</c> that uses <c>argument_count</c> and GML type checks.
-///
-///     Constructor overloading: all overloads share ONE GML constructor function.
-///     User arguments are accessed via <c>argument[]</c> and dispatched at runtime.
+///     Emits script classes and structs as self-contained GML constructor functions.
+///     Every ancestor's members are inlined directly — GML has no prototype chain.
 /// </summary>
+/// <remarks>
+///     <para>
+///         <b>Method overloading:</b> N overloads are emitted as <c>static Method_0 … Method_N</c>
+///         plus a runtime dispatcher that uses <c>argument_count</c> and GML type checks.
+///     </para>
+///     <para>
+///         <b>Constructor overloading:</b> all overloads share ONE GML constructor function;
+///         arguments are accessed via <c>argument[]</c> and dispatched at runtime.
+///     </para>
+///     <para>
+///         <b>Synthesized members:</b> every type gets a default <c>static ToString</c> returning
+///         its qualified name and a <c>static GetType</c> returning the <c>__TYPE_X</c> macro.
+///         A user-defined <c>ToString</c> overrides the default (last-writer-wins in GML).
+///     </para>
+/// </remarks>
 public sealed class ScriptClassEmitter : ICodeEmitter
 {
-    public bool CanEmit(TgmlTypeDecl decl)
-    {
-        return (decl is TgmlClassDecl cls && !cls.IsGameObject) ||
-               decl is TgmlStructDecl;
-    }
+    /// <inheritdoc/>
+    public bool CanEmit(TgmlTypeDecl decl) =>
+        (decl is TgmlClassDecl cls && !cls.IsGameObject) || decl is TgmlStructDecl;
 
+    /// <inheritdoc/>
     public IEnumerable<GeneratedFile> Emit(TgmlTypeDecl decl, GenerationContext ctx)
     {
         ctx.CurrentType = decl;
 
-        var (fields, properties, methods, constructors, baseTypes, typeParams, name) = decl switch
+        var (fields, properties, methods, constructors, _, typeParams, name) = decl switch
         {
             TgmlClassDecl c => (c.Fields, c.Properties, c.Methods, c.Constructors, c.BaseTypes, c.TypeParams, c.Name),
             TgmlStructDecl s => (s.Fields, s.Properties, s.Methods, s.Constructors, s.BaseTypes, s.TypeParams, s.Name),
-            _ => throw new InvalidOperationException()
+            _ => throw new InvalidOperationException($"ScriptClassEmitter cannot emit {decl.GetType().Name}.")
         };
 
-        var gmlName = decl.QualifiedName?.Replace(".", "_") ?? name;
-        var stmtEmit = new StatementEmitter(ctx);
-        var exprEmit = new ExpressionEmitter(ctx);
-        var w = new GmlWriter();
+        var gmlName           = decl.QualifiedName?.Replace(".", "_") ?? name;
+        var qualifiedTypeName = decl.QualifiedName ?? name;
+        var stmtEmit          = new StatementEmitter(ctx);
+        var exprEmit          = new ExpressionEmitter(ctx);
+        var w                 = new GmlWriter();
 
+        // Operator helper functions are file-level (outside the constructor).
         EmitUserDefinedOperatorHelpers(decl, methods, ctx, w);
         if (methods.Any(m => m.IsUserDefinedOperator))
             w.WriteLine();
 
-        var typeIds = BuildTypesStruct(decl, ctx);
-        var typeArgParamNames = Enumerable.Range(0, typeParams.Count).Select(i => $"__t{i}").ToList();
-        int typeArgOffset = typeArgParamNames.Count;
+        var typeIds       = EmitHelpers.BuildTypesStruct(decl, ctx);
+        var typeArgParams = Enumerable.Range(0, typeParams.Count).Select(i => $"__t{i}").ToList();
+        int typeArgOffset = typeArgParams.Count;
 
-        bool multiCtor = constructors.Count > 1;
-
-        if (!multiCtor)
-        {
-            // ── Single (or no) constructor: classic inlined emission ──────────────
-            var constructor = constructors.FirstOrDefault();
-            var ctorParams = constructor?.Params ?? new List<TgmlParam>();
-            var allParamNames = typeArgParamNames.Concat(ctorParams.Select(p => p.Name)).ToList();
-            var paramStr = string.Join(", ", allParamNames);
-
-            w.WriteLine($"function {gmlName}({paramStr}) constructor");
-            w.OpenBrace();
-            w.WriteLine($"__types = {{ {typeIds} }};");
-
-            if (typeParams.Count > 0)
-                w.WriteLine($"__genericArgs = [{string.Join(", ", typeArgParamNames)}];");
-
-            var ancestorChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(constructor), ctx.TypeTable);
-
-            // Ancestor param bindings (direct-parent → root order)
-            foreach (var (ancestor, baseArgs) in ancestorChain)
-            {
-                if (baseArgs is null) continue;
-                var matchedCtor = FindMatchingConstructor(ancestor, baseArgs);
-                if (matchedCtor is null) continue;
-                var aParams = matchedCtor.Params;
-                for (var i = 0; i < Math.Min(aParams.Count, baseArgs.Count); i++)
-                {
-                    var argStr = exprEmit.Emit(baseArgs[i]);
-                    if (argStr != aParams[i].Name)
-                        w.WriteLine($"var {aParams[i].Name} = {argStr};");
-                }
-            }
-
-            // Ancestor bodies root → parent
-            foreach (var (ancestor, aBaseArgs) in Enumerable.Reverse(ancestorChain))
-                EmitClassBody(ancestor, aBaseArgs, ctx, exprEmit, stmtEmit, w);
-
-            // Own content
-            EmitOwnFields(fields, gmlName, exprEmit, w, decl is TgmlStructDecl);
-
-            foreach (var prop in properties)
-            {
-                if (AssetFacts.TryGetAssetName(prop, out _))
-                    continue;
-
-                if (RequiresBackingField(prop, ctx))
-                    w.WriteLine($"__backing_{prop.Name} = {GetDefaultStorageValue(prop.Type, exprEmit, decl is TgmlStructDecl)};");
-            }
-
-            if (constructor?.Body is { } ctorBody)
-                stmtEmit.EmitBlock(ctorBody, w);
-
-            EmitOverloadedMethods(methods, ctx, w);
-
-            foreach (var prop in properties)
-            {
-                if (AssetFacts.TryGetAssetName(prop, out _))
-                    continue;
-
-                w.WriteLine();
-                EmitProperty(prop, ctx, w);
-            }
-        }
+        if (constructors.Count <= 1)
+            EmitSingleCtorBody(decl, gmlName, qualifiedTypeName,
+                fields, properties, methods, constructors,
+                typeIds, typeArgParams, ctx, exprEmit, stmtEmit, w);
         else
-        {
-            // ── Multiple constructors: argument[] dispatch ────────────────────────
-            // The GML function has no user-visible params; type-args are still named.
-            var paramStr = string.Join(", ", typeArgParamNames);
-            w.WriteLine($"function {gmlName}({paramStr}) constructor");
-            w.OpenBrace();
-            w.WriteLine($"__types = {{ {typeIds} }};");
+            EmitMultiCtorBody(decl, gmlName, qualifiedTypeName,
+                fields, properties, methods, constructors,
+                typeIds, typeArgParams, typeArgOffset, ctx, exprEmit, stmtEmit, w);
 
-            if (typeParams.Count > 0)
-                w.WriteLine($"__genericArgs = [{string.Join(", ", typeArgParamNames)}];");
-
-            // Shared ancestor fields/statics (any overload triggers same inheritance)
-            var sharedChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(constructors[0]), ctx.TypeTable);
-            foreach (var (ancestor, _) in Enumerable.Reverse(sharedChain))
-            {
-                var aGmlName = ancestor.QualifiedName?.Replace(".", "_") ?? ancestor.Name;
-                EmitOwnFields(ancestor.Fields, aGmlName, exprEmit, w, false);
-                foreach (var prop in ancestor.Properties)
-                {
-                    if (AssetFacts.TryGetAssetName(prop, out _))
-                        continue;
-
-                    if (RequiresBackingField(prop, ctx))
-                        w.WriteLine($"__backing_{prop.Name} = undefined;");
-                }
-                EmitOverloadedMethods(ancestor.Methods, ctx, w);
-                foreach (var prop in ancestor.Properties)
-                {
-                    if (AssetFacts.TryGetAssetName(prop, out _))
-                        continue;
-
-                    w.WriteLine();
-                    EmitProperty(prop, ctx, w);
-                }
-            }
-
-            // Own fields (shared, before dispatch)
-            EmitOwnFields(fields, gmlName, exprEmit, w, decl is TgmlStructDecl);
-            foreach (var prop in properties)
-            {
-                if (AssetFacts.TryGetAssetName(prop, out _))
-                    continue;
-
-                if (RequiresBackingField(prop, ctx))
-                    w.WriteLine($"__backing_{prop.Name} = {GetDefaultStorageValue(prop.Type, exprEmit, decl is TgmlStructDecl)};");
-            }
-
-            // Per-overload dispatch (sorted: most specific first, fallback last)
-            var ctorDispatch = constructors
-                .Select((c, idx) => (Ctor: c, Idx: idx))
-                .OrderByDescending(x => CtorSpecificity(x.Ctor))
-                .ToList();
-
-            for (var di = 0; di < ctorDispatch.Count; di++)
-            {
-                var (overload, oi) = ctorDispatch[di];
-                var isLast = di == ctorDispatch.Count - 1;
-
-                if (di == 0 && !isLast)
-                {
-                    w.WriteLine($"if ({BuildCtorDispatchCondition(overload, constructors, typeArgOffset)})");
-                    w.OpenBrace();
-                }
-                else if (!isLast)
-                {
-                    w.WriteLine($"else if ({BuildCtorDispatchCondition(overload, constructors, typeArgOffset)})");
-                    w.OpenBrace();
-                }
-                else
-                {
-                    w.WriteLine("else");
-                    w.OpenBrace();
-                }
-
-                // Bind own params from argument[]
-                for (var pi = 0; pi < overload.Params.Count; pi++)
-                    w.WriteLine($"var {overload.Params[pi].Name} = argument[{pi + typeArgOffset}];");
-
-                // Build ancestor chain for this specific overload's base args
-                var overloadChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(overload), ctx.TypeTable);
-
-                // Ancestor param bindings for this overload
-                foreach (var (ancestor, aBaseArgs) in overloadChain)
-                {
-                    if (aBaseArgs is null) continue;
-                    var matchedCtor = FindMatchingConstructor(ancestor, aBaseArgs);
-                    if (matchedCtor is null) continue;
-                    var aParams = matchedCtor.Params;
-                    for (var pi = 0; pi < Math.Min(aParams.Count, aBaseArgs.Count); pi++)
-                    {
-                        var argStr = exprEmit.Emit(aBaseArgs[pi]);
-                        if (argStr != aParams[pi].Name)
-                            w.WriteLine($"var {aParams[pi].Name} = {argStr};");
-                    }
-                }
-
-                // Ancestor constructor bodies (root → parent)
-                foreach (var (ancestor, aBaseArgs) in Enumerable.Reverse(overloadChain))
-                {
-                    var matchedCtor = FindMatchingConstructor(ancestor, aBaseArgs);
-                    if (matchedCtor?.Body is { } aBody)
-                        stmtEmit.EmitBlock(aBody, w);
-                }
-
-                // Own constructor body
-                if (overload.Body is { } ctorBody)
-                    stmtEmit.EmitBlock(ctorBody, w);
-
-                w.CloseBrace();
-            }
-
-            // Own statics and properties (shared, after dispatch)
-            EmitOverloadedMethods(methods, ctx, w);
-            foreach (var prop in properties)
-            {
-                if (AssetFacts.TryGetAssetName(prop, out _))
-                    continue;
-
-                w.WriteLine();
-                EmitProperty(prop, ctx, w);
-            }
-        }
-
-        w.CloseBrace();
         yield return new GeneratedFile($"Scripts/{gmlName}/{gmlName}.gml", w.ToString());
     }
 
-    // ── Ancestor helpers ─────────────────────────────────────────────────────
+    // ── Single-constructor path ───────────────────────────────────────────────
 
     /// <summary>
-    ///     Collects the inheritance chain starting from the direct parent of <paramref name="decl"/>.
-    ///     <paramref name="ownBaseArgs"/> overrides the base-args supplied by the current type's
-    ///     constructor (used to support per-overload ancestor inlining).
+    ///     Emits the GML constructor for a type with zero or one constructor declarations.
+    ///     Ancestor members are inlined root-first, followed by own members and the ctor body.
+    /// </summary>
+    private static void EmitSingleCtorBody(
+        TgmlTypeDecl decl, string gmlName, string qualifiedTypeName,
+        List<TgmlFieldDecl> fields, List<TgmlPropertyDecl> properties,
+        List<TgmlMethodDecl> methods, List<TgmlConstructorDecl> constructors,
+        string typeIds, List<string> typeArgParams,
+        GenerationContext ctx, ExpressionEmitter exprEmit, StatementEmitter stmtEmit, GmlWriter w)
+    {
+        var ctor       = constructors.FirstOrDefault();
+        var ctorParams = ctor?.Params ?? [];
+        var allParams  = typeArgParams.Concat(ctorParams.Select(p => p.Name));
+
+        w.WriteLine($"function {gmlName}({string.Join(", ", allParams)}) constructor");
+        w.OpenBrace();
+        w.WriteLine($"__types = {{ {typeIds} }};");
+
+        if (typeArgParams.Count > 0)
+            w.WriteLine($"__genericArgs = [{string.Join(", ", typeArgParams)}];");
+
+        // Synthesised default — user/ancestor overrides emitted later will overwrite.
+        w.WriteLine($"static ToString = function() {{ return \"{qualifiedTypeName}\"; }};");
+
+        // Bind ancestor constructor parameters, then inline bodies root → parent.
+        var ancestorChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(ctor), ctx.TypeTable);
+
+        foreach (var (ancestor, baseArgs) in ancestorChain)
+        {
+            if (baseArgs is null) continue;
+            var matchedCtor = FindMatchingConstructor(ancestor, baseArgs);
+            if (matchedCtor is null) continue;
+            for (var i = 0; i < Math.Min(matchedCtor.Params.Count, baseArgs.Count); i++)
+            {
+                var argStr = exprEmit.Emit(baseArgs[i]);
+                if (argStr != matchedCtor.Params[i].Name)
+                    w.WriteLine($"var {matchedCtor.Params[i].Name} = {argStr};");
+            }
+        }
+
+        foreach (var (ancestor, aBaseArgs) in Enumerable.Reverse(ancestorChain))
+            EmitAncestorContribution(ancestor, aBaseArgs, ctx, exprEmit, stmtEmit, w);
+
+        // Own fields, backing fields and ctor body.
+        EmitFields(fields, gmlName, exprEmit, w, decl is TgmlStructDecl);
+        EmitBackingFields(properties, exprEmit, ctx, w);
+
+        if (ctor?.Body is { } ctorBody)
+        {
+            ctx.PushLocalScope(ctorParams.Select(p => p.Name));
+            stmtEmit.EmitBlock(ctorBody, w);
+            ctx.PopLocalScope();
+        }
+
+        // Static methods — user ToString overrides the synthesised default above.
+        EmitOverloadedMethods(methods.Where(m => !IsCompilerSynthesized(m)).ToList(), ctx, w);
+
+        foreach (var prop in properties.Where(p => !AssetFacts.TryGetAssetName(p, out _)))
+        {
+            w.WriteLine();
+            PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: true);
+        }
+
+        // GetType is last so it cannot be overridden.
+        w.WriteLine();
+        w.WriteLine($"static GetType = function() {{ return __TYPE_{gmlName}; }};");
+
+        w.CloseBrace();
+    }
+
+    // ── Multi-constructor path ────────────────────────────────────────────────
+
+    /// <summary>
+    ///     Emits the GML constructor for a type with multiple constructor declarations.
+    ///     A single GML function uses <c>argument[]</c> / <c>argument_count</c> to dispatch.
+    /// </summary>
+    private static void EmitMultiCtorBody(
+        TgmlTypeDecl decl, string gmlName, string qualifiedTypeName,
+        List<TgmlFieldDecl> fields, List<TgmlPropertyDecl> properties,
+        List<TgmlMethodDecl> methods, List<TgmlConstructorDecl> constructors,
+        string typeIds, List<string> typeArgParams, int typeArgOffset,
+        GenerationContext ctx, ExpressionEmitter exprEmit, StatementEmitter stmtEmit, GmlWriter w)
+    {
+        w.WriteLine($"function {gmlName}({string.Join(", ", typeArgParams)}) constructor");
+        w.OpenBrace();
+        w.WriteLine($"__types = {{ {typeIds} }};");
+
+        if (typeArgParams.Count > 0)
+            w.WriteLine($"__genericArgs = [{string.Join(", ", typeArgParams)}];");
+
+        w.WriteLine($"static ToString = function() {{ return \"{qualifiedTypeName}\"; }};");
+
+        // Shared ancestor members (same regardless of which overload is invoked).
+        var sharedChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(constructors[0]), ctx.TypeTable);
+        foreach (var (ancestor, _) in Enumerable.Reverse(sharedChain))
+        {
+            var aGmlName = ancestor.QualifiedName?.Replace(".", "_") ?? ancestor.Name;
+            EmitFields(ancestor.Fields, aGmlName, exprEmit, w, isStruct: false);
+            EmitBackingFields(ancestor.Properties, exprEmit, ctx, w);
+            EmitOverloadedMethods(ancestor.Methods.Where(m => !IsCompilerSynthesized(m)).ToList(), ctx, w);
+            foreach (var prop in ancestor.Properties.Where(p => !AssetFacts.TryGetAssetName(p, out _)))
+            {
+                w.WriteLine();
+                PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: true);
+            }
+        }
+
+        EmitFields(fields, gmlName, exprEmit, w, decl is TgmlStructDecl);
+        EmitBackingFields(properties, exprEmit, ctx, w);
+
+        // Per-overload dispatch — most-specific first, fallback (else) last.
+        var dispatchOrder = constructors
+            .Select((c, idx) => (Ctor: c, Idx: idx))
+            .OrderByDescending(x => OverloadDispatchHelper.CtorSpecificity(x.Ctor))
+            .ToList();
+
+        for (var di = 0; di < dispatchOrder.Count; di++)
+        {
+            var (overload, _) = dispatchOrder[di];
+            var isLast        = di == dispatchOrder.Count - 1;
+            var keyword       = di == 0 ? "if" : isLast ? "else" : "else if";
+            var condition     = isLast ? string.Empty
+                : $" ({OverloadDispatchHelper.BuildCtorDispatchCondition(overload, constructors, typeArgOffset)})";
+
+            w.WriteLine($"{keyword}{condition}");
+            w.OpenBrace();
+
+            for (var pi = 0; pi < overload.Params.Count; pi++)
+                w.WriteLine($"var {overload.Params[pi].Name} = argument[{pi + typeArgOffset}];");
+
+            var overloadChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(overload), ctx.TypeTable);
+
+            foreach (var (ancestor, aBaseArgs) in overloadChain)
+            {
+                if (aBaseArgs is null) continue;
+                var matchedCtor = FindMatchingConstructor(ancestor, aBaseArgs);
+                if (matchedCtor is null) continue;
+                for (var pi = 0; pi < Math.Min(matchedCtor.Params.Count, aBaseArgs.Count); pi++)
+                {
+                    var argStr = exprEmit.Emit(aBaseArgs[pi]);
+                    if (argStr != matchedCtor.Params[pi].Name)
+                        w.WriteLine($"var {matchedCtor.Params[pi].Name} = {argStr};");
+                }
+            }
+
+            foreach (var (ancestor, aBaseArgs) in Enumerable.Reverse(overloadChain))
+            {
+                var matchedCtor = FindMatchingConstructor(ancestor, aBaseArgs);
+                if (matchedCtor?.Body is { } aBody)
+                    stmtEmit.EmitBlock(aBody, w);
+            }
+
+            if (overload.Body is { } ctorBody)
+            {
+                ctx.PushLocalScope(overload.Params.Select(p => p.Name));
+                stmtEmit.EmitBlock(ctorBody, w);
+                ctx.PopLocalScope();
+            }
+
+            w.CloseBrace();
+        }
+
+        EmitOverloadedMethods(methods.Where(m => !IsCompilerSynthesized(m)).ToList(), ctx, w);
+        foreach (var prop in properties.Where(p => !AssetFacts.TryGetAssetName(p, out _)))
+        {
+            w.WriteLine();
+            PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: true);
+        }
+
+        w.WriteLine();
+        w.WriteLine($"static GetType = function() {{ return __TYPE_{gmlName}; }};");
+
+        w.CloseBrace();
+    }
+
+    // ── Ancestor inlining ─────────────────────────────────────────────────────
+
+    /// <summary>
+    ///     Collects the transitive ancestor chain in direct-parent-first order.
+    ///     <paramref name="ownBaseArgs"/> are the expressions the current type's constructor
+    ///     passes to <c>base(...)</c>.
     /// </summary>
     private static List<(TgmlClassDecl Decl, List<TgmlExpression>? BaseArgs)> CollectAncestorChain(
         TgmlTypeDecl decl, List<TgmlExpression>? ownBaseArgs, TypeTable typeTable)
     {
-        var chain = new List<(TgmlClassDecl, List<TgmlExpression>?)>();
-
-        var currentBases = decl switch
-        {
-            TgmlClassDecl c => c.BaseTypes,
-            TgmlStructDecl s => s.BaseTypes,
-            _ => null
-        };
+        var chain           = new List<(TgmlClassDecl, List<TgmlExpression>?)>();
+        var currentBases    = GetBaseTypeList(decl);
         var currentBaseArgs = ownBaseArgs;
 
         while (currentBases is not null)
         {
-            TgmlClassDecl? parentDecl = null;
+            TgmlClassDecl? parent = null;
             foreach (var bt in currentBases)
             {
                 typeTable.TryResolve(bt.Name.Full, out var btDecl);
-                if (btDecl is TgmlClassDecl pc) { parentDecl = pc; break; }
+                if (btDecl is TgmlClassDecl pc) { parent = pc; break; }
             }
-            if (parentDecl is null) break;
+            if (parent is null) break;
 
-            chain.Add((parentDecl, currentBaseArgs));
-
-            // Find the constructor that matches the args we're passing (by count)
-            var matchedCtor = FindMatchingConstructor(parentDecl, currentBaseArgs);
+            chain.Add((parent, currentBaseArgs));
+            var matchedCtor = FindMatchingConstructor(parent, currentBaseArgs);
             currentBaseArgs = GetNormalizedBaseArgs(matchedCtor);
-            currentBases = parentDecl.BaseTypes;
+            currentBases    = parent.BaseTypes;
         }
 
         return chain;
     }
 
     /// <summary>
-    ///     Picks the constructor of <paramref name="ancestor"/> that best matches
-    ///     the supplied <paramref name="baseArgs"/> (matched by argument count).
-    ///     Falls back to the first constructor when no unique match exists.
+    ///     Inlines an ancestor's fields, backing fields, constructor body, static methods
+    ///     and property accessors into the emitting constructor.
     /// </summary>
-    private static TgmlConstructorDecl? FindMatchingConstructor(
-        TgmlClassDecl ancestor, List<TgmlExpression>? baseArgs)
+    private static void EmitAncestorContribution(
+        TgmlClassDecl ancestor, List<TgmlExpression>? baseArgs,
+        GenerationContext ctx, ExpressionEmitter exprEmit, StatementEmitter stmtEmit, GmlWriter w)
     {
-        if (ancestor.Constructors.Count == 0) return null;
-        if (baseArgs is null) return ancestor.Constructors[0];
-
-        var byCount = ancestor.Constructors
-            .Where(c => c.Params.Count == baseArgs.Count)
-            .ToList();
-
-        return byCount.Count == 1 ? byCount[0] : ancestor.Constructors[0];
-    }
-
-    private static List<TgmlExpression>? GetNormalizedBaseArgs(TgmlConstructorDecl? ctor)
-    {
-        if (ctor is null)
-            return null;
-
-        if (ctor.Metadata.TryGetValue("NormalizedBaseArgs", out var normalizedArgs) &&
-            normalizedArgs is List<TgmlExpression> normalized)
-        {
-            return normalized;
-        }
-
-        return ctor.BaseArgs?.Select(a => a.Value).ToList();
-    }
-
-    /// <summary>
-    ///     Inlines an ancestor's non-static fields, backing fields, constructor body,
-    ///     static methods and property accessors into the currently-emitting constructor.
-    /// </summary>
-    private static void EmitClassBody(
-        TgmlClassDecl ancestor,
-        List<TgmlExpression>? baseArgs,
-        GenerationContext ctx,
-        ExpressionEmitter exprEmit,
-        StatementEmitter stmtEmit,
-        GmlWriter w)
-    {
-        var ancestorGmlName = ancestor.QualifiedName?.Replace(".", "_") ?? ancestor.Name;
-        EmitOwnFields(ancestor.Fields, ancestorGmlName, exprEmit, w, false);
-
-        foreach (var prop in ancestor.Properties)
-        {
-            if (AssetFacts.TryGetAssetName(prop, out _))
-                continue;
-
-            if (RequiresBackingField(prop, ctx))
-                w.WriteLine($"__backing_{prop.Name} = undefined;");
-        }
+        var aGmlName = ancestor.QualifiedName?.Replace(".", "_") ?? ancestor.Name;
+        EmitFields(ancestor.Fields, aGmlName, exprEmit, w, isStruct: false);
+        EmitBackingFields(ancestor.Properties, exprEmit, ctx, w);
 
         var matchedCtor = FindMatchingConstructor(ancestor, baseArgs);
         if (matchedCtor?.Body is { } body)
             stmtEmit.EmitBlock(body, w);
 
-        EmitOverloadedMethods(ancestor.Methods, ctx, w);
+        EmitOverloadedMethods(ancestor.Methods.Where(m => !IsCompilerSynthesized(m)).ToList(), ctx, w);
 
-        foreach (var prop in ancestor.Properties)
+        foreach (var prop in ancestor.Properties.Where(p => !AssetFacts.TryGetAssetName(p, out _)))
         {
-            if (AssetFacts.TryGetAssetName(prop, out _))
-                continue;
-
             w.WriteLine();
-            EmitProperty(prop, ctx, w);
+            PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: true);
         }
     }
 
-    // ── Field, method, property emitters ─────────────────────────────────────
+    // ── Field emitters ────────────────────────────────────────────────────────
 
-    private static void EmitOwnFields(
-        List<TgmlFieldDecl> fields, string ownerGmlName,
-        ExpressionEmitter exprEmit, GmlWriter w, bool useValueTypeDefaults)
+    /// <summary>Emits instance (<c>self.X</c>) and static (<c>global.Owner_X</c>) field initialisers.</summary>
+    private static void EmitFields(
+        IReadOnlyList<TgmlFieldDecl> fields, string ownerGmlName,
+        ExpressionEmitter exprEmit, GmlWriter w, bool isStruct)
     {
         foreach (var field in fields)
         {
-            if (AssetFacts.TryGetAssetName(field, out _))
-                continue;
+            if (AssetFacts.TryGetAssetName(field, out _)) continue;
+
+            var initVal = field.Initializer is not null
+                ? exprEmit.Emit(field.Initializer)
+                : EmitHelpers.DefaultStorageValue(field.Type, exprEmit);
 
             if (field.IsStatic)
-            {
-                var globalName = $"global.{ownerGmlName}_{field.Name}";
-                var initVal = field.Initializer is not null
-                    ? exprEmit.Emit(field.Initializer)
-                    : GetDefaultStorageValue(field.Type, exprEmit, useValueTypeDefaults);
-                w.WriteLine($"{globalName} = {initVal};");
-            }
+                w.WriteLine($"global.{ownerGmlName}_{field.Name} = {initVal};");
             else
-            {
-                var initVal = field.Initializer is not null
-                    ? exprEmit.Emit(field.Initializer)
-                    : GetDefaultStorageValue(field.Type, exprEmit, useValueTypeDefaults);
                 w.WriteLine($"self.{field.Name} = {initVal};");
-            }
         }
     }
 
-    private static string GetDefaultStorageValue(TgmlTypeRef type, ExpressionEmitter exprEmit, bool useValueTypeDefaults)
+    /// <summary>Emits <c>__backing_PropName = default;</c> for properties that need a backing field.</summary>
+    private static void EmitBackingFields(
+        IReadOnlyList<TgmlPropertyDecl> properties,
+        ExpressionEmitter exprEmit, GenerationContext ctx, GmlWriter w)
     {
-        if (!useValueTypeDefaults)
-            return "undefined";
-
-        return exprEmit.Emit(new TgmlDefaultExpr { Type = type });
+        foreach (var prop in properties)
+        {
+            if (AssetFacts.TryGetAssetName(prop, out _)) continue;
+            if (EmitHelpers.RequiresBackingField(prop, ctx))
+                w.WriteLine($"__backing_{prop.Name} = {EmitHelpers.DefaultStorageValue(prop.Type, exprEmit)};");
+        }
     }
 
-    private static string BuildTypesStruct(TgmlTypeDecl decl, GenerationContext ctx)
-    {
-        var names = TypeHierarchyHelper.CollectAllGmlTypeNames(decl, ctx.TypeTable);
-        return string.Join(", ", names.Select(n => $"__TYPE_{n}: true"));
-    }
-
-    private static bool RequiresBackingField(TgmlPropertyDecl prop, GenerationContext ctx)
-    {
-        if (prop.IsIndexer)
-            return false;
-
-        if (AssetFacts.TryGetAssetName(prop, out _))
-            return false;
-
-        return (prop.Getter?.IsAuto == true || prop.Setter?.IsAuto == true) &&
-               ctx.GetNativePropertyName(prop) is null;
-    }
-
-    // ── Overloaded method emission ────────────────────────────────────────────
+    // ── Static method emission ────────────────────────────────────────────────
 
     /// <summary>
-    ///     Groups <paramref name="methods"/> by name. Single-method groups are emitted normally.
-    ///     Multi-method groups get numbered variants (<c>Name_0</c>, <c>Name_1</c>, …) plus
-    ///     a runtime dispatcher (<c>Name</c>) that uses <c>argument_count</c> and GML type checks.
+    ///     Groups methods by name and emits them as GML <c>static</c> function assignments.
+    ///     Multiple overloads get numbered variants plus a runtime-dispatch wrapper.
     /// </summary>
     private static void EmitOverloadedMethods(
-        List<TgmlMethodDecl> methods, GenerationContext ctx, GmlWriter w)
+        IReadOnlyList<TgmlMethodDecl> methods, GenerationContext ctx, GmlWriter w)
     {
         if (methods.Count == 0) return;
 
-        var groups = methods
+        foreach (var group in methods
             .Where(m => !m.IsAbstract && !m.IsUserDefinedOperator)
-            .GroupBy(m => m.Name)
-            .ToList();
-
-        foreach (var group in groups)
+            .GroupBy(m => m.Name))
         {
             var overloads = group.ToList();
             w.WriteLine();
@@ -431,93 +360,100 @@ public sealed class ScriptClassEmitter : ICodeEmitter
             if (overloads.Count == 1)
             {
                 EmitStaticMethod(overloads[0], ctx, w);
+                continue;
             }
-            else
+
+            for (var i = 0; i < overloads.Count; i++)
             {
-                // Numbered overloads (declaration order)
-                for (var i = 0; i < overloads.Count; i++)
-                {
-                    EmitStaticMethodAs($"{group.Key}_{i}", overloads[i], ctx, w);
-                    if (i < overloads.Count - 1) w.WriteLine();
-                }
-
-                // Dispatcher: sort by specificity so the most type-checkable overloads
-                // are tested first, leaving the least-specific numeric fallback last.
-                var dispatchOrder = overloads
-                    .Select((m, idx) => (Method: m, Idx: idx))
-                    .OrderByDescending(x => MethodSpecificity(x.Method))
-                    .ToList();
-
-                w.WriteLine();
-                w.WriteLine($"static {group.Key} = function()");
-                w.OpenBrace();
-                for (var di = 0; di < dispatchOrder.Count; di++)
-                {
-                    var (ov, origIdx) = dispatchOrder[di];
-                    var isLast = di == dispatchOrder.Count - 1;
-                    var argExprs = string.Join(", ",
-                        Enumerable.Range(0, ov.Params.Count).Select(j => $"argument[{j}]"));
-                    var ret = ov.ReturnType.Name.Full != "void" ? "return " : "";
-
-                    if (isLast)
-                    {
-                        // Fallback: use else { } so void methods don't fall through from earlier branches
-                        w.WriteLine($"else {{ {ret}{group.Key}_{origIdx}({argExprs}); }}");
-                    }
-                    else
-                    {
-                        var cond = BuildMethodDispatchCondition(ov, overloads);
-                        var keyword = di == 0 ? "if" : "else if";
-                        w.WriteLine($"{keyword} ({cond}) {{ {ret}{group.Key}_{origIdx}({argExprs}); }}");
-                    }
-                }
-                w.CloseBrace();
+                EmitStaticMethodAs($"{group.Key}_{i}", overloads[i], ctx, w);
+                if (i < overloads.Count - 1) w.WriteLine();
             }
+
+            // Dispatcher — most-specific overload tested first.
+            var dispatchOrder = overloads
+                .Select((m, idx) => (Method: m, Idx: idx))
+                .OrderByDescending(x => OverloadDispatchHelper.MethodSpecificity(x.Method))
+                .ToList();
+
+            w.WriteLine();
+            w.WriteLine($"static {group.Key} = function()");
+            w.OpenBrace();
+            for (var di = 0; di < dispatchOrder.Count; di++)
+            {
+                var (ov, origIdx) = dispatchOrder[di];
+                var isLast   = di == dispatchOrder.Count - 1;
+                var argExprs = string.Join(", ",
+                    Enumerable.Range(0, ov.Params.Count).Select(j => $"argument[{j}]"));
+                var ret = ov.ReturnType.Name.Full != "void" ? "return " : "";
+
+                if (isLast)
+                    w.WriteLine($"else {{ {ret}{group.Key}_{origIdx}({argExprs}); }}");
+                else
+                {
+                    var cond    = OverloadDispatchHelper.BuildMethodDispatchCondition(ov, overloads);
+                    var keyword = di == 0 ? "if" : "else if";
+                    w.WriteLine($"{keyword} ({cond}) {{ {ret}{group.Key}_{origIdx}({argExprs}); }}");
+                }
+            }
+            w.CloseBrace();
         }
     }
 
     private static void EmitStaticMethod(TgmlMethodDecl method, GenerationContext ctx, GmlWriter w)
         => EmitStaticMethodAs(method.Name, method, ctx, w);
 
+    /// <summary>
+    ///     Emits a single <c>static gmlName = function(...) { ... };</c>,
+    ///     honouring <c>NativeCallName</c> metadata for BCL native-call stubs.
+    /// </summary>
     private static void EmitStaticMethodAs(
         string gmlName, TgmlMethodDecl method, GenerationContext ctx, GmlWriter w)
     {
-        var stmtEmit = new StatementEmitter(ctx);
         var paramStr = string.Join(", ", method.Params.Select(p => p.Name));
+
+        if (method.Metadata.TryGetValue("NativeCallName", out var nco) && nco is string nativeCallName)
+        {
+            w.WriteLine($"static {gmlName} = function({paramStr}) {{ {nativeCallName}({paramStr}); }}");
+            return;
+        }
+
+        var stmtEmit = new StatementEmitter(ctx);
         w.WriteLine($"static {gmlName} = function({paramStr})");
         w.OpenBrace();
+        ctx.PushLocalScope(method.Params.Select(p => p.Name));
         if (method.Body is not null) stmtEmit.EmitBlock(method.Body, w);
+        ctx.PopLocalScope();
         w.CloseBrace();
     }
 
+    // ── User-defined operator helpers ─────────────────────────────────────────
+
+    /// <summary>
+    ///     Emits file-level GML helper functions for every user-defined operator/conversion.
+    ///     These must be outside the constructor because GML operator helpers are plain functions.
+    /// </summary>
     private static void EmitUserDefinedOperatorHelpers(
-        TgmlTypeDecl owner,
-        IReadOnlyList<TgmlMethodDecl> methods,
-        GenerationContext ctx,
-        GmlWriter w)
+        TgmlTypeDecl owner, IReadOnlyList<TgmlMethodDecl> methods, GenerationContext ctx, GmlWriter w)
     {
         var helpers = methods.Where(m => m.IsUserDefinedOperator && m.Body is not null).ToList();
-        if (helpers.Count == 0)
-            return;
+        if (helpers.Count == 0) return;
 
-        var stmtEmit = new StatementEmitter(ctx);
-        var previousCurrentType = ctx.CurrentType;
-        var previousMethodName = ctx.CurrentMethodName;
-        var previousMethodIsOverride = ctx.CurrentMethodIsOverride;
-        var previousMethodOwnerType = ctx.CurrentMethodOwnerType;
-        var previousNativeEventName = ctx.CurrentNativeEventName;
+        // Save and restore emission context around operator helpers.
+        var saved = (ctx.CurrentType, ctx.CurrentMethodName, ctx.CurrentMethodIsOverride,
+                     ctx.CurrentMethodOwnerType, ctx.CurrentNativeEventName);
 
-        ctx.CurrentType = owner;
+        ctx.CurrentType            = owner;
         ctx.CurrentNativeEventName = null;
         ctx.CurrentMethodOwnerType = owner as TgmlClassDecl;
 
+        var stmtEmit = new StatementEmitter(ctx);
         foreach (var method in helpers)
         {
-            ctx.CurrentMethodName = method.Name;
+            ctx.CurrentMethodName       = method.Name;
             ctx.CurrentMethodIsOverride = method.IsOverride;
 
             var helperName = OperatorFacts.GetHelperName(owner, method);
-            var paramStr = string.Join(", ", method.Params.Select(p => p.Name));
+            var paramStr   = string.Join(", ", method.Params.Select(p => p.Name));
             w.WriteLine($"function {helperName}({paramStr})");
             w.OpenBrace();
             stmtEmit.EmitBlock(method.Body!, w);
@@ -525,197 +461,49 @@ public sealed class ScriptClassEmitter : ICodeEmitter
             w.WriteLine();
         }
 
-        ctx.CurrentType = previousCurrentType;
-        ctx.CurrentMethodName = previousMethodName;
-        ctx.CurrentMethodIsOverride = previousMethodIsOverride;
-        ctx.CurrentMethodOwnerType = previousMethodOwnerType;
-        ctx.CurrentNativeEventName = previousNativeEventName;
+        (ctx.CurrentType, ctx.CurrentMethodName, ctx.CurrentMethodIsOverride,
+         ctx.CurrentMethodOwnerType, ctx.CurrentNativeEventName) = saved;
     }
 
-    // ── Dispatch condition builders ───────────────────────────────────────────
+    // ── Utilities ─────────────────────────────────────────────────────────────
 
     /// <summary>
-    ///     Builds the GML if-condition to select <paramref name="overload"/> over the others
-    ///     (method dispatch).
+    ///     Returns <c>true</c> for methods that are always compiler-synthesized.
+    ///     Currently only <c>GetType</c> — its body is replaced by a <c>__TYPE_X</c> macro return.
     /// </summary>
-    private static string BuildMethodDispatchCondition(
-        TgmlMethodDecl overload, List<TgmlMethodDecl> all)
+    private static bool IsCompilerSynthesized(TgmlMethodDecl m) => m.Name is "GetType";
+
+    private static List<TgmlTypeRef>? GetBaseTypeList(TgmlTypeDecl decl) => decl switch
     {
-        var count = overload.Params.Count;
-        var sameCounts = all.Where(o => o != overload && o.Params.Count == count).ToList();
-        var conditions = new List<string> { $"argument_count == {count}" };
-
-        if (sameCounts.Count > 0)
-            AppendTypeDistinguisher(conditions, overload.Params, sameCounts.Select(o => o.Params).ToList(), argPrefix: "argument");
-
-        return string.Join(" && ", conditions);
-    }
+        TgmlClassDecl c  => c.BaseTypes,
+        TgmlStructDecl s => s.BaseTypes,
+        _ => null
+    };
 
     /// <summary>
-    ///     Builds the GML if-condition to select <paramref name="overload"/> over the others
-    ///     (constructor dispatch, accounting for type-arg prefix offset).
+    ///     Returns the normalized base constructor args set by the checker, or falls back to
+    ///     the raw parsed <see cref="TgmlConstructorDecl.BaseArgs"/>.
     /// </summary>
-    private static string BuildCtorDispatchCondition(
-        TgmlConstructorDecl overload, List<TgmlConstructorDecl> all, int typeArgOffset)
+    private static List<TgmlExpression>? GetNormalizedBaseArgs(TgmlConstructorDecl? ctor)
     {
-        var count = overload.Params.Count;
-        var sameCounts = all.Where(o => o != overload && o.Params.Count == count).ToList();
-        var conditions = new List<string> { $"argument_count == {count + typeArgOffset}" };
-
-        if (sameCounts.Count > 0)
-            AppendTypeDistinguisher(conditions,
-                overload.Params,
-                sameCounts.Select(o => o.Params).ToList(),
-                argPrefix: "argument",
-                offset: typeArgOffset);
-
-        return string.Join(" && ", conditions);
+        if (ctor is null) return null;
+        if (ctor.Metadata.TryGetValue("NormalizedBaseArgs", out var v) && v is List<TgmlExpression> n)
+            return n;
+        return ctor.BaseArgs?.Select(a => a.Value).ToList();
     }
 
     /// <summary>
-    ///     Appends a GML type-check condition at the first parameter position where
-    ///     <paramref name="myParams"/> differs from all <paramref name="otherParams"/> lists.
+    ///     Picks the constructor of <paramref name="ancestor"/> whose parameter count matches
+    ///     <paramref name="baseArgs"/>; falls back to the first constructor when ambiguous.
     /// </summary>
-    private static void AppendTypeDistinguisher(
-        List<string> conditions,
-        IReadOnlyList<TgmlParam> myParams,
-        List<List<TgmlParam>> otherParams,
-        string argPrefix,
-        int offset = 0)
+    private static TgmlConstructorDecl? FindMatchingConstructor(
+        TgmlClassDecl ancestor, List<TgmlExpression>? baseArgs)
     {
-        for (var i = 0; i < myParams.Count; i++)
-        {
-            var myType = myParams[i].Type.Name.Full;
-            var conflictAtPos = otherParams.Any(o => o[i].Type.Name.Full == myType);
-            if (conflictAtPos) continue;
+        if (ancestor.Constructors.Count == 0) return null;
+        if (baseArgs is null)                 return ancestor.Constructors[0];
 
-            var check = GmlTypeCheck(myType, $"{argPrefix}[{i + offset}]");
-            if (check is not null) conditions.Add(check);
-            break;
-        }
-    }
-
-    /// <summary>
-    ///     Overload specificity score for a method: sum of per-param scores.
-    ///     Higher = should be dispatched first (before less-specific fallback).
-    ///     number score 0 (GML can't distinguish numeric shapes); string/bool/array/struct score higher.
-    /// </summary>
-    private static int MethodSpecificity(TgmlMethodDecl m) =>
-        m.Params.Sum(p => ParamTypeSpecificity(p.Type.Name.Full));
-
-    /// <summary>Same as <see cref="MethodSpecificity"/> for constructors.</summary>
-    private static int CtorSpecificity(TgmlConstructorDecl c) =>
-        c.Params.Sum(p => ParamTypeSpecificity(p.Type.Name.Full));
-
-    private static int ParamTypeSpecificity(string tgmlType) =>
-        tgmlType switch
-        {
-            "string" or "bool" or "array" => 3,
-            "number" or "int" or "real" => 0,
-            _ => 2 // user-defined class / struct
-        };
-
-    /// <summary>
-    ///     Returns a GML runtime type-test expression for <paramref name="tgmlType"/>,
-    ///     or <c>null</c> when no reliable check exists (e.g., numeric overloads).
-    /// </summary>
-    private static string? GmlTypeCheck(string tgmlType, string argExpr) =>
-        tgmlType switch
-        {
-            "string" => $"is_string({argExpr})",
-            "bool"   => $"is_bool({argExpr})",
-            "array"  => $"is_array({argExpr})",
-            "number" or "int" or "real" => null, // indistinguishable at GML runtime
-            _ => $"is_struct({argExpr})"   // user-defined class/struct
-        };
-
-    private static void EmitProperty(TgmlPropertyDecl prop, GenerationContext ctx, GmlWriter w)
-    {
-        var stmtEmit = new StatementEmitter(ctx);
-        if (prop.IsIndexer)
-        {
-            EmitIndexer(prop, ctx, stmtEmit, w, isStatic: true);
-            return;
-        }
-
-        var nativePropertyName = ctx.GetNativePropertyName(prop);
-        ctx.CurrentPropertyName = prop.Name;
-
-        if (prop.Getter is { } getter)
-        {
-            ctx.InsideGetter = true;
-            ctx.InsideSetter = false;
-
-            if (nativePropertyName is not null && getter.IsAuto)
-                w.WriteLine($"static get_{prop.Name} = function() {{ return {nativePropertyName}; }};");
-            else if (getter.IsAuto)
-                w.WriteLine($"static get_{prop.Name} = function() {{ return __backing_{prop.Name}; }};");
-            else
-            {
-                w.WriteLine($"static get_{prop.Name} = function()");
-                w.OpenBrace();
-                if (getter.Body is not null) stmtEmit.EmitBlock(getter.Body, w);
-                w.CloseBrace();
-            }
-        }
-
-        if (prop.Setter is { } setter)
-        {
-            ctx.InsideGetter = false;
-            ctx.InsideSetter = true;
-
-            if (nativePropertyName is not null && setter.IsAuto)
-                w.WriteLine($"static set_{prop.Name} = function(value) {{ {nativePropertyName} = value; }};");
-            else if (setter.IsAuto)
-                w.WriteLine($"static set_{prop.Name} = function(value) {{ __backing_{prop.Name} = value; }};");
-            else
-            {
-                w.WriteLine($"static set_{prop.Name} = function(value)");
-                w.OpenBrace();
-                if (setter.Body is not null) stmtEmit.EmitBlock(setter.Body, w);
-                w.CloseBrace();
-            }
-        }
-
-        ctx.InsideGetter = false;
-        ctx.InsideSetter = false;
-        ctx.CurrentPropertyName = null;
-    }
-
-    private static void EmitIndexer(TgmlPropertyDecl prop, GenerationContext ctx, StatementEmitter stmtEmit, GmlWriter w, bool isStatic)
-    {
-        var indexParamName = prop.IndexParam?.Name ?? "index";
-        var prefix = isStatic ? "static " : string.Empty;
-
-        if (prop.Getter is { } getter)
-        {
-            ctx.InsideGetter = true;
-            ctx.InsideSetter = false;
-            ctx.CurrentPropertyName = null;
-
-            w.WriteLine($"{prefix}get_Item = function({indexParamName})");
-            w.OpenBrace();
-            if (getter.Body is not null)
-                stmtEmit.EmitBlock(getter.Body, w);
-            w.CloseBrace();
-        }
-
-        if (prop.Setter is { } setter)
-        {
-            ctx.InsideGetter = false;
-            ctx.InsideSetter = true;
-            ctx.CurrentPropertyName = null;
-
-            w.WriteLine($"{prefix}set_Item = function({indexParamName}, value)");
-            w.OpenBrace();
-            if (setter.Body is not null)
-                stmtEmit.EmitBlock(setter.Body, w);
-            w.CloseBrace();
-        }
-
-        ctx.InsideGetter = false;
-        ctx.InsideSetter = false;
-        ctx.CurrentPropertyName = null;
+        var byCount = ancestor.Constructors.Where(c => c.Params.Count == baseArgs.Count).ToList();
+        return byCount.Count == 1 ? byCount[0] : ancestor.Constructors[0];
     }
 }
 

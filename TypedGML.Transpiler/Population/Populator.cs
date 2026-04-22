@@ -6,14 +6,23 @@ namespace TypedGML.Transpiler.Population;
 
 /// <summary>
 ///     Entry point for the Population stage.
-///     Parses .tgml source files using ANTLR and returns typed AST models.
+///     Parses <c>.tgml</c> source files using ANTLR4 and returns typed AST models.
 /// </summary>
 public static class Populator
 {
+    /// <summary>
+    ///     Parses all <paramref name="sources"/> and returns the resulting AST files
+    ///     together with any parse diagnostics.
+    /// </summary>
+    /// <param name="sources">The source files to parse.</param>
+    /// <returns>
+    ///     A tuple of the populated <see cref="TgmlFile"/> list and any
+    ///     <see cref="TranspileDiagnostic"/> entries produced during parsing.
+    /// </returns>
     public static (List<TgmlFile> Files, List<TranspileDiagnostic> Diagnostics)
         Populate(IReadOnlyList<TgmlSourceFile> sources)
     {
-        var files = new List<TgmlFile>();
+        var files       = new List<TgmlFile>();
         var diagnostics = new List<TranspileDiagnostic>();
 
         foreach (var source in sources)
@@ -21,24 +30,19 @@ public static class Populator
             try
             {
                 var (file, fileDiags) = ParseFile(source);
-                file.FileName.GetType(); // just to ensure non-null
-                // Assign filename
+
+                // Assign the source file name and compute qualified names for all top-level types.
+                var ns = file.PrimaryNamespace;
+                foreach (var t in file.TypeDecls)
+                    t.QualifiedName ??= string.IsNullOrEmpty(ns) ? t.Name : $"{ns}.{t.Name}";
+
                 var namedFile = new TgmlFile
                 {
-                    FileName = source.FileName,
-                    Usings = file.Usings,
+                    FileName  = source.FileName,
+                    Usings    = file.Usings,
                     Namespaces = file.Namespaces,
                     TypeDecls = file.TypeDecls
                 };
-                // Set QualifiedName on all top-level types from this file's namespace
-                var ns = namedFile.PrimaryNamespace;
-                foreach (var t in namedFile.TypeDecls)
-                {
-                    if (t.QualifiedName is null)
-                    {
-                        t.QualifiedName = string.IsNullOrEmpty(ns) ? t.Name : $"{ns}.{t.Name}";
-                    }
-                }
 
                 files.Add(namedFile);
                 diagnostics.AddRange(fileDiags);
@@ -55,87 +59,28 @@ public static class Populator
         return (files, diagnostics);
     }
 
+    // ── Internal helpers ──────────────────────────────────────────────────────
+
     private static (TgmlFile File, List<TranspileDiagnostic> Diagnostics)
         ParseFile(TgmlSourceFile source)
     {
         var diagnostics = new List<TranspileDiagnostic>();
-        var lexerListener = new LexerErrorListener(source.FileName, diagnostics);
-        var parserListener = new ParserErrorListener(source.FileName, diagnostics);
 
         var inputStream = new AntlrInputStream(source.Content);
+
         var lexer = new TypedGMLLexer(inputStream);
         lexer.RemoveErrorListeners();
-        lexer.AddErrorListener(lexerListener);
+        lexer.AddErrorListener(new LexerErrorListener(source.FileName, diagnostics));
 
         var tokenStream = new CommonTokenStream(lexer);
-        var parser = new TypedGMLParser(tokenStream);
+        var parser      = new TypedGMLParser(tokenStream);
         parser.RemoveErrorListeners();
-        parser.AddErrorListener(parserListener);
+        parser.AddErrorListener(new ParserErrorListener(source.FileName, diagnostics));
 
-        var tree = parser.program();
+        var tree    = parser.program();
         var visitor = new AstVisitor();
-        var file = (TgmlFile)visitor.Visit(tree)!;
+        var file    = (TgmlFile)visitor.Visit(tree)!;
 
         return (file, diagnostics);
-    }
-
-    // ── ANTLR error listeners ────────────────────────────────────────────────
-
-    /// <summary>Parser error listener (offending symbol is IToken).</summary>
-    private sealed class ParserErrorListener
-        : BaseErrorListener
-    {
-        private readonly List<TranspileDiagnostic> _diagnostics;
-        private readonly string _fileName;
-
-        public ParserErrorListener(string fileName, List<TranspileDiagnostic> diagnostics)
-        {
-            _fileName = fileName;
-            _diagnostics = diagnostics;
-        }
-
-        public override void SyntaxError(
-            TextWriter output,
-            IRecognizer recognizer,
-            IToken? offendingSymbol,
-            int line,
-            int charPositionInLine,
-            string msg,
-            RecognitionException e)
-        {
-            _diagnostics.Add(new TranspileDiagnostic(
-                DiagnosticSeverity.Error,
-                $"Syntax error: {msg}",
-                _fileName, line, charPositionInLine));
-        }
-    }
-
-    /// <summary>Lexer error listener (offending symbol is int token type).</summary>
-    private sealed class LexerErrorListener
-        : IAntlrErrorListener<int>
-    {
-        private readonly List<TranspileDiagnostic> _diagnostics;
-        private readonly string _fileName;
-
-        public LexerErrorListener(string fileName, List<TranspileDiagnostic> diagnostics)
-        {
-            _fileName = fileName;
-            _diagnostics = diagnostics;
-        }
-
-        public void SyntaxError(
-            TextWriter output,
-            IRecognizer recognizer,
-            int offendingSymbol,
-            int line,
-            int charPositionInLine,
-            string msg,
-            RecognitionException e)
-        {
-            _diagnostics.Add(new TranspileDiagnostic(
-                DiagnosticSeverity.Error,
-                $"Lexer error: {msg}",
-                _fileName, line, charPositionInLine));
-        }
     }
 }

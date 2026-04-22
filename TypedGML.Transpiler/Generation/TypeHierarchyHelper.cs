@@ -22,6 +22,13 @@ internal static class TypeHierarchyHelper
         visited ??= new HashSet<string>(StringComparer.Ordinal);
         var result = new List<string>();
         Collect(decl, typeTable, result, visited);
+
+        // Every type implicitly inherits from System.Object — add it unless this IS System.Object.
+        const string systemObjectGml = "System_Object";
+        var selfGml = decl.QualifiedName?.Replace(".", "_") ?? decl.Name;
+        if (selfGml != systemObjectGml && !result.Contains(systemObjectGml))
+            result.Add(systemObjectGml);
+
         return result;
     }
 

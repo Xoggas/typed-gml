@@ -7,7 +7,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class AssetDecoratorCheck : IAtomicCheck
 {
-    public string Name => "AssetDecoratorCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {

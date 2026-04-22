@@ -1,6 +1,6 @@
 namespace System.Collections;
 
-public class Queue<T>
+public class Queue<T> : IQueue<T>
 {
     private T[] _items;
 
@@ -16,13 +16,19 @@ public class Queue<T>
         Count = 0;
     }
 
+    @NativeCall("array_push")
+    private static void ArrayPush(T[] arr, T item) {}
+
+    @NativeCall("array_delete")
+    private static void ArrayDelete(T[] arr, number index, number count) {}
+
     public void Clear()
     {
         _items = [];
         Count = 0;
     }
 
-    public T nocheck Dequeue()
+    public T Dequeue()
     {
         if (Count <= 0)
         {
@@ -30,14 +36,14 @@ public class Queue<T>
         }
 
         var value = _items[0];
-        #array_delete(_items, 0, 1);
+        ArrayDelete(_items, 0, 1);
         Count = Count - 1;
         return value;
     }
 
-    public void nocheck Enqueue(T item)
+    public void Enqueue(T item)
     {
-        #array_push(_items, item);
+        ArrayPush(_items, item);
         Count = Count + 1;
     }
 
@@ -49,6 +55,19 @@ public class Queue<T>
         }
 
         return _items[0];
+    }
+
+    public bool Contains(T item)
+    {
+        for (var i = 0; i < Count; i = i + 1)
+        {
+            if (_items[i] == item)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public T[] ToArray()

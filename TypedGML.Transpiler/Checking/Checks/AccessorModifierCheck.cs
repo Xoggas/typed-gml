@@ -7,7 +7,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class AccessorModifierCheck : IAtomicCheck
 {
-    public string Name => "AccessorModifierCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {

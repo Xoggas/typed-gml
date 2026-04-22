@@ -54,5 +54,7 @@ static string FindProjectDirectory()
         current = current.Parent;
     }
 
+    object a = default;
+    
     throw new InvalidOperationException("Could not locate TypedGML.Transpiler.csproj.");
 }

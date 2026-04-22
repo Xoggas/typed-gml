@@ -49,7 +49,8 @@ public sealed record FieldModifiers(
 public sealed record PropertyModifiers(
     AccessModifier Access,
     ScopeModifier Scope,
-    VirtualModifier Virtual);
+    VirtualModifier Virtual,
+    bool IsReadonly = false);
 
 /// <summary>Parsed method modifier flags.</summary>
 public sealed record MethodModifiers(

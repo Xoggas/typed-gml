@@ -82,7 +82,6 @@ public sealed partial class AstVisitor
                 Name = NameId(ctx.nameId()),
                 Access = mods.Access,
                 Modifiers = mods,
-                IsNocheck = ctx.NOCHECK() is not null,
                 ReturnType = TypeRef(ctx.typeRef()),
                 TypeParams = TypeParams(ctx.typeParams()),
                 Params = parameters,
@@ -137,7 +136,9 @@ public sealed partial class AstVisitor
             Decorators = Decorators(ctx.decorator()),
             Params = ParamList(ctx.paramList()),
             BaseArgs = baseArgs,
-            Body = (TgmlBlock)Visit(ctx.block())!
+            Body = (TgmlBlock)Visit(ctx.block())!,
+            Line = ctx.Start.Line,
+            Column = ctx.Start.Column
         };
     }
 

@@ -1,0 +1,67 @@
+﻿namespace System;
+
+public class String
+{
+    @NativeInstanceCall("string_length")
+    public number get_Length() {}
+
+    @NativeInstanceCall("string_lower")
+    public string ToLower() {}
+
+    @NativeInstanceCall("string_upper")
+    public string ToUpper() {}
+
+    @NativeInstanceCall("string_trim")
+    public string Trim() {}
+
+    @NativeCall("string_pos")
+    private static number GmlStringPos(string sub, string src) {}
+
+    @NativeCall("string_copy")
+    private static string GmlStringCopy(string src, number pos, number len) {}
+
+    @NativeCall("string_length")
+    private static number GmlStringLength(string src) {}
+
+    @NativeCall("string_replace_all")
+    private static string GmlStringReplaceAll(string src, string old, string nw) {}
+
+    @NativeCall("string_split")
+    public string[] Split(string separator) {}
+
+    public bool Contains(string value)
+    {
+        return GmlStringPos(value, this) > 0;
+    }
+
+    public bool StartsWith(string value)
+    {
+        return GmlStringCopy(this, 1, GmlStringLength(value)) == value;
+    }
+
+    public bool EndsWith(string value)
+    {
+        number len = GmlStringLength(value);
+        number total = GmlStringLength(this);
+        return GmlStringCopy(this, total - len + 1, len) == value;
+    }
+
+    public string Substring(number start, number length)
+    {
+        return GmlStringCopy(this, start + 1, length);
+    }
+
+    public string Replace(string oldValue, string newValue)
+    {
+        return GmlStringReplaceAll(this, oldValue, newValue);
+    }
+
+    public number IndexOf(string value)
+    {
+        return GmlStringPos(value, this) - 1;
+    }
+
+    @NativeCall("string")
+    public static string FromNumber(number value) {}
+}
+

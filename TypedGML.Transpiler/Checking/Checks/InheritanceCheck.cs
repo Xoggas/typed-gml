@@ -1,11 +1,10 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking.Checks;
 
 /// <summary>Batch 2: Verifies that base types and interfaces referenced in inheritance lists exist. Unknown base types are errors.</summary>
 public sealed class InheritanceCheck : IAtomicCheck
 {
-    public string Name => "InheritanceCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {
@@ -18,6 +17,10 @@ public sealed class InheritanceCheck : IAtomicCheck
 
     private static void CheckType(TranspileContext ctx, TgmlFile file, TgmlTypeDecl decl)
     {
+        // Enums and delegates do not support inheritance at all
+        if (decl is TgmlEnumDecl or TgmlDelegateDecl)
+            return;
+
         var bases = decl switch
         {
             TgmlClassDecl c => c.BaseTypes,
@@ -26,8 +29,15 @@ public sealed class InheritanceCheck : IAtomicCheck
             _ => null
         };
 
-        if (bases is null)
+        if (bases is null || bases.Count == 0)
+            return;
+
+        // Static (virtual-modifier) classes cannot inherit from anything
+        if (decl is TgmlClassDecl { ClassModifier: ClassModifier.Virtual })
         {
+            ctx.AddError(
+                $"Static class '{decl.Name}' cannot have a base type.",
+                file.FileName);
             return;
         }
 
@@ -42,11 +52,36 @@ public sealed class InheritanceCheck : IAtomicCheck
                 continue;
             }
 
+            if (baseDecl is null)
+                continue;
+
             // Cannot inherit from a sealed class
             if (baseDecl is TgmlClassDecl { IsSealed: true })
             {
                 ctx.AddError(
                     $"'{decl.Name}' cannot inherit from '{name}' because it is sealed.",
+                    file.FileName);
+            }
+
+            // Struct cannot inherit from a class (and vice versa)
+            if (decl is TgmlStructDecl && baseDecl is TgmlClassDecl)
+            {
+                ctx.AddError(
+                    $"Struct '{decl.Name}' cannot inherit from class '{name}'. Structs may only inherit from interfaces.",
+                    file.FileName);
+            }
+            else if (decl is TgmlClassDecl && baseDecl is TgmlStructDecl)
+            {
+                ctx.AddError(
+                    $"Class '{decl.Name}' cannot inherit from struct '{name}'.",
+                    file.FileName);
+            }
+
+            // Cannot inherit from a static (virtual) class
+            if (baseDecl is TgmlClassDecl { ClassModifier: ClassModifier.Virtual })
+            {
+                ctx.AddError(
+                    $"'{decl.Name}' cannot inherit from static class '{name}'.",
                     file.FileName);
             }
         }

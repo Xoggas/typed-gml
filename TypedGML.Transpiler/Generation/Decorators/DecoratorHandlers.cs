@@ -67,6 +67,50 @@ public sealed class NativePropertyDecoratorHandler : IDecoratorHandler
 }
 
 /// <summary>
+///     Handles @NativeInstanceCall("gml_func") — maps a TypedGML instance method to a GML function
+///     where the calling instance is passed as the first argument: gml_func(instance, args...).
+///     Used for primitive type extension-style methods (string, number, bool, array).
+///     Stores "NativeInstanceCallName" in the method's Metadata.
+/// </summary>
+public sealed class NativeInstanceCallDecoratorHandler : IDecoratorHandler
+{
+    public string DecoratorName => "NativeInstanceCall";
+
+    public void ApplyToMember(TgmlDecorator decorator, TgmlMemberDecl member, TranspileContext ctx)
+    {
+        var callName = decorator.GetFirstStringArg();
+        if (callName is null)
+        {
+            ctx.AddError($"@NativeInstanceCall on '{member.Name}' requires a string argument.");
+            return;
+        }
+
+        member.Metadata["NativeInstanceCallName"] = callName;
+    }
+}
+
+/// <summary>
+///     Handles @NativeCall("gml_function_name") — maps a TypedGML method to a native GML function call.
+///     Stores "NativeCallName" in the method's Metadata.
+/// </summary>
+public sealed class NativeCallDecoratorHandler : IDecoratorHandler
+{
+    public string DecoratorName => "NativeCall";
+
+    public void ApplyToMember(TgmlDecorator decorator, TgmlMemberDecl member, TranspileContext ctx)
+    {
+        var callName = decorator.GetFirstStringArg();
+        if (callName is null)
+        {
+            ctx.AddError($"@NativeCall on '{member.Name}' requires a string argument.");
+            return;
+        }
+
+        member.Metadata["NativeCallName"] = callName;
+    }
+}
+
+/// <summary>
 ///     Handles <c>@Asset("asset_name")</c> — binds a static registry member to a raw GML asset identifier.
 ///     Stores "AssetName" in the member's Metadata.
 /// </summary>

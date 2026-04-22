@@ -53,6 +53,7 @@ public sealed class ExpressionEmitter
             TgmlTernaryExpr e => $"{Emit(e.Condition)} ? {Emit(e.ThenExpr)} : {Emit(e.ElseExpr)}",
             TgmlAssignExpr e => EmitAssign(e),
             TgmlNewObjectExpr e => EmitNewObject(e),
+            TgmlNewImplicitExpr e => EmitNewImplicit(e),
             TgmlNewArrayExpr e => $"array_create({Emit(e.Size)})",
             TgmlTypeofExpr e => $"__TYPE_{GmlTypeName(e.Type)}",
             TgmlNameofExpr e => $"\"{Emit(e.Operand)}\"",
@@ -167,7 +168,16 @@ public sealed class ExpressionEmitter
         }
 
         var target = Emit(e.Target);
-        var args = string.Join(", ", GetNormalizedArgs(e, e.Args).Select(Emit));
+        var normalizedArgs = GetNormalizedArgs(e, e.Args);
+
+        // @NativeInstanceCall: emit gmlFunc(instance, args...)
+        if (e.Metadata.TryGetValue("NativeInstanceCallName", out var nicn) && nicn is string nicnStr)
+        {
+            var allArgs = new[] { target }.Concat(normalizedArgs.Select(Emit));
+            return $"{nicnStr}({string.Join(", ", allArgs)})";
+        }
+
+        var args = string.Join(", ", normalizedArgs.Select(Emit));
 
         // If target is the with-alias, strip it → implicit self inside with block
         if (_ctx.WithAlias is { } alias && target == alias)
@@ -248,7 +258,7 @@ public sealed class ExpressionEmitter
             return currentTypeAssetName;
         }
 
-        if (!_ctx.IsInsideAccessorOf(e.Name))
+        if (!_ctx.IsInsideAccessorOf(e.Name) && !_ctx.IsLocalShadow(e.Name) && !CurrentTypeHasOwnField(e.Name))
         {
             var prop = _ctx.FindProperty(e.Name);
             if (prop?.Getter is not null)
@@ -262,12 +272,8 @@ public sealed class ExpressionEmitter
             }
         }
 
-        return e.Name;
+        return e.Name == "this" ? _ctx.SelfAlias : e.Name;
     }
-
-    /// <summary>
-    ///     Emits an assignment expression. If the write target resolves to a property on the
-    ///     current type, the assignment is redirected to the setter:
     ///     <list type="bullet">
     ///         <item><c>Prop = value</c>  →  <c>set_Prop(value)</c></item>
     ///         <item><c>Prop op= value</c> →  <c>set_Prop(get_Prop() op value)</c></item>
@@ -334,7 +340,7 @@ public sealed class ExpressionEmitter
     {
         return expr switch
         {
-            TgmlIdExpr e => _ctx.TryGetIdentifierAlias(e.Name, out var alias) ? alias : e.Name,
+            TgmlIdExpr e => _ctx.TryGetIdentifierAlias(e.Name, out var alias) ? alias : (e.Name == "this" ? _ctx.SelfAlias : e.Name),
             TgmlFieldAccessExpr { Target: TgmlIdExpr { Name: var targetName }, FieldName: var fieldName }
                 when _ctx.WithAlias is { } alias && alias == targetName => fieldName,
             TgmlFieldAccessExpr e => $"{EmitLValue(e.Target)}.{e.FieldName}",
@@ -358,12 +364,21 @@ public sealed class ExpressionEmitter
 
         // self.Name = ...  or  this.Name = ...
         if (target is TgmlFieldAccessExpr { Target: TgmlIdExpr { Name: "self" or "this" } } fa
+            && !CurrentTypeHasOwnField(fa.FieldName)
             && _ctx.FindProperty(fa.FieldName) is { } fieldProperty)
         {
-            return (fa.FieldName, null, fieldProperty, _ctx.GetNativePropertyName(fieldProperty));
+            // When SelfAlias != "self" (e.g. inside an Init function body), emit qualifier so that
+            // the setter becomes e.g. inst.set_X(...) instead of set_X(...) on the wrong instance.
+            var selfQualifier = _ctx.SelfAlias != "self" ? _ctx.SelfAlias : (string?)null;
+            var nativePropName = _ctx.GetNativePropertyName(fieldProperty);
+            var nativeTarget = (selfQualifier is not null && nativePropName is not null)
+                ? $"{selfQualifier}.{nativePropName}"
+                : nativePropName;
+            return (fa.FieldName, selfQualifier, fieldProperty, nativeTarget);
         }
 
         if (target is TgmlFieldAccessExpr fieldAccess &&
+            !CurrentTypeHasOwnField(fieldAccess.FieldName) &&
             _ctx.FindProperty(fieldAccess.Target, fieldAccess.FieldName) is { } resolvedProperty)
         {
             var isWithAliasTarget =
@@ -489,6 +504,9 @@ public sealed class ExpressionEmitter
 
         if (target is TgmlIdExpr { Name: "self" or "this" })
         {
+            // If the current type declares its own field with this name, don't redirect to a native property.
+            if (CurrentTypeHasOwnField(propertyName))
+                return false;
             nativePropertyName = _ctx.GetNativePropertyName(propertyName);
         }
         else
@@ -507,6 +525,9 @@ public sealed class ExpressionEmitter
         if (target is TgmlIdExpr { Name: "self" or "this" })
         {
             emitted = nativePropertyName;
+            // In Init context, prefix with the self alias (e.g. "inst.x")
+            if (_ctx.SelfAlias != "self")
+                emitted = $"{_ctx.SelfAlias}.{nativePropertyName}";
             return true;
         }
 
@@ -606,6 +627,18 @@ public sealed class ExpressionEmitter
         var userArgs = GetNormalizedArgs(e, e.Args).Select(Emit).ToList();
         var argsList = string.Join(", ", typeArgIds.Concat(userArgs));
         return $"new {gmlName}({argsList})";
+    }
+
+    private string EmitNewImplicit(TgmlNewImplicitExpr e)
+    {
+        // InferredType is set by the checker from the LHS variable type
+        var typeName = e.Metadata.TryGetValue("InferredType", out var inf) ? inf as string : null;
+        if (typeName is null) return "undefined";
+
+        _ctx.TypeTable.TryResolve(typeName, out var decl);
+        var gmlName = decl?.QualifiedName?.Replace(".", "_") ?? typeName;
+        var userArgs = GetNormalizedArgs(e, e.Args).Select(Emit).ToList();
+        return $"new {gmlName}({string.Join(", ", userArgs)})";
     }
 
     /// <summary>
@@ -852,5 +885,22 @@ public sealed class ExpressionEmitter
         return expr.Metadata.TryGetValue("InferredType", out var inferredType) && inferredType is string typeName
             ? typeName
             : null;
+    }
+
+    /// <summary>
+    ///     Returns true when the current type (not its ancestors) declares a field with the given name.
+    ///     Used to prevent inherited property accessors from shadowing own class fields.
+    /// </summary>
+    private bool CurrentTypeHasOwnField(string name)
+    {
+        var currentFields = _ctx.CurrentType switch
+        {
+            TgmlClassDecl cls => cls.Fields,
+            TgmlStructDecl str => str.Fields,
+            _ => null
+        };
+
+        var result = currentFields?.Any(f => string.Equals(f.Name, name, StringComparison.Ordinal)) == true;
+        return result;
     }
 }

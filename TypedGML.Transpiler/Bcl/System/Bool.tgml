@@ -1,0 +1,30 @@
+﻿namespace System;
+
+public class Bool
+{
+    public string ToString()
+    {
+        if (this == true)
+        {
+            return "true";
+        }
+
+        return "false";
+    }
+
+    @NativeCall("bool")
+    public static bool Parse(number value) {}
+
+    @NativeCall("is_bool")
+    public static bool IsBool(number value) {}
+
+    public static implicit operator string(Bool value)
+    {
+        if (value == true)
+        {
+            return "true";
+        }
+
+        return "false";
+    }
+}

@@ -28,10 +28,10 @@ public static class TranspilerApi
     public static TranspileResult Transpile(
         IReadOnlyList<TgmlSourceFile> sources,
         CheckPipeline? pipeline = null,
-        DecoratorRegistry? decoratorRegistry = null)
-    {
+        DecoratorRegistry? decoratorRegistry = null)    {
         // ── Stage 1: Population ───────────────────────────────────────────────
         var (files, parseDiags) = Populator.Populate(sources);
+
 
         var ctx = new TranspileContext();
         foreach (var d in parseDiags)

@@ -1,11 +1,10 @@
-﻿using TypedGML.Transpiler.Population.Models;
+using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Checking.Checks;
 
 /// <summary>Batch 1: Detects duplicate type registrations across all files.</summary>
 public sealed class DuplicateTypeCheck : IAtomicCheck
 {
-    public string Name => "DuplicateTypeCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {

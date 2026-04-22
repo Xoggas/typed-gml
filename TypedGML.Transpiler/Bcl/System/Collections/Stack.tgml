@@ -1,6 +1,6 @@
 namespace System.Collections;
 
-public class Stack<T>
+public class Stack<T> : IStack<T>
 {
     private T[] _items;
 
@@ -15,6 +15,12 @@ public class Stack<T>
         _items = [];
         Count = 0;
     }
+
+    @NativeCall("array_push")
+    private static void ArrayPush(T[] arr, T item) {}
+
+    @NativeCall("array_delete")
+    private static void ArrayDelete(T[] arr, number index, number count) {}
 
     public void Clear()
     {
@@ -32,7 +38,20 @@ public class Stack<T>
         return _items[Count - 1];
     }
 
-    public T nocheck Pop()
+    public bool Contains(T item)
+    {
+        for (var i = 0; i < Count; i = i + 1)
+        {
+            if (_items[i] == item)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public T Pop()
     {
         if (Count <= 0)
         {
@@ -40,14 +59,14 @@ public class Stack<T>
         }
 
         var value = _items[Count - 1];
-        #array_delete(_items, Count - 1, 1);
+        ArrayDelete(_items, Count - 1, 1);
         Count = Count - 1;
         return value;
     }
 
-    public void nocheck Push(T item)
+    public void Push(T item)
     {
-        #array_push(_items, item);
+        ArrayPush(_items, item);
         Count = Count + 1;
     }
 

@@ -1,0 +1,13 @@
+﻿namespace System.Collections;
+
+// Base interface for all finite collections.
+public interface ICollection<T>
+{
+    number Count { get; }
+
+    bool Contains(T item);
+
+    void Clear();
+
+    T[] ToArray();
+}

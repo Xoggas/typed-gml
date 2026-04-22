@@ -7,7 +7,6 @@ namespace TypedGML.Transpiler.Checking.Checks;
 /// </summary>
 public sealed class IndexerDeclarationCheck : IAtomicCheck
 {
-    public string Name => "IndexerDeclarationCheck";
 
     public void Execute(TranspileContext context, IReadOnlyList<TgmlFile> files)
     {

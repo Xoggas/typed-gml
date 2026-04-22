@@ -163,7 +163,7 @@ public class BaseMover : System.GameObject
 {
     public number Counter { get; protected set; }
 
-    public constructor()
+    public constructor() : base(0, 0, "layer_default")
     {
         Counter = 10;
         MoveTo(32, 64);
@@ -270,7 +270,6 @@ public class FeatureShowcase
         var list = new System.Collections.List<number>();
         var stack = new System.Collections.Stack<string>();
         var queue = new System.Collections.Queue<number>();
-        var arrays = new System.Array();
         var random = new System.Random();
         var chance = random.Chance(0.5);
         var rangeValue = random.Range(1, 3);

@@ -1,6 +1,6 @@
 namespace System.Collections;
 
-public class List<T>
+public class List<T> : IList<T>
 {
     private T[] _items;
 
@@ -22,15 +22,24 @@ public class List<T>
         set => _items[index] = value;
     }
 
-    public void nocheck Add(T item)
+    @NativeCall("array_push")
+    private static void ArrayPush(T[] arr, T item) {}
+
+    @NativeCall("array_delete")
+    private static void ArrayDelete(T[] arr, number index, number count) {}
+
+    @NativeCall("array_length")
+    private static number ArrayLength(T[] arr) {}
+
+    public void Add(T item)
     {
-        #array_push(_items, item);
+        ArrayPush(_items, item);
         Count = Count + 1;
     }
 
     public void AddRange(T[] items)
     {
-        for (var i = 0; i < array_length(items); i = i + 1)
+        for (var i = 0; i < ArrayLength(items); i = i + 1)
         {
             Add(items[i]);
         }
@@ -72,10 +81,10 @@ public class List<T>
         return true;
     }
 
-    public T nocheck RemoveAt(number index)
+    public T RemoveAt(number index)
     {
         var value = _items[index];
-        #array_delete(_items, index, 1);
+        ArrayDelete(_items, index, 1);
         Count = Count - 1;
         return value;
     }

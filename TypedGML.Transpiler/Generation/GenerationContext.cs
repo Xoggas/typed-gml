@@ -18,6 +18,14 @@ public sealed class GenerationContext
     /// <summary>If non-null, references to this name inside a with-body are implicit self.</summary>
     public string? WithAlias { get; set; }
 
+    /// <summary>
+    ///     The GML name to emit for <c>this</c> / <c>self</c>. Defaults to <c>"self"</c>.
+    ///     Set to e.g. <c>"inst"</c> when emitting an Init function body so that
+    ///     <c>this.Field = value</c> emits as <c>inst.set_Field(value)</c> rather than
+    ///     using a <c>with(inst)</c> block.
+    /// </summary>
+    public string SelfAlias { get; set; } = "self";
+
     /// <summary>True while emitting a property getter body.</summary>
     public bool InsideGetter { get; set; }
 
@@ -41,6 +49,7 @@ public sealed class GenerationContext
     public TgmlClassDecl? CurrentMethodOwnerType { get; set; }
 
     private readonly Stack<Dictionary<string, string>> _identifierAliasScopes = new();
+    private readonly Stack<HashSet<string>> _localShadowScopes = new();
     private int _tempCounter;
 
     /// <summary>
@@ -253,6 +262,34 @@ public sealed class GenerationContext
         }
 
         alias = string.Empty;
+        return false;
+    }
+
+    /// <summary>
+    ///     Pushes a new local scope with the given names that shadow type-level properties.
+    ///     Call <see cref="PopLocalScope"/> when the scope exits.
+    /// </summary>
+    public void PushLocalScope(IEnumerable<string> names)
+        => _localShadowScopes.Push(new HashSet<string>(names, StringComparer.Ordinal));
+
+    public void PopLocalScope()
+    {
+        if (_localShadowScopes.Count > 0)
+            _localShadowScopes.Pop();
+    }
+
+    /// <summary>Declares <paramref name="name"/> as a local in the innermost scope.</summary>
+    public void DeclareLocal(string name)
+    {
+        if (_localShadowScopes.Count > 0)
+            _localShadowScopes.Peek().Add(name);
+    }
+
+    /// <summary>Returns true when <paramref name="name"/> is shadowed by a local variable or parameter.</summary>
+    public bool IsLocalShadow(string name)
+    {
+        foreach (var scope in _localShadowScopes)
+            if (scope.Contains(name)) return true;
         return false;
     }
 

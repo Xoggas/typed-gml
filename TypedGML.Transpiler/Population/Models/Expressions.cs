@@ -125,6 +125,15 @@ public sealed class TgmlNewArrayExpr : TgmlExpression
     public required TgmlExpression Size { get; init; }
 }
 
+/// <summary>
+///     Implicit construction: <c>new(args)</c> — type is inferred from the LHS.
+///     After checking, <c>Metadata["InferredType"]</c> holds the resolved type name.
+/// </summary>
+public sealed class TgmlNewImplicitExpr : TgmlExpression
+{
+    public List<TgmlArgument> Args { get; init; } = new();
+}
+
 // ── Intrinsics ────────────────────────────────────────────────────────────────
 
 public sealed class TgmlTypeofExpr : TgmlExpression
