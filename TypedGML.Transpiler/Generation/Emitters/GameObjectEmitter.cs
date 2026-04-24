@@ -58,12 +58,9 @@ public sealed partial class GameObjectEmitter : ICodeEmitter
             yield return ef;
 
         var initScriptName = $"{objName}_Init";
-        foreach (var ctor in cls.Constructors.Where(c => c.Params.Count > 0))
-        {
-            var initFile = GameObjectInitScriptEmitter.TryEmit(ctor, initScriptName, ctx);
-            if (initFile is not null)
-                yield return initFile;
-        }
+        var initFile = GameObjectInitScriptEmitter.Emit(cls, initScriptName, ctx);
+        if (initFile is not null)
+            yield return initFile;
     }
 
     private static void ClearMethodContext(GenerationContext ctx)

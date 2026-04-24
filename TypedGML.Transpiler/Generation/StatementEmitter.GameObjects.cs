@@ -6,46 +6,21 @@ public sealed partial class StatementEmitter
 {
     private void EmitGameObjectCreation(string varName, TgmlNewObjectExpr newObj, TgmlClassDecl cls, GmlWriter w)
     {
-        var objGml = _ctx.GmlObjectName(cls);
-        var args = GetNormalizedCtorArgs(newObj).Select(_expr.Emit).ToList();
-        var matchedCtor = cls.Constructors.FirstOrDefault(c => c.Params.Count == args.Count) ?? cls.Constructor;
-        var baseArgs = GetNormalizedBaseArgs(matchedCtor);
+        var plan = GameObjectConstructionHelper.Build(newObj, cls, _ctx, _expr);
+        w.WriteLine($"var {varName} = {GameObjectConstructionHelper.BuildConstructorCall(plan)};");
+    }
 
-        var forwardedParamNames = new HashSet<string>(
-            baseArgs.OfType<TgmlIdExpr>().Select(e => e.Name),
-            StringComparer.Ordinal);
-        var paramToArg = new Dictionary<string, string>(StringComparer.Ordinal);
+    private bool TryEmitGameObjectExpressionStatement(TgmlExpressionStmt stmt, GmlWriter w)
+    {
+        if (stmt.Expression is not TgmlNewObjectExpr newObj)
+            return false;
 
-        if (matchedCtor is not null)
-        {
-            for (var i = 0; i < matchedCtor.Params.Count && i < args.Count; i++)
-                paramToArg[matchedCtor.Params[i].Name] = args[i];
-        }
+        if (!_ctx.TypeTable.TryResolve(newObj.Type.Name.Full, out var td) || td is not TgmlClassDecl objCls || !objCls.IsGameObject)
+            return false;
 
-        var createArgs = baseArgs.Select(baseArg =>
-        {
-            if (baseArg is TgmlIdExpr idExpr && paramToArg.TryGetValue(idExpr.Name, out var callerArg))
-                return callerArg;
-
-            return _expr.Emit(baseArg);
-        }).ToList();
-
-        while (createArgs.Count < 3)
-            createArgs.Add("0");
-
-        var initArgs = new List<string>();
-        if (matchedCtor is not null)
-        {
-            for (var i = 0; i < matchedCtor.Params.Count && i < args.Count; i++)
-            {
-                if (!forwardedParamNames.Contains(matchedCtor.Params[i].Name))
-                    initArgs.Add(args[i]);
-            }
-        }
-
-        w.WriteLine($"var {varName} = instance_create_layer({string.Join(", ", createArgs)}, {objGml});");
-        if (initArgs.Count > 0)
-            w.WriteLine($"{objGml}_Init({varName}, {string.Join(", ", initArgs)});");
+        var plan = GameObjectConstructionHelper.Build(newObj, objCls, _ctx, _expr);
+        w.WriteLine($"{GameObjectConstructionHelper.BuildConstructorCall(plan)};");
+        return true;
     }
 
     private bool TryEmitInlinedGameObjectBaseCall(TgmlBaseCallExpr expr, GmlWriter w)
@@ -92,29 +67,6 @@ public sealed partial class StatementEmitter
         _ctx.CurrentNativeEventName = previousNativeEventName;
         return true;
     }
-
-    private IReadOnlyList<TgmlExpression> GetNormalizedCtorArgs(TgmlNewObjectExpr expr)
-    {
-        if (expr.Metadata.TryGetValue("NormalizedArgs", out var normalizedArgs) &&
-            normalizedArgs is List<TgmlExpression> normalized)
-        {
-            return normalized;
-        }
-
-        return expr.Args.Select(a => a.Value).ToList();
-    }
-
-    private static IReadOnlyList<TgmlExpression> GetNormalizedBaseArgs(TgmlConstructorDecl? ctor)
-    {
-        if (ctor?.Metadata.TryGetValue("NormalizedBaseArgs", out var normalizedArgs) == true &&
-            normalizedArgs is List<TgmlExpression> normalized)
-        {
-            return normalized;
-        }
-
-        return ctor?.BaseArgs?.Select(a => a.Value).ToList() ?? [];
-    }
-
     private static IReadOnlyList<TgmlExpression> GetNormalizedBaseCallArgs(TgmlBaseCallExpr expr)
     {
         if (expr.Metadata.TryGetValue("NormalizedArgs", out var normalizedArgs) &&

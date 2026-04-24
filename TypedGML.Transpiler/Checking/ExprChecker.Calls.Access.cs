@@ -55,6 +55,12 @@ public sealed partial class ExprChecker
             return assetType;
         }
 
+        if (EnumFacts.TryResolveMember(_ctx.TypeTable, fa, out var enumDecl, out var enumMember))
+        {
+            EnumFacts.AnnotateMemberAccess(fa, enumDecl, enumMember);
+            return enumDecl.QualifiedName ?? enumDecl.Name;
+        }
+
         var targetType = InferType(fa.Target);
         if (targetType is null) return null;
 

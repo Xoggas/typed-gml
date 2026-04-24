@@ -74,25 +74,7 @@ public sealed partial class ExprChecker
         var key = type.QualifiedName ?? type.Name;
         if (!visited.Add(key)) return [];
 
-        var methods = type switch
-        {
-            TgmlClassDecl cls => cls.Methods.Where(m => m.Name == name).ToList(),
-            TgmlStructDecl str => str.Methods.Where(m => m.Name == name).ToList(),
-            TgmlInterfaceDecl iface => iface.Methods
-                .Where(m => m.Name == name)
-                .Select(m => new TgmlMethodDecl
-                {
-                    Name = m.Name,
-                    Access = AccessModifier.Public,
-                    Modifiers = new MethodModifiers(AccessModifier.Public, false, VirtualModifier.None),
-                    ReturnType = m.ReturnType,
-                    Params = m.Params,
-                    TypeParams = m.TypeParams,
-                    Decorators = m.Decorators,
-                    Body = m.Body
-                }).ToList(),
-            _ => []
-        };
+        var methods = GetOwnMethods(type, name);
 
         if (methods.Count > 0)
             return methods;
@@ -116,19 +98,46 @@ public sealed partial class ExprChecker
                 return found;
         }
 
-        // Implicit fallback to System.Object for types with no explicit base
-        if (type is TgmlClassDecl { BaseTypes.Count: 0 } or TgmlStructDecl { BaseTypes.Count: 0 })
+        if (ObjectFacts.TryResolveImplicitObject(_ctx.TypeTable, type, out var systemObject))
         {
-            var typeFqn = type.QualifiedName ?? type.Name;
-            if (typeFqn != "System.Object" &&
-                _ctx.TypeTable.TryResolve("System.Object", out var objDecl) && objDecl is not null)
-            {
-                var objFound = FindMethodsInHierarchy(objDecl, name, visited);
-                if (objFound.Count > 0) return objFound;
-            }
+            var objectMethods = FindMethodsInHierarchy(systemObject, name, visited);
+            if (objectMethods.Count > 0)
+                return objectMethods;
         }
 
         return [];
+    }
+
+    private static List<TgmlMethodDecl> GetOwnMethods(TgmlTypeDecl type, string name)
+    {
+        var methods = type switch
+        {
+            TgmlClassDecl cls => cls.Methods.Where(m => m.Name == name).ToList(),
+            TgmlStructDecl str => str.Methods.Where(m => m.Name == name).ToList(),
+            TgmlInterfaceDecl iface => iface.Methods
+                .Where(m => m.Name == name)
+                .Select(m => new TgmlMethodDecl
+                {
+                    Name = m.Name,
+                    Access = AccessModifier.Public,
+                    Modifiers = new MethodModifiers(AccessModifier.Public, false, VirtualModifier.None),
+                    ReturnType = m.ReturnType,
+                    Params = m.Params,
+                    TypeParams = m.TypeParams,
+                    Decorators = m.Decorators,
+                    Body = m.Body
+                }).ToList(),
+            _ => []
+        };
+
+        if (methods.Count == 0 &&
+            string.Equals(name, ObjectFacts.GetTypeMethodName, StringComparison.Ordinal) &&
+            type is TgmlClassDecl { IsStatic: false } or TgmlStructDecl)
+        {
+            methods.Add(ObjectFacts.GetOrCreateSynthesizedGetTypeMethod(type));
+        }
+
+        return methods;
     }
 
     /// <summary>
@@ -175,6 +184,9 @@ public sealed partial class ExprChecker
             var found = FindFieldInHierarchy(baseDecl, name, visited);
             if (found is not null) return found;
         }
+
+        if (ObjectFacts.TryResolveImplicitObject(_ctx.TypeTable, type, out var systemObject))
+            return FindFieldInHierarchy(systemObject, name, visited);
 
         return null;
     }

@@ -32,8 +32,8 @@ public sealed class InheritanceCheck : IAtomicCheck
         if (bases is null || bases.Count == 0)
             return;
 
-        // Static (virtual-modifier) classes cannot inherit from anything
-        if (decl is TgmlClassDecl { ClassModifier: ClassModifier.Virtual })
+        // Static classes cannot inherit from anything
+        if (decl is TgmlClassDecl { ClassModifier: ClassModifier.Static })
         {
             ctx.AddError(
                 $"Static class '{decl.Name}' cannot have a base type.",
@@ -63,8 +63,10 @@ public sealed class InheritanceCheck : IAtomicCheck
                     file.FileName);
             }
 
-            // Struct cannot inherit from a class (and vice versa)
-            if (decl is TgmlStructDecl && baseDecl is TgmlClassDecl)
+            // Struct cannot inherit from a class (except the implicit/explicit System.Object base)
+            if (decl is TgmlStructDecl &&
+                baseDecl is TgmlClassDecl &&
+                !ObjectFacts.IsSystemObject(baseDecl))
             {
                 ctx.AddError(
                     $"Struct '{decl.Name}' cannot inherit from class '{name}'. Structs may only inherit from interfaces.",
@@ -77,8 +79,8 @@ public sealed class InheritanceCheck : IAtomicCheck
                     file.FileName);
             }
 
-            // Cannot inherit from a static (virtual) class
-            if (baseDecl is TgmlClassDecl { ClassModifier: ClassModifier.Virtual })
+            // Cannot inherit from a static class
+            if (baseDecl is TgmlClassDecl { ClassModifier: ClassModifier.Static })
             {
                 ctx.AddError(
                     $"'{decl.Name}' cannot inherit from static class '{name}'.",

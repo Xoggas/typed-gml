@@ -21,7 +21,7 @@ public sealed partial class AstVisitor
             "abstract" => ClassModifier.Abstract,
             "sealed" => ClassModifier.Sealed,
             "virtual" => ClassModifier.Virtual,
-            "static" => ClassModifier.Virtual,
+            "static" => ClassModifier.Static,
             _ => ClassModifier.None
         };
 

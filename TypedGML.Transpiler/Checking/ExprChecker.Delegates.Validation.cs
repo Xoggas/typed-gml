@@ -92,6 +92,11 @@ public sealed partial class ExprChecker
     private bool CanConvertExpression(string targetType, TgmlExpression expr, bool allowExplicit, bool apply)
     {
         DefaultExpressionFacts.TryApplyContextualType(expr, targetType);
+        if (apply)
+            ClearResolvedStringLiteralConversion(expr);
+
+        if (TryResolveIntrinsicStringConversion(targetType, expr, apply))
+            return true;
 
         if (expr is TgmlLambdaExpr lambda && DelegateFacts.TryResolveSignature(_ctx.TypeTable, targetType, out var delegateSignature))
             return ValidateLambdaAgainstDelegate(lambda, delegateSignature, apply);

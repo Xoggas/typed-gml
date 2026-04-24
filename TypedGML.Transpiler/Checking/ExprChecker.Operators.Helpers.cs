@@ -23,15 +23,11 @@ public sealed partial class ExprChecker
         if (bases is null)
             return visited;
 
-        // Implicit System.Object base for all classes/structs with no explicit base
-        if (bases.Count == 0 &&
-            decl is TgmlClassDecl or TgmlStructDecl &&
-            qualifiedName != "System.Object" &&
-            _ctx.TypeTable.TryResolve("System.Object", out var objDecl) && objDecl is not null)
+        if (ObjectFacts.TryResolveImplicitObject(_ctx.TypeTable, decl, out var systemObject))
         {
             visited.Add("Object");
-            visited.Add("System.Object");
-            CollectReachableTypeNames(objDecl, visited);
+            visited.Add(ObjectFacts.SystemObjectQualifiedName);
+            CollectReachableTypeNames(systemObject, visited);
             return visited;
         }
 

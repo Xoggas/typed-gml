@@ -12,7 +12,8 @@ public enum ClassModifier
     None,
     Abstract,
     Sealed,
-    Virtual
+    Virtual,
+    Static
 }
 
 public enum ScopeModifier

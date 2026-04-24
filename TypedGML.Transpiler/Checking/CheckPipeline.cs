@@ -49,6 +49,7 @@ public sealed class CheckPipeline
             new TypeRegistrationCheck(),
             new DuplicateTypeCheck(),
             new DuplicateMemberCheck(),
+            new ReservedMemberCheck(),
             new OperatorDeclarationCheck(),
             new AssetDecoratorCheck(),
             new AccessorModifierCheck(),

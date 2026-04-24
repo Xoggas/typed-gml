@@ -1,0 +1,14 @@
+namespace System;
+
+public class Object
+{
+    public virtual string ToString()
+    {
+        return "System.Object";
+    }
+
+    public static implicit operator string(Object value)
+    {
+        return value.ToString();
+    }
+}

@@ -1,25 +1,28 @@
-@Object("obj_A")
-public class A : GameObject
+@Object("obj_Player")
+public class Player : GameObject
 {
-    public number X;
+    public string Name { get; set; }
 
-    public constructor(number x) : base(0, 0, "layer_default")
+    public constructor(string name, number x, number y) : base(x, y, "layer_default")
     {
-        this.X = x;
+        Name = name;
     }
-
-    public constructor() : base(0, 0, "layer_default")
+    
+    public constructor(string name) : base(0, 0, "layer_default")
     {
-        this.X = 0;
-        
-        Console.Log(this.ToString());
+        Name = name;
     }
 }
 
-
-public static class Console
+public static class PlayerFactory
 {
-    public static void Log(string message)
+    public static Player CreatePlayer(string name, number x, number y)
     {
+        return new Player(name, x, y);
+    }
+    
+    public static Player CreatePlayer(string name)
+    {
+        return new Player(name);
     }
 }

@@ -53,12 +53,8 @@ public sealed partial class ExpressionEmitter
 
         if (decl is TgmlClassDecl cls && cls.IsGameObject)
         {
-            var objName = _ctx.GmlObjectName(cls);
-            var args = GetNormalizedArgs(e, e.Args).Select(Emit).ToList();
-            var createArgs = args.Count >= 3
-                ? args.Take(3).Concat(new[] { objName })
-                : args.Take(args.Count).Concat(new[] { "0", "0", "\"Instances\"", objName }.Skip(3 - args.Count + 1));
-            return $"instance_create_layer({string.Join(", ", createArgs)})";
+            var plan = GameObjectConstructionHelper.Build(e, cls, _ctx, this);
+            return GameObjectConstructionHelper.BuildConstructorCall(plan);
         }
 
         var gmlName = decl?.QualifiedName?.Replace(".", "_") ?? e.Type.GmlBaseName;

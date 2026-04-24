@@ -70,7 +70,8 @@ internal static class StaticMethodsEmitter
 
         if (method.Metadata.TryGetValue("NativeCallName", out var nco) && nco is string nativeCallName)
         {
-            w.WriteLine($"static {gmlName} = function({paramStr}) {{ {nativeCallName}({paramStr}); }}");
+            var prefix = method.ReturnType.Name.Full == "void" ? string.Empty : "return ";
+            w.WriteLine($"static {gmlName} = function({paramStr}) {{ {prefix}{nativeCallName}({paramStr}); }}");
             return;
         }
 

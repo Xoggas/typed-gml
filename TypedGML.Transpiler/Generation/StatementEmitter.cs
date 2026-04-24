@@ -71,7 +71,7 @@ public sealed partial class StatementEmitter
             _ctx.TypeTable.TryResolve(newObj.Type.Name.Full, out var td) &&
             td is TgmlClassDecl objCls && objCls.IsGameObject)
         {
-            EmitGameObjectCreation("__inst", newObj, objCls, w);
+            TryEmitGameObjectExpressionStatement(s, w);
             return;
         }
 

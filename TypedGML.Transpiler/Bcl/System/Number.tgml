@@ -33,7 +33,7 @@ public class Number
     public static number Lerp(number a, number b, number amount) {}
 
     @NativeCall("string")
-    public static implicit operator string(Number value) {}
+    public static implicit operator string(number value) {}
 
     @NativeCall("real")
     public static number Parse(string value) {}

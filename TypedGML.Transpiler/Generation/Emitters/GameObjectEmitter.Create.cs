@@ -30,10 +30,6 @@ public sealed partial class GameObjectEmitter
             PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: false);
         }
 
-        var defaultCtor = sourceClass.Constructors.FirstOrDefault(c => c.Params.Count == 0);
-        if (defaultCtor?.Body is { } ctorBody)
-            stmtEmit.EmitBlock(ctorBody, w);
-
         if (TryGetCreateEventMethod(sourceClass, ctx, out var createMethod))
         {
             ctx.CurrentMethodName = createMethod.Name;

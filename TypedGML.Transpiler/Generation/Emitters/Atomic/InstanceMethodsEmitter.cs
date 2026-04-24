@@ -73,7 +73,8 @@ internal static class InstanceMethodsEmitter
 
         if (method.Metadata.TryGetValue("NativeCallName", out var nco) && nco is string nativeCallName)
         {
-            w.WriteLine($"{methodName} = function({paramStr}) {{ {nativeCallName}({paramStr}); }}");
+            var prefix = method.ReturnType.Name.Full == "void" ? string.Empty : "return ";
+            w.WriteLine($"{methodName} = function({paramStr}) {{ {prefix}{nativeCallName}({paramStr}); }}");
             ClearContext(ctx);
             return;
         }

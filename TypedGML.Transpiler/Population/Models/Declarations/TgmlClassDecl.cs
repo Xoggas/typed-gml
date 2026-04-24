@@ -36,6 +36,9 @@ public sealed class TgmlClassDecl : TgmlTypeDecl
     /// <summary><c>true</c> when the <c>sealed</c> modifier is present.</summary>
     public bool IsSealed => ClassModifier == ClassModifier.Sealed;
 
+    /// <summary><c>true</c> when the <c>static</c> modifier is present.</summary>
+    public bool IsStatic => ClassModifier == ClassModifier.Static;
+
     /// <summary><c>true</c> when this class has an <c>@Object("…")</c> decorator and compiles as a GameMaker object.</summary>
     public bool IsGameObject => HasDecorator("Object");
 

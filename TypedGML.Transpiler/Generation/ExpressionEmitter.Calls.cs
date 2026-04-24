@@ -1,3 +1,4 @@
+using TypedGML.Transpiler.Checking;
 using TypedGML.Transpiler.Population.Models;
 
 namespace TypedGML.Transpiler.Generation;
@@ -37,6 +38,8 @@ public sealed partial class ExpressionEmitter
     {
         if (e.Metadata.TryGetValue(AssetReferenceNameMetadata, out var assetReference) && assetReference is string assetName)
             return assetName;
+        if (e.Metadata.TryGetValue(EnumFacts.EnumMemberMacroMetadata, out var enumMacro) && enumMacro is string enumMacroName)
+            return enumMacroName;
         if (_ctx.TryResolveStaticAssetReference(e.Target, e.FieldName, out var resolvedAssetName))
             return resolvedAssetName;
         if (TryEmitNativePropertyAccess(e.Target, e.FieldName, out var nativeAccess))

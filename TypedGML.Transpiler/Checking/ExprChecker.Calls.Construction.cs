@@ -28,14 +28,15 @@ public sealed partial class ExprChecker
                          no.Args,
                          InferType,
                          CanAssignImplicitly,
-                         out _,
-                         out var bound,
-                         out var error))
+                     out var resolvedCtor,
+                     out var bound,
+                     out var error))
             {
                 Error(no, $"No constructor overload for '{no.Type.Name.Full}' matches the supplied arguments: {error}");
             }
             else
             {
+                no.Metadata["ResolvedConstructor"] = resolvedCtor!;
                 no.Metadata["NormalizedArgs"] = bound!.Arguments.ToList();
                 ApplyBoundArgumentConversions(bound.Parameters, bound.Arguments);
             }
@@ -72,12 +73,13 @@ public sealed partial class ExprChecker
         }
         else if (!CallArgumentBinder.TryResolveOverload(
                      constructors, c => c.Params, ni.Args, InferType, CanAssignImplicitly,
-                     out _, out var bound, out var error))
+                     out var resolvedCtor, out var bound, out var error))
         {
             Error(ni, $"No constructor overload for '{typeName}' matches the supplied arguments: {error}");
         }
         else
         {
+            ni.Metadata["ResolvedConstructor"] = resolvedCtor!;
             ni.Metadata["NormalizedArgs"] = bound!.Arguments.ToList();
             ApplyBoundArgumentConversions(bound.Parameters, bound.Arguments);
         }

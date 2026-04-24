@@ -24,6 +24,9 @@ public sealed partial class ExpressionEmitter
 
     public string Emit(TgmlExpression expr)
     {
+        if (TryEmitResolvedStringLiteral(expr, out var stringLiteral))
+            return stringLiteral;
+
         if (TryEmitDelegateConstruction(expr, out var delegateConstruction))
             return delegateConstruction;
 

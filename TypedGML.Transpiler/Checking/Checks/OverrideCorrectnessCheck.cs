@@ -32,7 +32,7 @@ public sealed class OverrideCorrectnessCheck : IAtomicCheck
                     $"Mark the class 'abstract' or provide an implementation.",
                     file.FileName);
 
-            if (method.IsOverride && !FindOverridableMethod(ctx, cls.BaseTypes, method.Name))
+            if (method.IsOverride && !FindOverridableMethod(ctx, cls, method.Name))
                 ctx.AddError(
                     $"'{cls.Name}.{method.Name}' is marked 'override' but no virtual or abstract method " +
                     $"with this name was found in the base type chain.",
@@ -46,8 +46,8 @@ public sealed class OverrideCorrectnessCheck : IAtomicCheck
                     $"Non-abstract class '{cls.Name}' cannot declare abstract property '{prop.Name}'.",
                     file.FileName);
 
-            if (prop.Modifiers.Virtual == VirtualModifier.Override
-                && !FindOverridableProp(ctx, cls.BaseTypes, prop.Name))
+            if (prop.Modifiers.Virtual == VirtualModifier.Override &&
+                !FindOverridableProp(ctx, cls, prop.Name))
                 ctx.AddError(
                     $"'{cls.Name}.{prop.Name}' is marked 'override' but no virtual or abstract property " +
                     $"with this name was found in the base type chain.",
@@ -58,51 +58,93 @@ public sealed class OverrideCorrectnessCheck : IAtomicCheck
     private static void CheckStruct(TranspileContext ctx, TgmlFile file, TgmlStructDecl str)
     {
         foreach (var method in str.Methods)
-            if (method.IsOverride && !FindOverridableMethod(ctx, str.BaseTypes, method.Name))
+            if (method.IsOverride && !FindOverridableMethod(ctx, str, method.Name))
                 ctx.AddError(
                     $"'{str.Name}.{method.Name}' is marked 'override' but no matching virtual/abstract " +
                     $"method was found in the base type chain.",
                     file.FileName);
     }
 
-    // -- Inheritance-chain searches --------------------------------------------
+    private static bool FindOverridableMethod(TranspileContext ctx, TgmlTypeDecl decl, string name)
+        => FindOverridableMethod(ctx, decl, name, new HashSet<string>(StringComparer.Ordinal));
 
-    private static bool FindOverridableMethod(TranspileContext ctx,
-        IEnumerable<TgmlTypeRef> baseRefs, string name)
+    private static bool FindOverridableMethod(
+        TranspileContext ctx,
+        TgmlTypeDecl decl,
+        string name,
+        HashSet<string> visited)
     {
-        foreach (var baseRef in baseRefs)
+        foreach (var baseDecl in EnumerateBaseDecls(ctx, decl))
         {
-            if (!ctx.TypeTable.TryResolve(baseRef.Name.Full, out var baseDecl) || baseDecl is null) continue;
-            if (baseDecl is TgmlClassDecl baseCls)
+            var key = baseDecl.QualifiedName ?? baseDecl.Name;
+            if (!visited.Add(key))
+                continue;
+
+            if (baseDecl is TgmlClassDecl baseClass &&
+                baseClass.Methods.Any(m => m.Name == name &&
+                                           m.Modifiers.Virtual is VirtualModifier.Virtual
+                                               or VirtualModifier.Abstract or VirtualModifier.Override))
             {
-                if (baseCls.Methods.Any(m => m.Name == name
-                                             && m.Modifiers.Virtual is VirtualModifier.Virtual
-                                                 or VirtualModifier.Abstract or VirtualModifier.Override))
-                    return true;
-                if (FindOverridableMethod(ctx, baseCls.BaseTypes, name)) return true;
+                return true;
             }
+
+            if (FindOverridableMethod(ctx, baseDecl, name, visited))
+                return true;
         }
 
         return false;
     }
 
-    private static bool FindOverridableProp(TranspileContext ctx,
-        IEnumerable<TgmlTypeRef> baseRefs, string name)
+    private static bool FindOverridableProp(TranspileContext ctx, TgmlTypeDecl decl, string name)
+        => FindOverridableProp(ctx, decl, name, new HashSet<string>(StringComparer.Ordinal));
+
+    private static bool FindOverridableProp(
+        TranspileContext ctx,
+        TgmlTypeDecl decl,
+        string name,
+        HashSet<string> visited)
     {
-        foreach (var baseRef in baseRefs)
+        foreach (var baseDecl in EnumerateBaseDecls(ctx, decl))
         {
-            if (!ctx.TypeTable.TryResolve(baseRef.Name.Full, out var baseDecl) || baseDecl is null) continue;
-            if (baseDecl is TgmlClassDecl baseCls)
+            var key = baseDecl.QualifiedName ?? baseDecl.Name;
+            if (!visited.Add(key))
+                continue;
+
+            if (baseDecl is TgmlClassDecl baseClass &&
+                baseClass.Properties.Any(p => p.Name == name &&
+                                              p.Modifiers.Virtual is VirtualModifier.Virtual
+                                                  or VirtualModifier.Abstract or VirtualModifier.Override))
             {
-                if (baseCls.Properties.Any(p => p.Name == name
-                                                && p.Modifiers.Virtual is VirtualModifier.Virtual
-                                                    or VirtualModifier.Abstract or VirtualModifier.Override))
-                    return true;
-                if (FindOverridableProp(ctx, baseCls.BaseTypes, name)) return true;
+                return true;
             }
+
+            if (FindOverridableProp(ctx, baseDecl, name, visited))
+                return true;
         }
 
         return false;
+    }
+
+    private static IEnumerable<TgmlTypeDecl> EnumerateBaseDecls(TranspileContext ctx, TgmlTypeDecl decl)
+    {
+        var baseRefs = decl switch
+        {
+            TgmlClassDecl cls => cls.BaseTypes,
+            TgmlStructDecl str => str.BaseTypes,
+            _ => null
+        };
+
+        if (baseRefs is not null)
+        {
+            foreach (var baseRef in baseRefs)
+            {
+                if (ctx.TypeTable.TryResolve(baseRef.Name.Full, out var baseDecl) && baseDecl is not null)
+                    yield return baseDecl;
+            }
+        }
+
+        if (ObjectFacts.TryResolveImplicitObject(ctx.TypeTable, decl, out var systemObject))
+            yield return systemObject;
     }
 }
 
