@@ -49,7 +49,7 @@ public sealed partial class ExprChecker
         var targetType = InferType(expr.Target);
         if (targetType is null) return null;
 
-        if (!_ctx.TypeTable.TryResolve(targetType, out var targetDecl) || targetDecl is null)
+        if (!TryResolveTypeDecl(targetType, out var targetDecl) || targetDecl is null)
             return null;
 
         var prop = PropertyAccessHelper.FindPropertyInHierarchy(_ctx.TypeTable, targetDecl, expr.FieldName);

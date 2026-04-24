@@ -1,0 +1,19 @@
+namespace System.Collections;
+
+public interface IReadOnlyDictionary<TKey, TValue>
+{
+    number Count { get; }
+
+    bool ContainsKey(TKey key);
+
+    TValue GetOrDefault(TKey key, TValue fallback = default);
+
+    TKey[] KeysToArray();
+
+    TValue[] ValuesToArray();
+
+    TValue this[TKey key]
+    {
+        get;
+    }
+}

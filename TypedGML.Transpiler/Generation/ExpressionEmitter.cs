@@ -14,6 +14,9 @@ public sealed partial class ExpressionEmitter
     private const string ContextualDelegateTypeMetadata = "ContextualDelegateType";
     private const string DelegateMethodGroupMetadata = "DelegateMethodGroup";
     private const string AssetReferenceNameMetadata = AssetFacts.AssetReferenceNameMetadata;
+    private const string DictionaryLiteralConcreteTypeMetadata = "DictionaryLiteralConcreteType";
+    private const string DictionaryLiteralKeyTypeMetadata = "DictionaryLiteralKeyType";
+    private const string DictionaryLiteralValueTypeMetadata = "DictionaryLiteralValueType";
 
     private readonly GenerationContext _ctx;
 
@@ -61,6 +64,7 @@ public sealed partial class ExpressionEmitter
             TgmlBaseAccessExpr e => EmitBaseAccess(e),
             TgmlLambdaExpr e => EmitLambda(e),
             TgmlArrayInitExpr e => $"[{string.Join(", ", e.Elements.Select(Emit))}]",
+            TgmlDictionaryInitExpr e => EmitDictionaryInit(e),
             TgmlFuncCallExpr e => EmitFuncCall(e),
             TgmlParenExpr e => $"({Emit(e.Inner)})",
             TgmlFieldKeywordExpr _ => EmitFieldKeyword(),

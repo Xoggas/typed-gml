@@ -5,11 +5,16 @@ namespace TypedGML.Transpiler.Checking;
 public static class DefaultExpressionFacts
 {
     private const string ContextualDefaultTypeKey = "ContextualDefaultType";
+    private const string ContextualDictionaryTypeKey = "ContextualDictionaryType";
 
     public static bool TryApplyContextualType(TgmlExpression expr, string targetType)
     {
         switch (expr)
         {
+            case TgmlDictionaryInitExpr dict:
+                dict.Metadata[ContextualDictionaryTypeKey] = targetType;
+                return true;
+
             case TgmlDefaultExpr { Type: null } def:
                 def.Metadata[ContextualDefaultTypeKey] = targetType;
                 return true;
@@ -28,6 +33,14 @@ public static class DefaultExpressionFacts
             return DescribeType(expr.Type);
 
         return expr.Metadata.TryGetValue(ContextualDefaultTypeKey, out var contextualType) &&
+               contextualType is string targetType
+            ? targetType
+            : null;
+    }
+
+    public static string? GetEffectiveDictionaryTypeName(TgmlDictionaryInitExpr expr)
+    {
+        return expr.Metadata.TryGetValue(ContextualDictionaryTypeKey, out var contextualType) &&
                contextualType is string targetType
             ? targetType
             : null;

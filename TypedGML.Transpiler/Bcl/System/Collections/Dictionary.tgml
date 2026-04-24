@@ -1,0 +1,136 @@
+namespace System.Collections;
+
+public class Dictionary<TKey, TValue> : IDictionary<TKey, TValue>
+{
+    private number _handle;
+
+    public number Count
+    {
+        get;
+        private set;
+    }
+
+    public constructor()
+    {
+        _handle = MapCreate();
+        Count = 0;
+    }
+
+    public constructor(TKey[] keys, TValue[] values)
+    {
+        _handle = MapCreate();
+        Count = 0;
+
+        var count = KeysLength(keys);
+        if (ValuesLength(values) < count)
+        {
+            count = ValuesLength(values);
+        }
+
+        for (var i = 0; i < count; i = i + 1)
+        {
+            self[keys[i]] = values[i];
+        }
+    }
+
+    public TValue this[TKey key]
+    {
+        get => MapFindValue(_handle, key);
+        set
+        {
+            MapSet(_handle, key, value);
+            Count = MapSize(_handle);
+        }
+    }
+
+    @NativeCall("ds_map_create")
+    private static number MapCreate() {}
+
+    @NativeCall("ds_map_destroy")
+    private static void MapDestroy(number map) {}
+
+    @NativeCall("ds_map_clear")
+    private static void MapClear(number map) {}
+
+    @NativeCall("ds_map_exists")
+    private static bool MapExists(number map, TKey key) {}
+
+    @NativeCall("ds_map_find_value")
+    private static TValue MapFindValue(number map, TKey key) {}
+
+    @NativeCall("ds_map_set")
+    private static void MapSet(number map, TKey key, TValue value) {}
+
+    @NativeCall("ds_map_delete")
+    private static void MapDelete(number map, TKey key) {}
+
+    @NativeCall("ds_map_size")
+    private static number MapSize(number map) {}
+
+    @NativeCall("ds_map_keys_to_array")
+    private static TKey[] MapKeysToArray(number map) {}
+
+    @NativeCall("ds_map_values_to_array")
+    private static TValue[] MapValuesToArray(number map) {}
+
+    @NativeCall("array_length")
+    private static number KeysLength(TKey[] items) {}
+
+    @NativeCall("array_length")
+    private static number ValuesLength(TValue[] items) {}
+
+    public bool ContainsKey(TKey key)
+    {
+        return MapExists(_handle, key);
+    }
+
+    public TValue GetOrDefault(TKey key, TValue fallback = default)
+    {
+        if (ContainsKey(key))
+        {
+            return MapFindValue(_handle, key);
+        }
+
+        return fallback;
+    }
+
+    public TKey[] KeysToArray()
+    {
+        return MapKeysToArray(_handle);
+    }
+
+    public TValue[] ValuesToArray()
+    {
+        return MapValuesToArray(_handle);
+    }
+
+    public void Clear()
+    {
+        MapClear(_handle);
+        Count = 0;
+    }
+
+    public bool Remove(TKey key)
+    {
+        if (not ContainsKey(key))
+        {
+            return false;
+        }
+
+        MapDelete(_handle, key);
+        Count = MapSize(_handle);
+        return true;
+    }
+
+    public void Destroy()
+    {
+        if (_handle < 0)
+        {
+            return;
+        }
+
+        MapDestroy(_handle);
+        _handle = -1;
+        Count = 0;
+    }
+}

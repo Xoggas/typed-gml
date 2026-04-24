@@ -54,4 +54,18 @@ public sealed partial class AstVisitor
             Line = Line(ctx),
             Elements = ctx.expression().Select(e => (TgmlExpression)Visit(e)!).ToList()
         };
+
+    public override object? VisitDictInitExpr([NotNull] TypedGMLParser.DictInitExprContext ctx)
+        => new TgmlDictionaryInitExpr
+        {
+            Line = Line(ctx),
+            Entries = ctx.dictionaryEntry().Select(e => (TgmlDictionaryEntry)Visit(e)!).ToList()
+        };
+
+    public override object? VisitDictionaryEntry([NotNull] TypedGMLParser.DictionaryEntryContext ctx)
+        => new TgmlDictionaryEntry
+        {
+            Key = (TgmlExpression)Visit(ctx.expression(0))!,
+            Value = (TgmlExpression)Visit(ctx.expression(1))!
+        };
 }

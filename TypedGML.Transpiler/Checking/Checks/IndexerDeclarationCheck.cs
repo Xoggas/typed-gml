@@ -32,6 +32,11 @@ public sealed class IndexerDeclarationCheck : IAtomicCheck
                 foreach (var nested in str.NestedTypes)
                     CheckType(ctx, file, nested);
                 break;
+
+            case TgmlInterfaceDecl iface:
+                foreach (var property in iface.Properties.Where(p => p.IsIndexer))
+                    CheckInterfaceIndexer(ctx, file, property);
+                break;
         }
     }
 
@@ -69,6 +74,23 @@ public sealed class IndexerDeclarationCheck : IAtomicCheck
         {
             ctx.AddError(
                 "@NativeProperty is not supported on indexers.",
+                file.FileName);
+        }
+    }
+
+    private static void CheckInterfaceIndexer(TranspileContext ctx, TgmlFile file, TgmlInterfacePropertyDecl indexer)
+    {
+        if (!string.Equals(indexer.Name, "this", StringComparison.Ordinal))
+        {
+            ctx.AddError(
+                "Indexers must be declared with the name 'this'.",
+                file.FileName);
+        }
+
+        if (indexer.IndexParam?.Default is not null)
+        {
+            ctx.AddError(
+                "Indexer parameters cannot have default values.",
                 file.FileName);
         }
     }

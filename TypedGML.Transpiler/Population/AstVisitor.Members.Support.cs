@@ -28,6 +28,16 @@ public sealed partial class AstVisitor
             Accessors = ctx.interfaceAccessorDecl().Select(a => (TgmlInterfaceAccessorDecl)Visit(a)!).ToList()
         };
 
+    public override object? VisitInterfaceIndexerDecl([NotNull] TypedGMLParser.InterfaceIndexerDeclContext ctx)
+        => new TgmlInterfacePropertyDecl
+        {
+            Name = NameId(ctx.nameId()),
+            Type = TypeRef(ctx.typeRef()),
+            IndexParam = (TgmlParam)Visit(ctx.param())!,
+            Decorators = Decorators(ctx.decorator()),
+            Accessors = ctx.interfaceAccessorDecl().Select(a => (TgmlInterfaceAccessorDecl)Visit(a)!).ToList()
+        };
+
     public override object? VisitInterfaceAccessorDecl([NotNull] TypedGMLParser.InterfaceAccessorDeclContext ctx)
         => new TgmlInterfaceAccessorDecl { IsGet = ctx.GET() is not null };
 

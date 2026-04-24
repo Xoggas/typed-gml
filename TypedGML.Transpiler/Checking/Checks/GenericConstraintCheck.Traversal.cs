@@ -27,7 +27,11 @@ public sealed partial class GenericConstraintCheck
                 }
 
                 foreach (var prop in iface.Properties)
+                {
                     CheckTypeRef(ctx, file, prop.Type, decl.TypeParams);
+                    if (prop.IndexParam is not null)
+                        CheckTypeRef(ctx, file, prop.IndexParam.Type, decl.TypeParams);
+                }
                 break;
         }
     }

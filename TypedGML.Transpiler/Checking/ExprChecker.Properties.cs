@@ -66,7 +66,7 @@ public sealed partial class ExprChecker
         var targetType = InferType(target.Target);
         if (targetType is null) return null;
 
-        if (!_ctx.TypeTable.TryResolve(targetType, out var targetDecl) || targetDecl is null)
+        if (!TryResolveTypeDecl(targetType, out var targetDecl) || targetDecl is null)
             return null;
 
         return PropertyAccessHelper.FindPropertyInHierarchy(_ctx.TypeTable, targetDecl, target.FieldName);
@@ -81,14 +81,15 @@ public sealed partial class ExprChecker
         if (targetType is null || TryGetArrayElementType(targetType, out _))
             return null;
 
-        if (!_ctx.TypeTable.TryResolve(targetType, out var targetDecl) || targetDecl is null)
+        if (!TryResolveTypeDecl(targetType, out var targetDecl) || targetDecl is null)
             return null;
 
         var indexer = PropertyAccessHelper.FindIndexerInHierarchy(_ctx.TypeTable, targetDecl);
         if (indexer?.Property.IndexParam is null)
             return null;
 
-        ValidateIndexerArgument(indexer, indexExpr.Index, indexExpr);
+        var bindings = BuildGenericTypeBindings(targetType, targetDecl);
+        ValidateIndexerArgument(indexer, bindings, indexExpr.Index, indexExpr);
         return indexer;
     }
 
@@ -131,13 +132,14 @@ public sealed partial class ExprChecker
 
     private void ValidateIndexerArgument(
         PropertyAccessHelper.ResolvedProperty indexer,
+        IReadOnlyDictionary<string, string> bindings,
         TgmlExpression indexExpr,
         TgmlExpression errorSite)
     {
         if (indexer.Property.IndexParam is null)
             return;
 
-        var indexTypeName = DefaultExpressionFacts.DescribeType(indexer.Property.IndexParam.Type);
+        var indexTypeName = DefaultExpressionFacts.DescribeType(SubstituteTypeRef(indexer.Property.IndexParam.Type, bindings));
         if (CanConvertExpression(indexTypeName, indexExpr, allowExplicit: false, apply: true))
             return;
 

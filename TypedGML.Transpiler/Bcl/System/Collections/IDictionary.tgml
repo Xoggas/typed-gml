@@ -1,0 +1,16 @@
+namespace System.Collections;
+
+public interface IDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, TValue>
+{
+    TValue this[TKey key]
+    {
+        get;
+        set;
+    }
+
+    void Clear();
+
+    bool Remove(TKey key);
+
+    void Destroy();
+}

@@ -80,6 +80,26 @@ public static class PropertyAccessHelper
         {
             TgmlClassDecl cls => cls.Properties.FirstOrDefault(p => p.Name == name),
             TgmlStructDecl str => str.Properties.FirstOrDefault(p => p.Name == name),
+            TgmlInterfaceDecl iface => iface.Properties
+                .Where(p => p.Name == name)
+                .Select(p => new TgmlPropertyDecl
+                {
+                    Name = p.Name,
+                    Access = AccessModifier.Public,
+                    Modifiers = new PropertyModifiers(AccessModifier.Public, ScopeModifier.None, VirtualModifier.None),
+                    Type = p.Type,
+                    IndexParam = p.IndexParam,
+                    Decorators = p.Decorators,
+                    Accessors =
+                    [
+                        .. p.Accessors.Select(a => new TgmlAccessorDecl
+                        {
+                            IsGet = a.IsGet,
+                            AccessMod = null,
+                            Body = new TgmlBlock()
+                        })
+                    ]
+                }).FirstOrDefault(),
             _ => null
         };
         if (own is not null) return new ResolvedProperty(type, own);
@@ -88,6 +108,7 @@ public static class PropertyAccessHelper
         {
             TgmlClassDecl cls => cls.BaseTypes,
             TgmlStructDecl str => str.BaseTypes,
+            TgmlInterfaceDecl iface => iface.BaseInterfaces,
             _ => null
         };
         if (baseRefs is null) return null;
@@ -118,6 +139,26 @@ public static class PropertyAccessHelper
         {
             TgmlClassDecl cls => cls.Properties.FirstOrDefault(p => p.IsIndexer),
             TgmlStructDecl str => str.Properties.FirstOrDefault(p => p.IsIndexer),
+            TgmlInterfaceDecl iface => iface.Properties
+                .Where(p => p.IsIndexer)
+                .Select(p => new TgmlPropertyDecl
+                {
+                    Name = p.Name,
+                    Access = AccessModifier.Public,
+                    Modifiers = new PropertyModifiers(AccessModifier.Public, ScopeModifier.None, VirtualModifier.None),
+                    Type = p.Type,
+                    IndexParam = p.IndexParam,
+                    Decorators = p.Decorators,
+                    Accessors =
+                    [
+                        .. p.Accessors.Select(a => new TgmlAccessorDecl
+                        {
+                            IsGet = a.IsGet,
+                            AccessMod = null,
+                            Body = new TgmlBlock()
+                        })
+                    ]
+                }).FirstOrDefault(),
             _ => null
         };
         if (own is not null) return new ResolvedProperty(type, own);
@@ -126,6 +167,7 @@ public static class PropertyAccessHelper
         {
             TgmlClassDecl cls => cls.BaseTypes,
             TgmlStructDecl str => str.BaseTypes,
+            TgmlInterfaceDecl iface => iface.BaseInterfaces,
             _ => null
         };
         if (baseRefs is null) return null;

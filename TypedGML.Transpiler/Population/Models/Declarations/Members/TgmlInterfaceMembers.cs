@@ -56,6 +56,9 @@ public sealed class TgmlInterfacePropertyDecl
     /// <summary>The property name.</summary>
     public required string Name { get; init; }
 
+    /// <summary>Index parameter for interface indexers; <c>null</c> for regular properties.</summary>
+    public TgmlParam? IndexParam { get; init; }
+
     /// <summary>Accessor stubs declared in the interface body.</summary>
     public List<TgmlInterfaceAccessorDecl> Accessors { get; init; } = new();
 
@@ -64,4 +67,7 @@ public sealed class TgmlInterfacePropertyDecl
 
     /// <summary><c>true</c> when a <c>set</c> stub is present.</summary>
     public bool HasSetter => Accessors.Any(a => a.IsSet);
+
+    /// <summary><c>true</c> when this property is an indexer.</summary>
+    public bool IsIndexer => IndexParam is not null;
 }

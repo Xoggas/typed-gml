@@ -54,3 +54,14 @@ public sealed class TgmlArrayInitExpr : TgmlExpression
 {
     public List<TgmlExpression> Elements { get; init; } = new();
 }
+
+public sealed class TgmlDictionaryEntry
+{
+    public required TgmlExpression Key { get; init; }
+    public required TgmlExpression Value { get; init; }
+}
+
+public sealed class TgmlDictionaryInitExpr : TgmlExpression
+{
+    public List<TgmlDictionaryEntry> Entries { get; init; } = new();
+}

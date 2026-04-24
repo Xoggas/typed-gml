@@ -33,7 +33,11 @@ public sealed partial class TypeReferenceCheck
                 }
 
                 foreach (var prop in iface.Properties)
+                {
                     ValidateTypeRef(ctx, file, prop.Type, iface.TypeParams);
+                    if (prop.IndexParam is not null)
+                        ValidateTypeRef(ctx, file, prop.IndexParam.Type, iface.TypeParams);
+                }
                 break;
             case TgmlDelegateDecl dlg:
                 ValidateTypeRef(ctx, file, dlg.ReturnType, dlg.TypeParams);

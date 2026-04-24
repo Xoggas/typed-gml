@@ -220,6 +220,7 @@ constructorDecl
 interfaceMemberDecl
     : interfaceMethodDecl
     | interfacePropertyDecl
+    | interfaceIndexerDecl
     ;
 
 interfaceMethodDecl
@@ -233,6 +234,13 @@ interfaceMethodDecl
 interfacePropertyDecl
     : decorator*
       typeRef nameId
+      LBRACE interfaceAccessorDecl+ RBRACE
+    ;
+
+interfaceIndexerDecl
+    : decorator*
+      typeRef nameId
+      LBRACKET param RBRACKET
       LBRACE interfaceAccessorDecl+ RBRACE
     ;
 
@@ -365,7 +373,7 @@ forUpdate
     : expression (COMMA expression)*
     ;
 
-// repeat (n) { ... }  — shorthand for a counted loop; n is the iteration count
+// repeat (n) { ... }  â€” shorthand for a counted loop; n is the iteration count
 repeatStmt
     : REPEAT LPAREN expression RPAREN block
     ;
@@ -378,7 +386,7 @@ switchSection
     : (CASE expression | DEFAULT) COLON statement*
     ;
 
-// with (TypeName varName) { ... }  — GML-style instance iteration with a typed var
+// with (TypeName varName) { ... }  â€” GML-style instance iteration with a typed var
 withStmt
     : WITH LPAREN typeRef nameId RPAREN block
     ;
@@ -413,11 +421,11 @@ rawStmt
     ;
 
 // -------------------------------------------------------------------------------
-//  Expressions  — listed highest precedence first
+//  Expressions  â€” listed highest precedence first
 //
 //  Known ambiguities (resolved semantically):
-//    • LT / GT are used for both generics and comparison
-//    • LPAREN typeRef RPAREN expression  vs  LPAREN expression RPAREN
+//    â€¢ LT / GT are used for both generics and comparison
+//    â€¢ LPAREN typeRef RPAREN expression  vs  LPAREN expression RPAREN
 // -------------------------------------------------------------------------------
 
 expression
@@ -490,6 +498,9 @@ expression
     // -- Array initializer -----------------------------------------------------
     | LBRACKET (expression (COMMA expression)*)? RBRACKET             # arrayInitExpr
 
+    // -- Dictionary initializer -----------------------------------------------
+    | LBRACE (dictionaryEntry (COMMA dictionaryEntry)* COMMA?)? RBRACE # dictInitExpr
+
     // -- Primary ---------------------------------------------------------------
     | nameId LPAREN argList? RPAREN                                       # funcCallExpr
     | LPAREN expression RPAREN                                        # parenExpr
@@ -508,6 +519,10 @@ expression
 lambdaExpr
     : LPAREN paramList? RPAREN ARROW (expression | block)
     | nameId ARROW (expression | block)
+    ;
+
+dictionaryEntry
+    : expression COLON expression
     ;
 
 // -------------------------------------------------------------------------------
@@ -635,7 +650,7 @@ SLASH   : '/' ;
 PERCENT : '%' ;
 
 // -- Bitwise (longer before shorter) ------------------------------------------
-// Note: RSHIFT (>>) is intentionally absent — right-shift is expressed as GT GT
+// Note: RSHIFT (>>) is intentionally absent â€” right-shift is expressed as GT GT
 // in the parser so that >> does not consume both closing > of nested generics.
 LSHIFT : '<<' ;
 BITAND : '&'  ;
@@ -684,7 +699,7 @@ INTEGER     : [0-9]+                 ;
 ID : [a-zA-Z_][a-zA-Z_0-9]* ;
 
 // -------------------------------------------------------------------------------
-//  Raw GML lines  — '#...' is kept verbatim in the parse tree and emitted as-is
+//  Raw GML lines  â€” '#...' is kept verbatim in the parse tree and emitted as-is
 // -------------------------------------------------------------------------------
 
 RAW_LINE : '#' ~[\r\n]* ;

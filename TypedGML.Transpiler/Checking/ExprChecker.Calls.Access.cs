@@ -16,16 +16,17 @@ public sealed partial class ExprChecker
         if (TryGetArrayElementType(targetType, out var elementType))
             return elementType;
 
-        if (!_ctx.TypeTable.TryResolve(targetType, out var targetDecl) || targetDecl is null)
+        if (!TryResolveTypeDecl(targetType, out var targetDecl) || targetDecl is null)
             return null;
 
         var indexer = PropertyAccessHelper.FindIndexerInHierarchy(_ctx.TypeTable, targetDecl);
         if (indexer?.Property.IndexParam is null)
             return null;
 
+        var bindings = BuildGenericTypeBindings(targetType, targetDecl);
         EnsureReadable(indexer, ix);
-        ValidateIndexerArgument(indexer, ix.Index, ix);
-        return DefaultExpressionFacts.DescribeType(indexer.Property.Type);
+        ValidateIndexerArgument(indexer, bindings, ix.Index, ix);
+        return DefaultExpressionFacts.DescribeType(SubstituteTypeRef(indexer.Property.Type, bindings));
     }
 
     private string? VisitInvoke(TgmlInvokeExpr invoke)
@@ -66,7 +67,7 @@ public sealed partial class ExprChecker
 
         var resolvedTargetType = MapPrimitiveType(targetType);
         if (resolvedTargetType is null ||
-            !_ctx.TypeTable.TryResolve(resolvedTargetType, out var targetDecl) || targetDecl is null)
+            !TryResolveTypeDecl(resolvedTargetType, out var targetDecl) || targetDecl is null)
             return null;
 
         var prop = PropertyAccessHelper.FindPropertyInHierarchy(_ctx.TypeTable, targetDecl, fa.FieldName);

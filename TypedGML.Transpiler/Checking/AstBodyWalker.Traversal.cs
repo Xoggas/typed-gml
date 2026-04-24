@@ -152,6 +152,13 @@ public abstract partial class AstBodyWalker
                 foreach (var element in ai.Elements)
                     WalkExpr(ctx, file, element, wctx);
                 break;
+            case TgmlDictionaryInitExpr di:
+                foreach (var entry in di.Entries)
+                {
+                    WalkExpr(ctx, file, entry.Key, wctx);
+                    WalkExpr(ctx, file, entry.Value, wctx);
+                }
+                break;
             case TgmlLambdaExpr lam:
                 if (lam.ExprBody is not null)
                     WalkExpr(ctx, file, lam.ExprBody, wctx);

@@ -13,7 +13,7 @@ public sealed partial class ExprChecker
         var resolvedTargetType = MapPrimitiveType(targetType);
 
         if (resolvedTargetType is null ||
-            !_ctx.TypeTable.TryResolve(resolvedTargetType, out var targetDecl) ||
+            !TryResolveTypeDecl(resolvedTargetType, out var targetDecl) ||
             targetDecl is null)
         {
                 // Check if target is a bare type name (static member access)
@@ -56,7 +56,10 @@ public sealed partial class ExprChecker
                 return null;
         }
 
-        var candidates = FindMethodsInHierarchy(targetDecl, mc.MethodName);
+        var bindings = BuildGenericTypeBindings(resolvedTargetType, targetDecl);
+        var candidates = FindMethodsInHierarchy(targetDecl, mc.MethodName)
+            .Select(method => SubstituteMethodDecl(method, bindings))
+            .ToList();
         if (candidates.Count == 0)
         {
             if (TryResolveDelegateMemberInvoke(mc, targetDecl, out var delegateReturnType))

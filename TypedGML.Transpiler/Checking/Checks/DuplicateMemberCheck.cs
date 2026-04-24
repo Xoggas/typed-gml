@@ -41,9 +41,30 @@ public sealed class DuplicateMemberCheck : IAtomicCheck
                 break;
 
             case TgmlInterfaceDecl iface:
-                CheckMethodOverloads(ctx, file, iface.Name, iface.Methods
-                    .Select(m => (m.Name, m.Params)));
+                CheckInterfaceMembers(ctx, file, iface);
                 break;
+        }
+    }
+
+    private static void CheckInterfaceMembers(TranspileContext ctx, TgmlFile file, TgmlInterfaceDecl iface)
+    {
+        var propertyNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var property in iface.Properties)
+        {
+            if (!propertyNames.Add(property.Name))
+                ctx.AddError($"Type '{iface.Name}' already defines a member named '{property.Name}'.", file.FileName);
+        }
+
+        CheckMethodOverloads(ctx, file, iface.Name, iface.Methods.Select(m => (m.Name, m.Params)));
+
+        foreach (var method in iface.Methods)
+        {
+            if (propertyNames.Contains(method.Name))
+            {
+                ctx.AddError(
+                    $"Type '{iface.Name}' has both a property and a method named '{method.Name}'.",
+                    file.FileName);
+            }
         }
     }
 

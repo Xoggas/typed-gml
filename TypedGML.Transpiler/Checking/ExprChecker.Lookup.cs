@@ -35,6 +35,7 @@ public sealed partial class ExprChecker
         {
             TgmlClassDecl cls => cls.BaseTypes,
             TgmlStructDecl str => str.BaseTypes,
+            TgmlInterfaceDecl iface => iface.BaseInterfaces,
             _ => null
         };
         if (baseRefs is null) return (null, null);
@@ -83,6 +84,7 @@ public sealed partial class ExprChecker
         {
             TgmlClassDecl cls => cls.BaseTypes,
             TgmlStructDecl str => str.BaseTypes,
+            TgmlInterfaceDecl iface => iface.BaseInterfaces,
             _ => null
         };
 

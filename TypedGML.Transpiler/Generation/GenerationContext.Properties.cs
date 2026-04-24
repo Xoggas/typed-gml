@@ -29,7 +29,7 @@ public sealed partial class GenerationContext
     {
         if (target.Metadata.TryGetValue("InferredType", out var inferredType) is false ||
             inferredType is not string typeName ||
-            !TypeTable.TryResolve(typeName, out var decl) ||
+            !TryResolveType(typeName, out var decl) ||
             decl is null)
         {
             return null;
@@ -43,7 +43,7 @@ public sealed partial class GenerationContext
         if (target.Metadata.TryGetValue("InferredType", out var inferredType) is false ||
             inferredType is not string typeName ||
             typeName.EndsWith("[]", StringComparison.Ordinal) ||
-            !TypeTable.TryResolve(typeName, out var decl) ||
+            !TryResolveType(typeName, out var decl) ||
             decl is null)
         {
             return null;
@@ -100,5 +100,14 @@ public sealed partial class GenerationContext
         }
 
         return false;
+    }
+
+    private bool TryResolveType(string describedType, out TgmlTypeDecl? decl)
+    {
+        var (baseName, typeArgs) = DelegateFacts.SplitDescribedType(describedType);
+        while (baseName.EndsWith("[]", StringComparison.Ordinal))
+            baseName = baseName[..^2];
+
+        return TypeTable.TryResolve(baseName, typeArgs.Count, out decl);
     }
 }

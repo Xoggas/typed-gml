@@ -57,8 +57,12 @@ public sealed partial class OperatorDeclarationCheck
 
     private static bool TypeMatchesOwner(TgmlTypeRef typeRef, TgmlTypeDecl owner)
     {
+        var typeName = typeRef.Name.Full;
         var ownerName = owner.QualifiedName ?? owner.Name;
-        return typeRef.Name.Full == ownerName || typeRef.Name.Full == owner.Name;
+        return typeName == ownerName ||
+               typeName == owner.Name ||
+               TypeCompatibility.ArePrimitiveEquivalent(typeName, ownerName) ||
+               TypeCompatibility.ArePrimitiveEquivalent(typeName, owner.Name);
     }
 
     private static bool IsInterfaceLike(TgmlTypeRef typeRef, TranspileContext ctx)

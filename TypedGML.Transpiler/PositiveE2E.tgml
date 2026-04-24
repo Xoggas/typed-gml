@@ -229,6 +229,10 @@ public class FeatureShowcase
     private System.Action<number> _changed;
     private System.Func<number, number> _map;
     private System.Predicate<number> _positiveCheck;
+    public System.Collections.Dictionary<number, string> LiteralMap = {
+        1: "1",
+        2: "2"
+    };
 
     public constructor()
     {
@@ -270,6 +274,15 @@ public class FeatureShowcase
         var list = new System.Collections.List<number>();
         var stack = new System.Collections.Stack<string>();
         var queue = new System.Collections.Queue<number>();
+        System.Collections.Dictionary<string, number> emptyMap = {};
+        System.Collections.IDictionary<number, string> interfaceMap = {
+            10: "ten",
+            20: "twenty"
+        };
+        var inferredMap = {
+            3: "3",
+            4: "4"
+        };
         var random = new System.Random();
         var chance = random.Chance(0.5);
         var rangeValue = random.Range(1, 3);
@@ -277,6 +290,13 @@ public class FeatureShowcase
         _changed(named);
         var mapped = _map(4);
         var passed = _positiveCheck(mapped);
+        var literalValue = LiteralMap[1];
+        var fallbackLabel = LiteralMap.GetOrDefault(99, "missing");
+        interfaceMap[30] = "thirty";
+        var hasTen = interfaceMap.ContainsKey(10);
+        var removedTwenty = interfaceMap.Remove(20);
+        var keyList = LiteralMap.KeysToArray();
+        var valueList = LiteralMap.ValuesToArray();
 
         SetSprite(SpriteRegistry.Character1);
         UseAssets(SpriteRegistry.Character1, RoomRegistry.TestRoom, AudioRegistry.Blip, FontRegistry.Main);
@@ -297,6 +317,11 @@ public class FeatureShowcase
         var player = new Player("Hero", 125);
         player.TakeDamage(10);
         player.Promote(amount: 2);
+
+        emptyMap.Destroy();
+        interfaceMap.Destroy();
+        inferredMap.Destroy();
+        LiteralMap.Destroy();
     }
 
     public number Sum(number numerator = 1, number denominator = 1)

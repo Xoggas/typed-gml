@@ -117,6 +117,8 @@ public sealed class GenericArityCheck : IAtomicCheck
                 foreach (var prop in iface.Properties)
                 {
                     CheckTypeRef(ctx, file, prop.Type, decl.TypeParams);
+                    if (prop.IndexParam is not null)
+                        CheckTypeRef(ctx, file, prop.IndexParam.Type, decl.TypeParams);
                 }
 
                 break;
@@ -180,7 +182,7 @@ public sealed class GenericArityCheck : IAtomicCheck
                 string.Equals(d.QualifiedName, typeRef.Name.Full, StringComparison.Ordinal) ||
                 string.Equals(d.Name, typeRef.Name.Full, StringComparison.Ordinal));
             if (resolvedDecl is null)
-                return; // unknown type — InheritanceCheck will have reported it
+                return; // unknown type â€” InheritanceCheck will have reported it
         }
 
         var expected = resolvedDecl.TypeParams.Count;

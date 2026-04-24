@@ -60,6 +60,7 @@ public sealed partial class ExprChecker
             TgmlTernaryExpr t => InferTernary(t),
             TgmlAssignExpr a => InferAssign(a),
             TgmlArrayInitExpr ai => VisitArrayInit(ai),
+            TgmlDictionaryInitExpr di => VisitDictionaryInit(di),
             TgmlMethodCallExpr mc => VisitMethodCall(mc),
             TgmlFuncCallExpr fc => VisitFuncCall(fc),
             TgmlNewObjectExpr no => VisitNewObject(no),

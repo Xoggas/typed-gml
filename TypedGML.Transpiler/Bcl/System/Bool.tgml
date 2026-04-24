@@ -18,7 +18,7 @@ public class Bool
     @NativeCall("is_bool")
     public static bool IsBool(number value) {}
 
-    public static implicit operator string(Bool value)
+    public static implicit operator string(bool value)
     {
         if (value == true)
         {

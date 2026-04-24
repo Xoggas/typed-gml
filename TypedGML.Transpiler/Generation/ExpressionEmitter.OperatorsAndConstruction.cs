@@ -74,13 +74,51 @@ public sealed partial class ExpressionEmitter
         return $"new {gmlName}({string.Join(", ", GetNormalizedArgs(e, e.Args).Select(Emit))})";
     }
 
+    private string EmitDictionaryInit(TgmlDictionaryInitExpr e)
+    {
+        if (!e.Metadata.TryGetValue(DictionaryLiteralConcreteTypeMetadata, out var concreteTypeObj) ||
+            !e.Metadata.TryGetValue(DictionaryLiteralKeyTypeMetadata, out var keyTypeObj) ||
+            !e.Metadata.TryGetValue(DictionaryLiteralValueTypeMetadata, out var valueTypeObj) ||
+            concreteTypeObj is not string concreteType ||
+            keyTypeObj is not string keyType ||
+            valueTypeObj is not string valueType)
+        {
+            return "undefined";
+        }
+
+        var gmlName = concreteType[..concreteType.IndexOf('<')].Replace(".", "_");
+        var runtimeArgs = $"{EmitRuntimeTypeId(keyType)}, {EmitRuntimeTypeId(valueType)}";
+        if (e.Entries.Count == 0)
+            return $"new {gmlName}({runtimeArgs})";
+
+        var keys = $"[{string.Join(", ", e.Entries.Select(entry => Emit(entry.Key)))}]";
+        var values = $"[{string.Join(", ", e.Entries.Select(entry => Emit(entry.Value)))}]";
+        return $"new {gmlName}({runtimeArgs}, {keys}, {values})";
+    }
+
     private string EmitTypeRefAsRuntimeId(TgmlTypeRef typeRef)
     {
         var name = typeRef.Name.Full;
+        if (BuiltinTypeFacts.IsLegacyNumericAlias(name))
+            return "__TYPE_number";
         if (_ctx.TypeTable.TryResolve(name, out var decl) && decl?.QualifiedName is { } qn)
             return $"__TYPE_{qn.Replace(".", "_")}";
 
         return $"__TYPE_{name}";
+    }
+
+    private string EmitRuntimeTypeId(string describedType)
+    {
+        var (baseName, _) = DelegateFacts.SplitDescribedType(describedType);
+        while (baseName.EndsWith("[]", StringComparison.Ordinal))
+            baseName = baseName[..^2];
+        if (BuiltinTypeFacts.IsLegacyNumericAlias(baseName))
+            return "__TYPE_number";
+
+        if (_ctx.TypeTable.TryResolve(baseName, out var decl) && decl?.QualifiedName is { } qn)
+            return $"__TYPE_{qn.Replace(".", "_")}";
+
+        return $"__TYPE_{baseName.Replace(".", "_")}";
     }
 
     private string EmitBaseCall(TgmlBaseCallExpr e)
