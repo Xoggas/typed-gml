@@ -1,45 +1,181 @@
-namespace Game.Negative;
+namespace E2E.Negative;
 
-public class Player
+public interface IRequiresName
+{
+    string Name { get; }
+}
+
+public class PlainThing
 {
 }
 
-public class AccessBase
+public class NamedThing : IRequiresName
+{
+    public string Name { get; private set; }
+
+    public constructor()
+    {
+        Name = "named";
+    }
+}
+
+public class ConstrainedBox<T : IRequiresName>
+{
+    public constructor()
+    {
+    }
+}
+
+public abstract class AbstractThing
+{
+    public abstract void Run();
+}
+
+public class AccessTarget
 {
     public string Name { get; private set; }
     public number Health { get; protected set; }
 
     public constructor()
     {
-        Name = "Base";
+        Name = "target";
         Health = 10;
     }
 }
 
-public class SpriteRegistry
+public class AssetRegistry
 {
-    @Asset("spr_Char1")
-    public static System.Sprite Character1 { get; set; }
+    @Asset("spr_Bad")
+    public static System.Sprite Sprite { get; set; }
 }
 
-public class BadDefaults
+public class PlainWithTarget
 {
-    public Player Choose(Player fallback = new Player())
+    public void Tick()
+    {
+    }
+}
+
+public class DefaultParameterFeature
+{
+    public PlainThing Choose(PlainThing fallback = new PlainThing())
     {
         return fallback;
     }
 }
 
-public class BadUsage
+public class AccessFeature
 {
-    public void Run(AccessBase entity)
+    public void Run(AccessTarget target)
     {
-        entity.Name = "Renamed";
-        entity.Health = 20;
-        SpriteRegistry.Character1 = null;
+        target.Name = "bad";
+        target.Health = 20;
+    }
+}
 
-        string label = "HP";
+public class AssetFeature
+{
+    public void Run()
+    {
+        AssetRegistry.Sprite = null;
+    }
+}
+
+public class OperatorFeature
+{
+    public void Run()
+    {
+        string label = "hp";
         number value = 10;
-        var combined = label + value;
+        bool flag = true;
+
+        label + value;
+        flag + value;
+    }
+}
+
+public class AssignmentFeature
+{
+    public void Run()
+    {
+        bool flag = 1;
+        number value = "not a number";
+    }
+}
+
+public class WithFeature
+{
+    public void Run()
+    {
+        with (PlainWithTarget target)
+        {
+            target.Tick();
+        }
+    }
+}
+
+public class AbstractInstantiationFeature
+{
+    public void Run()
+    {
+        var thing = new AbstractThing();
+    }
+}
+
+public class ConstReadonlyFeature
+{
+    public const number Max = 10;
+    public readonly number Seed;
+
+    public constructor()
+    {
+        Seed = 1;
+    }
+
+    public void Run()
+    {
+        Max = 20;
+        Seed = 2;
+    }
+}
+
+public class FieldKeywordFeature
+{
+    public void Run()
+    {
+        number value = field;
+    }
+}
+
+public class BreakContinueFeature
+{
+    public void InvalidBreak()
+    {
+        break;
+    }
+
+    public void InvalidContinue()
+    {
+        continue;
+    }
+}
+
+public class GenericConstraintFeature
+{
+    public void Run()
+    {
+        var invalid = new ConstrainedBox<PlainThing>();
+    }
+}
+
+public class StaticContextFeature
+{
+    public void InstanceOnly()
+    {
+    }
+
+    public static void Run()
+    {
+        InstanceOnly();
     }
 }

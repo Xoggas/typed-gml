@@ -26,11 +26,6 @@ public sealed partial class TypeReferenceCheck
         var name = typeRef.Name.Full;
         if (visibleTypeParams.Any(tp => tp.Name == name))
             return;
-        if (BuiltinTypeFacts.IsLegacyNumericAlias(name))
-        {
-            ctx.AddError($"Type '{name}' has been replaced by 'number'.", file.FileName, line, column);
-            return;
-        }
         if (BuiltinTypeFacts.IsBuiltIn(name))
             return;
         if (ctx.TypeTable.TryResolve(name, typeRef.TypeArgs.Count, out var resolvedDecl) && resolvedDecl is not null)

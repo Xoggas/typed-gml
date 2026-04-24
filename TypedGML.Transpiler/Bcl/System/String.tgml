@@ -2,17 +2,23 @@
 
 public class String
 {
-    @NativeInstanceCall("string_length")
-    public number get_Length() {}
+    @NativeOperator("+")
+    public static string operator +(string left, string right);
 
-    @NativeInstanceCall("string_lower")
-    public string ToLower() {}
+    @NativeOperator("==")
+    public static bool operator ==(string left, string right);
 
-    @NativeInstanceCall("string_upper")
-    public string ToUpper() {}
+    @NativeOperator("!=")
+    public static bool operator !=(string left, string right);
 
-    @NativeInstanceCall("string_trim")
-    public string Trim() {}
+    @NativeCall("string_lower")
+    private static string GmlStringLower(string src) {}
+
+    @NativeCall("string_upper")
+    private static string GmlStringUpper(string src) {}
+
+    @NativeCall("string_trim")
+    private static string GmlStringTrim(string src) {}
 
     @NativeCall("string_pos")
     private static number GmlStringPos(string sub, string src) {}
@@ -27,7 +33,32 @@ public class String
     private static string GmlStringReplaceAll(string src, string old, string nw) {}
 
     @NativeCall("string_split")
-    public string[] Split(string separator) {}
+    private static string[] GmlStringSplit(string src, string separator) {}
+
+    public number Length
+    {
+        get => GmlStringLength(this);
+    }
+
+    public string[] Split(string separator)
+    {
+        return GmlStringSplit(this, separator);
+    }
+
+    public string ToLower()
+    {
+        return GmlStringLower(this);
+    }
+
+    public string ToUpper()
+    {
+        return GmlStringUpper(this);
+    }
+
+    public string Trim()
+    {
+        return GmlStringTrim(this);
+    }
 
     public bool Contains(string value)
     {
@@ -62,6 +93,10 @@ public class String
     }
 
     @NativeCall("string")
-    public static string FromNumber(number value) {}
-}
+    private static string GmlString(number value) {}
 
+    public static string FromNumber(number value)
+    {
+        return GmlString(value);
+    }
+}

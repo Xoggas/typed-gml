@@ -34,7 +34,8 @@ public static class OperatorFacts
             return $"{ownerName}__conv_{kind}_{SanitizeIdentifier(method.ReturnType.ToString())}_{signature}";
         }
 
-        return $"{ownerName}__op_{SanitizeIdentifier(method.OperatorToken!)}_{signature}";
+        var operatorName = method.OperatorToken ?? method.Name;
+        return $"{ownerName}__op_{SanitizeIdentifier(operatorName)}_{signature}";
     }
 
     public static string SanitizeIdentifier(string value)

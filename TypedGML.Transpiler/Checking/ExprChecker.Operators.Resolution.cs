@@ -20,8 +20,7 @@ public sealed partial class ExprChecker
 
         var candidates = CollectMethodsInHierarchy(
                 operandDecl,
-                candidate => candidate.IsOperatorOverload &&
-                             candidate.OperatorToken == operatorToken &&
+                candidate => IsOperatorCandidate(candidate, operatorToken) &&
                              candidate.Params.Count == 1)
             .Where(candidate => CanAssignTypeToType(DefaultExpressionFacts.DescribeType(candidate.Method.Params[0].Type), operandType))
             .ToList();
@@ -66,13 +65,17 @@ public sealed partial class ExprChecker
 
         foreach (var candidate in CollectMethodsInHierarchy(
                      ownerDecl,
-                     method => method.IsOperatorOverload && method.OperatorToken == operatorToken))
+                     method => IsOperatorCandidate(method, operatorToken)))
         {
             var key = $"{candidate.Owner.QualifiedName ?? candidate.Owner.Name}:{OperatorFacts.GetHelperName(candidate.Owner, candidate.Method)}";
             if (seen.Add(key))
                 results.Add(candidate);
         }
     }
+
+    private static bool IsOperatorCandidate(TgmlMethodDecl method, string operatorToken)
+        => (method.IsOperatorOverload && method.OperatorToken == operatorToken) ||
+           NativeOperatorFacts.Matches(method, operatorToken);
 
     private bool TryChooseOperatorCandidate(
         List<(TgmlTypeDecl Owner, TgmlMethodDecl Method)> candidates,

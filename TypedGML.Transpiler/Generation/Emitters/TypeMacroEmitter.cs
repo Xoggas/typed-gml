@@ -20,6 +20,7 @@ public sealed class TypeMacroEmitter
         ("number",    -1),
         ("int",       -1),
         ("real",      -1),
+        ("long",      -1),
         ("string",    -2),
         ("bool",      -3),
         ("any",       -4),

@@ -1,36 +1,23 @@
-namespace Game.Systems;
+namespace E2E.Positive;
 
-public interface IDestructible
+public interface INamed
 {
-    void TakeDamage(number amount);
-    bool IsAlive { get; }
+    string Name { get; }
 }
 
-public interface ILoggable
+public interface IWorker
 {
-    string GetLog();
+    number Work(number value);
 }
 
-public enum Faction
+public enum TestMode
 {
     None = 0,
-    Alliance = 1,
-    Horde = 2
+    Active = 1,
+    Disabled = 2
 }
 
-public struct Stats
-{
-    public number Strength;
-    public bool IsElite;
-
-    public constructor(number strength = 0, bool isElite = false)
-    {
-        Strength = strength;
-        IsElite = isElite;
-    }
-}
-
-public struct Vec2
+public struct FeaturePoint
 {
     public number X;
     public number Y;
@@ -41,138 +28,100 @@ public struct Vec2
         Y = y;
     }
 
-    public static Vec2 operator +(Vec2 left, Vec2 right)
+    public static FeaturePoint operator +(FeaturePoint left, FeaturePoint right)
     {
-        return new Vec2(left.X + right.X, left.Y + right.Y);
+        return new FeaturePoint(left.X + right.X, left.Y + right.Y);
     }
 
-    public static Vec2 operator -(Vec2 value)
+    public static FeaturePoint operator -(FeaturePoint value)
     {
-        return new Vec2(-value.X, -value.Y);
+        return new FeaturePoint(-value.X, -value.Y);
     }
 
-    public static implicit operator number(Vec2 value)
+    public static implicit operator number(FeaturePoint value)
     {
         return value.X + value.Y;
     }
 
-    public static explicit operator Vec2(number value)
+    public static explicit operator FeaturePoint(number value)
     {
-        return new Vec2(value, value);
+        return new FeaturePoint(value, value);
     }
 }
 
-public class NativeSpeedProbe
+public class NamedThing : INamed
+{
+    public string Name { get; private set; }
+
+    public constructor(string name = "thing")
+    {
+        Name = name;
+    }
+}
+
+public class Box<T : INamed>
+{
+    public constructor()
+    {
+    }
+
+    public string LabelOf(T value)
+    {
+        return value.Name;
+    }
+}
+
+public abstract class WorkerBase : IWorker
+{
+    protected number _offset;
+
+    public constructor(number offset = 1)
+    {
+        _offset = offset;
+    }
+
+    public abstract number Work(number value);
+
+    protected number AddOffset(number value)
+    {
+        return value + _offset;
+    }
+}
+
+public class WorkerChild : WorkerBase
+{
+    public constructor(number offset = 2) : base(offset)
+    {
+    }
+
+    public override number Work(number value)
+    {
+        return AddOffset(value) * 2;
+    }
+}
+
+public class ObjectProbe
 {
     @NativeProperty("speed")
     public number Speed { get; set; }
 
-    public number ManualSpeed { get; set; }
+    public number ManagedSpeed { get; set; }
 
     public constructor()
     {
         Speed = 1;
-        ManualSpeed = 2;
-    }
-
-    public void SyncFrom(NativeSpeedProbe other)
-    {
-        Speed = other.Speed;
-        ManualSpeed = other.ManualSpeed;
+        ManagedSpeed = 2;
     }
 }
 
-public class Inventory
-{
-    private number[] _values;
-
-    public constructor()
-    {
-        _values = [10, 20, 30];
-    }
-
-    public number this[number index]
-    {
-        get => _values[index];
-        set => _values[index] = value;
-    }
-}
-
-public class Entity : IDestructible, ILoggable
-{
-    public number Health { get; protected set; }
-    public string Name { get; private set; }
-    public bool IsAlive { get; protected set; }
-    public Faction Side { get; protected set; }
-
-    public constructor(string name, number health, Faction side)
-    {
-        Health = health;
-        Name = name;
-        IsAlive = health > 0;
-        Side = side;
-    }
-
-    public virtual void TakeDamage(number amount)
-    {
-        Health -= amount;
-        IsAlive = Health > 0;
-    }
-
-    protected void Rename(string value)
-    {
-        Name = value;
-    }
-
-    public string GetLog()
-    {
-        return Name;
-    }
-}
-
-public class Player : Entity
-{
-    public number Level { get; private set; }
-    public Stats StatBlock { get; set; }
-
-    public constructor(string name, number health = 100)
-        : base(name, health, Faction.Alliance)
-    {
-        Level = 1;
-        StatBlock = default;
-    }
-
-    public override void TakeDamage(number amount)
-    {
-        base.TakeDamage(amount);
-
-        if (not IsAlive)
-        {
-            Level = 0;
-        }
-    }
-
-    public void Promote(number amount = 1)
-    {
-        Level += amount;
-    }
-}
-
-@Object("obj_BaseMover")
+@Object("obj_E2E_BaseMover")
 public class BaseMover : System.GameObject
 {
     public number Counter { get; protected set; }
 
-    public constructor() : base(0, 0, "layer_default")
+    public constructor(number x, number y, string layer) : base(x, y, layer)
     {
-        Counter = 10;
-        MoveTo(32, 64);
-    }
-
-    @NativeEvent("Step")
-    public virtual void HandleStep()
-    {
-        Tick();
+        Counter = 0;
     }
 
     public virtual void Tick()
@@ -180,15 +129,20 @@ public class BaseMover : System.GameObject
         Counter += 1;
         Translate(1, 0);
     }
+
+    @NativeEvent("Step")
+    public virtual void HandleStep()
+    {
+        Tick();
+    }
 }
 
-@Object("obj_ChildMover")
+@Object("obj_E2E_ChildMover")
 public class ChildMover : BaseMover
 {
-    public override void HandleStep()
+    public constructor(number x, number y, string layer, number seed) : base(x, y, layer)
     {
-        base.HandleStep();
-        Tick();
+        Counter = seed;
     }
 
     public override void Tick()
@@ -196,51 +150,207 @@ public class ChildMover : BaseMover
         base.Tick();
         Counter += 5;
     }
+
+    public override void HandleStep()
+    {
+        base.HandleStep();
+        Tick();
+    }
 }
 
 public class SpriteRegistry
 {
-    @Asset("spr_Char1")
-    public static System.Sprite Character1 { get; set; }
+    @Asset("spr_E2E")
+    public static System.Sprite Sprite { get; set; }
 }
 
 public class RoomRegistry
 {
-    @Asset("rm_Test")
-    public static System.Room TestRoom { get; set; }
+    @Asset("rm_E2E")
+    public static System.Room Room { get; set; }
 }
 
 public class AudioRegistry
 {
-    @Asset("snd_Blip")
-    public static System.Audio Blip { get; set; }
+    @Asset("snd_E2E")
+    public static System.Audio Sound { get; set; }
 }
 
 public class FontRegistry
 {
-    @Asset("fnt_Main")
-    public static System.Font Main { get; set; }
+    @Asset("fnt_E2E")
+    public static System.Font Font { get; set; }
 }
 
-public class FeatureShowcase
+public class PrimitiveAndAliasFeature
 {
-    private Inventory _inventory;
-    private NativeSpeedProbe _nativeProbe;
-    private System.Action<number> _changed;
-    private System.Func<number, number> _map;
-    private System.Predicate<number> _positiveCheck;
-    public System.Collections.Dictionary<number, string> LiteralMap = {
-        1: "1",
-        2: "2"
-    };
+    public void Run()
+    {
+        number count = 1;
+        Number aliasNumber = 2;
+        long aliasLong = 3;
+        Bool aliasBool = true;
+        String aliasString = "Feature";
+
+        var total = count + aliasNumber + aliasLong;
+        var compare = total >= 3;
+        var logical = aliasBool and compare;
+        var lower = aliasString.ToLower();
+        var length = lower.Length;
+        var label = String.FromNumber(length);
+    }
+}
+
+public class DefaultAndCreationFeature
+{
+    public void Run()
+    {
+        FeaturePoint implicitPoint = default;
+        var explicitPoint = default(FeaturePoint);
+        FeaturePoint inferredPoint = new(4, 5);
+        var casted = (FeaturePoint)10;
+        number summed = casted;
+        NamedThing maybeNull = null;
+        var explicitNumber = default(number);
+        var explicitBool = default(bool);
+        var explicitString = default(string);
+    }
+}
+
+public class PropertyFeature
+{
+    private number _maxHealth;
+
+    public number Health { get; private set; }
+
+    public number Clamped
+    {
+        get => field;
+        set => field = Number.Clamp(value, 0, 100);
+    }
+
+    public number Percent
+    {
+        get
+        {
+            return (Health * 100) / _maxHealth;
+        }
+        set
+        {
+            Health = (value * _maxHealth) / 100;
+        }
+    }
 
     public constructor()
     {
-        _inventory = new Inventory();
-        _nativeProbe = new NativeSpeedProbe();
+        _maxHealth = 200;
+        Health = 100;
+        Clamped = 150;
+        Percent = 50;
+    }
+}
+
+public class ControlFlowFeature
+{
+    public number Run(number count)
+    {
+        number total = 0;
+
+        for (var i = 0; i < count; i = i + 1)
+        {
+            if (i == 2)
+            {
+                continue;
+            }
+
+            total += i;
+        }
+
+        while (total < 10)
+        {
+            total += 1;
+            if (total == 8)
+            {
+                break;
+            }
+        }
+
+        repeat (2)
+        {
+            total += 1;
+        }
+
+        switch (count)
+        {
+            case 0:
+                total = 1;
+            case 1:
+                total = 2;
+            default:
+                total += count;
+        }
+
+        try
+        {
+            total += 1;
+        }
+        catch (System.Object error)
+        {
+            total = 0;
+        }
+        finally
+        {
+            total += 1;
+        }
+
+        return total;
+    }
+}
+
+public class OperatorFeature
+{
+    public void Run()
+    {
+        var left = new FeaturePoint(1, 2);
+        var right = new FeaturePoint(3, 4);
+        var combined = left + right;
+        var negated = -combined;
+        number total = combined;
+        var casted = (FeaturePoint)total;
+    }
+}
+
+public class InterfaceInheritanceFeature
+{
+    public void Run()
+    {
+        var worker = new WorkerChild(3);
+        var result = worker.Work(10);
+        worker is System.Object;
+    }
+}
+
+public class GenericFeature
+{
+    public void Run()
+    {
+        var named = new NamedThing("Boxed");
+        var box = new Box<NamedThing>();
+        var label = box.LabelOf(named);
+    }
+}
+
+public class DelegateFeature
+{
+    private System.Action<number> _changed;
+    private System.Func<number, number> _map;
+    private System.Predicate<number> _predicate;
+
+    public constructor()
+    {
         _changed = null;
         _map = null;
-        _positiveCheck = null;
+        _predicate = null;
     }
 
     public void Run()
@@ -248,105 +358,19 @@ public class FeatureShowcase
         _changed = OnChanged;
         _changed += OnChanged;
         _changed -= OnChanged;
+        _map = Double;
+        _predicate = IsPositive;
 
-        _map = DoubleValue;
-        _positiveCheck = IsPositive;
-
-        Stats implicitStats = default;
-        var explicitStats = default(Stats);
-        var explicitNumber = default(number);
-        var explicitPlayer = default(Player);
-        var explicitSprite = default(System.Sprite);
-
-        number total = new Vec2(1, 2);
-        var casted = (Vec2)5;
-        var combined = new Vec2(1, 2) + new Vec2(3, 4);
-        var negated = -combined;
-
-        var named = Sum(denominator: 2);
-        var direct = Sum(2, 1);
-        var chosen = Choose();
-        var chosenFallback = Choose(fallback: chosen);
-
-        _inventory[0] = named;
-        var captured = _inventory[0];
-
-        var list = new System.Collections.List<number>();
-        var stack = new System.Collections.Stack<string>();
-        var queue = new System.Collections.Queue<number>();
-        System.Collections.Dictionary<string, number> emptyMap = {};
-        System.Collections.IDictionary<number, string> interfaceMap = {
-            10: "ten",
-            20: "twenty"
-        };
-        var inferredMap = {
-            3: "3",
-            4: "4"
-        };
-        var random = new System.Random();
-        var chance = random.Chance(0.5);
-        var rangeValue = random.Range(1, 3);
-
-        _changed(named);
+        _changed(1);
         var mapped = _map(4);
-        var passed = _positiveCheck(mapped);
-        var literalValue = LiteralMap[1];
-        var fallbackLabel = LiteralMap.GetOrDefault(99, "missing");
-        interfaceMap[30] = "thirty";
-        var hasTen = interfaceMap.ContainsKey(10);
-        var removedTwenty = interfaceMap.Remove(20);
-        var keyList = LiteralMap.KeysToArray();
-        var valueList = LiteralMap.ValuesToArray();
-
-        SetSprite(SpriteRegistry.Character1);
-        UseAssets(SpriteRegistry.Character1, RoomRegistry.TestRoom, AudioRegistry.Blip, FontRegistry.Main);
-
-        with (NativeSpeedProbe probe)
-        {
-            probe.Speed = 5;
-            probe.ManualSpeed = 7;
-        }
-
-        with (BaseMover mover)
-        {
-            mover.Tick();
-        }
-
-        _nativeProbe.SyncFrom(new NativeSpeedProbe());
-
-        var player = new Player("Hero", 125);
-        player.TakeDamage(10);
-        player.Promote(amount: 2);
-
-        emptyMap.Destroy();
-        interfaceMap.Destroy();
-        inferredMap.Destroy();
-        LiteralMap.Destroy();
-    }
-
-    public number Sum(number numerator = 1, number denominator = 1)
-    {
-        return numerator + denominator;
-    }
-
-    public Player Choose(Player fallback = null)
-    {
-        return fallback;
-    }
-
-    public void SetSprite(System.Sprite sprite)
-    {
-    }
-
-    public void UseAssets(System.Sprite sprite, System.Room room, System.Audio audio, System.Font font)
-    {
+        var passed = _predicate(mapped);
     }
 
     public void OnChanged(number value)
     {
     }
 
-    public number DoubleValue(number value)
+    public number Double(number value)
     {
         return value * 2;
     }
@@ -354,5 +378,87 @@ public class FeatureShowcase
     public bool IsPositive(number value)
     {
         return value > 0;
+    }
+}
+
+public class CollectionsFeature
+{
+    public void Run()
+    {
+        var list = new System.Collections.List<number>();
+        list.Add(1);
+        list.AddRange([2, 3]);
+        list[0] = 5;
+        var first = list[0];
+        var hasFive = list.Contains(5);
+        var index = list.IndexOf(3);
+        var removed = list.Remove(2);
+        var removedAt = list.RemoveAt(0);
+
+        var stack = new System.Collections.Stack<string>();
+        stack.Push("a");
+        var peeked = stack.Peek();
+        var popped = stack.Pop();
+
+        var queue = new System.Collections.Queue<number>();
+        queue.Enqueue(1);
+        var front = queue.Peek();
+        var dequeued = queue.Dequeue();
+
+        System.Collections.Dictionary<string, number> map = {
+            "one": 1,
+            "two": 2
+        };
+        map["three"] = 3;
+        var value = map.GetOrDefault("missing", 0);
+        var keys = map.KeysToArray();
+        var values = map.ValuesToArray();
+        map.Destroy();
+    }
+}
+
+public class AssetFeature
+{
+    public void Run()
+    {
+        UseAssets(SpriteRegistry.Sprite, RoomRegistry.Room, AudioRegistry.Sound, FontRegistry.Font);
+    }
+
+    public void UseAssets(System.Sprite sprite, System.Room room, System.Audio sound, System.Font font)
+    {
+    }
+}
+
+public class NativeBindingFeature
+{
+    public void Run()
+    {
+        var probe = new ObjectProbe();
+        probe.Speed = 4;
+        probe.ManagedSpeed = probe.Speed;
+    }
+}
+
+public class GameObjectFeature
+{
+    public void Run()
+    {
+        var mover = new ChildMover(10, 20, "Instances", 7);
+        mover is System.Object;
+
+        with (BaseMover current)
+        {
+            current.Tick();
+        }
+    }
+}
+
+public class IntrinsicFeature
+{
+    public void Run()
+    {
+        typeof(WorkerChild);
+        nameof(WorkerChild);
+        var objectType = new WorkerChild(0).GetType();
     }
 }

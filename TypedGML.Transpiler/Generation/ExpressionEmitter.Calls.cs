@@ -16,6 +16,9 @@ public sealed partial class ExpressionEmitter
         var target = Emit(e.Target);
         var normalizedArgs = GetNormalizedArgs(e, e.Args);
 
+        if (TryEmitInlinedPrimitiveMethodCall(e, normalizedArgs, out var inlinedPrimitiveMethodCall))
+            return inlinedPrimitiveMethodCall;
+
         if (e.Metadata.TryGetValue("NativeInstanceCallName", out var nativeCall) && nativeCall is string nativeCallName)
             return $"{nativeCallName}({string.Join(", ", new[] { target }.Concat(normalizedArgs.Select(Emit)))})";
 
@@ -44,6 +47,8 @@ public sealed partial class ExpressionEmitter
             return resolvedAssetName;
         if (TryEmitNativePropertyAccess(e.Target, e.FieldName, out var nativeAccess))
             return nativeAccess;
+        if (TryEmitPropertyAccess(e.Target, e.FieldName, out var propertyAccess))
+            return propertyAccess;
 
         var target = Emit(e.Target);
         if (_ctx.WithAlias is { } alias && target == alias)

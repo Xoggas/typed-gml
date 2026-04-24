@@ -2,42 +2,163 @@
 
 public class Number
 {
+    @NativeOperator("+")
+    public static number operator +(number value);
+
+    @NativeOperator("-")
+    public static number operator -(number value);
+
+    @NativeOperator("~")
+    public static number operator ~(number value);
+
+    @NativeOperator("+")
+    public static number operator +(number left, number right);
+
+    @NativeOperator("-")
+    public static number operator -(number left, number right);
+
+    @NativeOperator("*")
+    public static number operator *(number left, number right);
+
+    @NativeOperator("/")
+    public static number operator /(number left, number right);
+
+    @NativeOperator("%")
+    public static number operator %(number left, number right);
+
+    @NativeOperator("&")
+    public static number operator &(number left, number right);
+
+    @NativeOperator("|")
+    public static number operator |(number left, number right);
+
+    @NativeOperator("^")
+    public static number operator ^(number left, number right);
+
+    @NativeOperator("<<")
+    public static number operator <<(number left, number right);
+
+    @NativeOperator(">>")
+    public static number operator >>(number left, number right);
+
+    @NativeOperator("==")
+    public static bool operator ==(number left, number right);
+
+    @NativeOperator("!=")
+    public static bool operator !=(number left, number right);
+
+    @NativeOperator("<")
+    public static bool operator <(number left, number right);
+
+    @NativeOperator(">")
+    public static bool operator >(number left, number right);
+
+    @NativeOperator("<=")
+    public static bool operator <=(number left, number right);
+
+    @NativeOperator(">=")
+    public static bool operator >=(number left, number right);
+
     @NativeCall("abs")
-    public static number Abs(number value) {}
+    private static number GmlAbs(number value) {}
 
     @NativeCall("floor")
-    public static number Floor(number value) {}
+    private static number GmlFloor(number value) {}
 
     @NativeCall("ceil")
-    public static number Ceil(number value) {}
+    private static number GmlCeil(number value) {}
 
     @NativeCall("round")
-    public static number Round(number value) {}
+    private static number GmlRound(number value) {}
 
     @NativeCall("sqrt")
-    public static number Sqrt(number value) {}
+    private static number GmlSqrt(number value) {}
 
     @NativeCall("power")
-    public static number Pow(number value, number exp) {}
+    private static number GmlPower(number value, number exp) {}
 
     @NativeCall("clamp")
-    public static number Clamp(number value, number min, number max) {}
+    private static number GmlClamp(number value, number min, number max) {}
 
     @NativeCall("min")
-    public static number Min(number a, number b) {}
+    private static number GmlMin(number a, number b) {}
 
     @NativeCall("max")
-    public static number Max(number a, number b) {}
+    private static number GmlMax(number a, number b) {}
 
     @NativeCall("lerp")
-    public static number Lerp(number a, number b, number amount) {}
+    private static number GmlLerp(number a, number b, number amount) {}
+
+    @NativeCall("string")
+    private static string GmlString(number value) {}
 
     @NativeCall("string")
     public static implicit operator string(number value) {}
 
     @NativeCall("real")
-    public static number Parse(string value) {}
+    private static number GmlReal(string value) {}
 
     @NativeCall("is_real")
-    public static bool IsNumber(number value) {}
+    private static bool GmlIsReal(number value) {}
+
+    public static number Abs(number value)
+    {
+        return GmlAbs(value);
+    }
+
+    public static number Floor(number value)
+    {
+        return GmlFloor(value);
+    }
+
+    public static number Ceil(number value)
+    {
+        return GmlCeil(value);
+    }
+
+    public static number Round(number value)
+    {
+        return GmlRound(value);
+    }
+
+    public static number Sqrt(number value)
+    {
+        return GmlSqrt(value);
+    }
+
+    public static number Pow(number value, number exp)
+    {
+        return GmlPower(value, exp);
+    }
+
+    public static number Clamp(number value, number min, number max)
+    {
+        return GmlClamp(value, min, max);
+    }
+
+    public static number Min(number a, number b)
+    {
+        return GmlMin(a, b);
+    }
+
+    public static number Max(number a, number b)
+    {
+        return GmlMax(a, b);
+    }
+
+    public static number Lerp(number a, number b, number amount)
+    {
+        return GmlLerp(a, b, amount);
+    }
+
+    public static number Parse(string value)
+    {
+        return GmlReal(value);
+    }
+
+    public static bool IsNumber(number value)
+    {
+        return GmlIsReal(value);
+    }
+
 }

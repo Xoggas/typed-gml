@@ -7,6 +7,9 @@ public sealed partial class ExpressionEmitter
 {
     private string EmitUnary(TgmlUnaryExpr e)
     {
+        if (TryGetResolvedNativeOperator(e, out var nativeOperator))
+            return $"{NativeOperatorFacts.ToGmlToken(nativeOperator)}{Emit(e.Operand)}";
+
         if (TryGetResolvedOperatorHelper(e, out var operatorHelper))
             return $"{operatorHelper}({Emit(e.Operand)})";
 
@@ -15,6 +18,9 @@ public sealed partial class ExpressionEmitter
 
     private string EmitBinary(TgmlBinaryExpr e)
     {
+        if (TryGetResolvedNativeOperator(e, out var nativeOperator))
+            return $"{Emit(e.Left)} {NativeOperatorFacts.ToGmlToken(nativeOperator)} {Emit(e.Right)}";
+
         if (TryGetResolvedOperatorHelper(e, out var operatorHelper))
             return $"{operatorHelper}({Emit(e.Left)}, {Emit(e.Right)})";
 
@@ -99,8 +105,8 @@ public sealed partial class ExpressionEmitter
     private string EmitTypeRefAsRuntimeId(TgmlTypeRef typeRef)
     {
         var name = typeRef.Name.Full;
-        if (BuiltinTypeFacts.IsLegacyNumericAlias(name))
-            return "__TYPE_number";
+        if (BuiltinTypeFacts.CanonicalPrimitiveName(name) is { } canonical)
+            return $"__TYPE_{canonical}";
         if (_ctx.TypeTable.TryResolve(name, out var decl) && decl?.QualifiedName is { } qn)
             return $"__TYPE_{qn.Replace(".", "_")}";
 
@@ -112,8 +118,8 @@ public sealed partial class ExpressionEmitter
         var (baseName, _) = DelegateFacts.SplitDescribedType(describedType);
         while (baseName.EndsWith("[]", StringComparison.Ordinal))
             baseName = baseName[..^2];
-        if (BuiltinTypeFacts.IsLegacyNumericAlias(baseName))
-            return "__TYPE_number";
+        if (BuiltinTypeFacts.CanonicalPrimitiveName(baseName) is { } canonical)
+            return $"__TYPE_{canonical}";
 
         if (_ctx.TypeTable.TryResolve(baseName, out var decl) && decl?.QualifiedName is { } qn)
             return $"__TYPE_{qn.Replace(".", "_")}";
@@ -186,6 +192,15 @@ public sealed partial class ExpressionEmitter
 
         helperName = string.Empty;
         return false;
+    }
+
+    private static bool TryGetResolvedNativeOperator(TgmlExpression expr, out string nativeOperator)
+    {
+        nativeOperator = string.Empty;
+
+        return expr.Metadata.TryGetValue(ResolvedOperatorMethodMetadata, out var methodValue) &&
+               methodValue is TgmlMethodDecl method &&
+               NativeOperatorFacts.TryGetOperatorToken(method, out nativeOperator);
     }
 
     private static bool TryGetResolvedConversionHelper(TgmlExpression expr, out string helperName)

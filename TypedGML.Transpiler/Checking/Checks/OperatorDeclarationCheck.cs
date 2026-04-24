@@ -54,7 +54,7 @@ public sealed partial class OperatorDeclarationCheck : IAtomicCheck
             ctx.AddError($"User-defined operator '{method.Name}' cannot declare type parameters.", file.FileName);
         if (method.Params.Any(p => p.Default is not null))
             ctx.AddError($"User-defined operator '{method.Name}' cannot declare optional parameters.", file.FileName);
-        if (method.Body is null)
+        if (method.Body is null && !NativeOperatorFacts.IsNativeOperator(method))
             ctx.AddError($"User-defined operator '{method.Name}' must declare a body.", file.FileName);
         if (method.ReturnType.Name.Full == "void")
             ctx.AddError($"User-defined operator '{method.Name}' cannot return 'void'.", file.FileName);

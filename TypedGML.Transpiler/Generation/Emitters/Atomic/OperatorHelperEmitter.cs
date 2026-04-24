@@ -57,6 +57,15 @@ internal static class OperatorHelperEmitter
             var helperName = OperatorFacts.GetHelperName(owner, method);
             var paramStr   = string.Join(", ", method.Params.Select(p => p.Name));
 
+            if (method.Metadata.TryGetValue("NativeCallName", out var nativeCallValue) &&
+                nativeCallValue is string nativeCallName)
+            {
+                var prefix = method.ReturnType.Name.Full == "void" ? string.Empty : "return ";
+                w.WriteLine($"function {helperName}({paramStr}) {{ {prefix}{nativeCallName}({paramStr}); }}");
+                w.WriteLine();
+                continue;
+            }
+
             w.WriteLine($"function {helperName}({paramStr})");
             w.OpenBrace();
             stmtEmit.EmitBlock(method.Body!, w);

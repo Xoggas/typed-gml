@@ -50,6 +50,6 @@ public static class DefaultExpressionFacts
     {
         return typeRef.ArrayDepth > 0 || typeRef.TypeArgs.Count > 0
             ? typeRef.ToString()
-            : typeRef.Name.Full;
+            : BuiltinTypeFacts.Canonicalize(typeRef.Name.Full);
     }
 }

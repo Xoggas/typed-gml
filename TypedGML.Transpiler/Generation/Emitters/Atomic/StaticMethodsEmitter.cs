@@ -1,6 +1,8 @@
 ﻿using TypedGML.Transpiler.Generation.Helpers;
 using TypedGML.Transpiler.Population.Models;
 
+using TypedGML.Transpiler.Checking;
+
 namespace TypedGML.Transpiler.Generation.Emitters.Atomic;
 
 /// <summary>
@@ -37,7 +39,7 @@ internal static class StaticMethodsEmitter
         if (methods.Count == 0) return;
 
         foreach (var group in methods
-            .Where(m => !m.IsAbstract && !m.IsUserDefinedOperator)
+            .Where(m => !m.IsAbstract && !m.IsUserDefinedOperator && !NativeOperatorFacts.IsNativeOperator(m))
             .GroupBy(m => m.Name))
         {
             var overloads = group.ToList();

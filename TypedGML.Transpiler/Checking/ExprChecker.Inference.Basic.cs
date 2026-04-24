@@ -65,25 +65,7 @@ public sealed partial class ExprChecker
             return DefaultExpressionFacts.DescribeType(resolvedUnary.ReturnType);
         }
 
-        switch (expr.Operator)
-        {
-            case "+":
-            case "-":
-                if (!TypeCompatibility.IsNumeric(t))
-                    Error(expr, $"Operator '{expr.Operator}' cannot be applied to type '{t}'.");
-                return TypeCompatibility.IsNumeric(t) ? t : null;
-
-            case "~":
-                if (!TypeCompatibility.IsNumeric(t))
-                    Error(expr, $"Operator '~' requires 'number', got '{t}'.");
-                return TypeCompatibility.IsNumeric(t) ? "number" : null;
-
-            case "not":
-                if (t != "bool")
-                    Error(expr, $"Operator 'not' requires 'bool', got '{t}'.");
-                return "bool";
-        }
-
+        Error(expr, $"Operator '{expr.Operator}' cannot be applied to type '{t}'.");
         return null;
     }
 
@@ -103,38 +85,14 @@ public sealed partial class ExprChecker
             return DefaultExpressionFacts.DescribeType(resolvedBinary.ReturnType);
         }
 
-        switch (expr.Operator)
+        if (expr.Operator is "==" or "!=" &&
+            ((lt == "null" || rt == "null") || lt == rt) &&
+            AreTypesComparable(lt, rt))
         {
-            case "+" or "-" or "*" or "/" or "%":
-                if (expr.Operator == "+" && lt == "string" && rt == "string") return "string";
-                if (!TypeCompatibility.IsNumeric(lt) || !TypeCompatibility.IsNumeric(rt))
-                    Error(expr, $"Operator '{expr.Operator}' cannot be applied to '{lt}' and '{rt}'.");
-                return TypeCompatibility.IsNumeric(lt) && TypeCompatibility.IsNumeric(rt) ? "number" : null;
-
-            case "&" or "|" or "^" or "<<" or ">>":
-                if (!TypeCompatibility.IsNumeric(lt) || !TypeCompatibility.IsNumeric(rt))
-                    Error(expr,
-                        $"Bitwise operator '{expr.Operator}' requires 'number' operands, got '{lt}' and '{rt}'.");
-                return TypeCompatibility.IsNumeric(lt) && TypeCompatibility.IsNumeric(rt) ? "number" : null;
-
-            case "and" or "or" or "&&" or "||":
-                if (lt != "bool" || rt != "bool")
-                    Error(expr,
-                        $"Logical operator '{expr.Operator}' requires 'bool' operands, got '{lt}' and '{rt}'.");
-                return "bool";
-
-            case "<" or ">" or "<=" or ">=":
-                if (!TypeCompatibility.IsNumeric(lt) || !TypeCompatibility.IsNumeric(rt))
-                    Error(expr,
-                        $"Relational operator '{expr.Operator}' requires numeric operands, got '{lt}' and '{rt}'.");
-                return "bool";
-
-            case "==" or "!=":
-                if (lt != "null" && rt != "null" && !AreTypesComparable(lt, rt))
-                    Error(expr, $"Operator '{expr.Operator}' cannot be applied to '{lt}' and '{rt}'.");
-                return "bool";
+            return "bool";
         }
 
+        Error(expr, $"Operator '{expr.Operator}' cannot be applied to '{lt}' and '{rt}'.");
         return null;
     }
 

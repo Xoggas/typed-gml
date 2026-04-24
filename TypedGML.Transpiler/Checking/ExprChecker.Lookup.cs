@@ -148,9 +148,7 @@ public sealed partial class ExprChecker
     /// </summary>
     private static string? MapPrimitiveType(string? typeName) => typeName switch
     {
-        "string" => "System.String",
-        "number" or "int" or "real" => "System.Number",
-        "bool" => "System.Bool",
+        _ when BuiltinTypeFacts.TryGetBclTypeName(typeName, out var bclTypeName) => bclTypeName,
         _ when typeName is not null && typeName.EndsWith("[]") => "System.Array",
         _ => typeName
     };

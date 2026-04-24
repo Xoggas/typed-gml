@@ -23,10 +23,6 @@ internal static class TypeHierarchyHelper
         var result = new List<string>();
         Collect(decl, typeTable, result, visited);
 
-        const string systemObjectGml = "System_Object";
-        if (ObjectFacts.HasImplicitObjectBase(decl, typeTable) && !result.Contains(systemObjectGml))
-            result.Add(systemObjectGml);
-
         return result;
     }
 
@@ -70,6 +66,9 @@ internal static class TypeHierarchyHelper
                     result.Add(rawGml);
             }
         }
+
+        if (ObjectFacts.TryResolveImplicitObject(typeTable, decl, out var systemObject))
+            Collect(systemObject, typeTable, result, visited);
     }
 }
 

@@ -5,7 +5,7 @@ var resultPath = Path.Combine(projectPath, "Generated");
 var bclPath = Path.Combine(projectPath, "Bcl");
 var defaultScriptPath = Path.Combine(projectPath, "PositiveE2E.tgml");
 var requestedScriptPath = args.Length > 0 ? args[0] : defaultScriptPath;
-var scriptPath = Path.GetFullPath(requestedScriptPath, projectPath);
+var scriptPath = ResolveScriptPath(requestedScriptPath, projectPath);
 
 if (!File.Exists(scriptPath))
 {
@@ -33,6 +33,8 @@ if (result.Success is false)
     return;
 }
 
+ClearGeneratedDirectory(resultPath);
+
 foreach (var file in result.Files)
 {
     var outputPath = Path.Combine(resultPath, file.Path);
@@ -55,4 +57,31 @@ static string FindProjectDirectory()
     }
     
     throw new InvalidOperationException("Could not locate TypedGML.Transpiler.csproj.");
+}
+
+static string ResolveScriptPath(string requestedScriptPath, string projectPath)
+{
+    if (Path.IsPathRooted(requestedScriptPath))
+        return Path.GetFullPath(requestedScriptPath);
+
+    var currentDirectoryPath = Path.GetFullPath(requestedScriptPath);
+    if (File.Exists(currentDirectoryPath))
+        return currentDirectoryPath;
+
+    return Path.GetFullPath(requestedScriptPath, projectPath);
+}
+
+static void ClearGeneratedDirectory(string resultPath)
+{
+    if (!Directory.Exists(resultPath))
+        return;
+
+    try
+    {
+        Directory.Delete(resultPath, recursive: true);
+    }
+    catch (DirectoryNotFoundException)
+    {
+        // Another run may have already removed the generated output directory.
+    }
 }

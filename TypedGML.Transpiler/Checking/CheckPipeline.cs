@@ -78,6 +78,7 @@ public sealed class CheckPipeline
             new FieldKeywordContextCheck(),
             new OperandTypeCheck(),
             new AbstractInstantiationCheck(),
+            new WithTargetCheck(),
             new ConstMutationCheck(),
             new BreakContinueContextCheck(),
             new UnreachableCodeCheck(),

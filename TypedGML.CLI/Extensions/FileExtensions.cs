@@ -4,14 +4,20 @@ public static class FileExtensions
 {
     public static void CopyFilesRecursively(string sourcePath, string targetPath)
     {
-        foreach (string dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
+        Directory.CreateDirectory(targetPath);
+
+        foreach (var sourceDirectory in Directory.EnumerateDirectories(sourcePath, "*", SearchOption.AllDirectories))
         {
-            Directory.CreateDirectory(dirPath.Replace(sourcePath, targetPath));
+            var relativePath = Path.GetRelativePath(sourcePath, sourceDirectory);
+            Directory.CreateDirectory(Path.Combine(targetPath, relativePath));
         }
-        
-        foreach (string newPath in Directory.GetFiles(sourcePath, "*.*",SearchOption.AllDirectories))
+
+        foreach (var sourceFile in Directory.EnumerateFiles(sourcePath, "*", SearchOption.AllDirectories))
         {
-            File.Copy(newPath, newPath.Replace(sourcePath, targetPath), true);
+            var relativePath = Path.GetRelativePath(sourcePath, sourceFile);
+            var targetFile = Path.Combine(targetPath, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(targetFile) ?? targetPath);
+            File.Copy(sourceFile, targetFile, true);
         }
     }
 }

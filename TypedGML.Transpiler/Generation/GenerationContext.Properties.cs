@@ -26,6 +26,9 @@ public sealed partial class GenerationContext
         => AssetFacts.TryGetAssetName(member, out var assetName) ? assetName : null;
 
     public TgmlPropertyDecl? FindProperty(TgmlExpression target, string propertyName)
+        => FindResolvedProperty(target, propertyName)?.Property;
+
+    public PropertyAccessHelper.ResolvedProperty? FindResolvedProperty(TgmlExpression target, string propertyName)
     {
         if (target.Metadata.TryGetValue("InferredType", out var inferredType) is false ||
             inferredType is not string typeName ||
@@ -35,7 +38,7 @@ public sealed partial class GenerationContext
             return null;
         }
 
-        return PropertyAccessHelper.FindPropertyInHierarchy(TypeTable, decl, propertyName)?.Property;
+        return PropertyAccessHelper.FindPropertyInHierarchy(TypeTable, decl, propertyName);
     }
 
     public TgmlPropertyDecl? FindIndexer(TgmlExpression target)
@@ -108,6 +111,13 @@ public sealed partial class GenerationContext
         while (baseName.EndsWith("[]", StringComparison.Ordinal))
             baseName = baseName[..^2];
 
-        return TypeTable.TryResolve(baseName, typeArgs.Count, out decl);
+        return TypeTable.TryResolve(MapPrimitiveType(baseName), typeArgs.Count, out decl);
     }
+
+    private static string MapPrimitiveType(string typeName) => typeName switch
+    {
+        _ when BuiltinTypeFacts.TryGetBclTypeName(typeName, out var bclTypeName) => bclTypeName,
+        _ when typeName.EndsWith("[]", StringComparison.Ordinal) => "System.Array",
+        _ => typeName
+    };
 }

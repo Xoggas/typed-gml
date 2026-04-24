@@ -1,15 +1,10 @@
-﻿public static class Console
+public static class Console
 {
-	private static void nocheck ShowDebugMessage(string message)
-	{
-		literal
-		{
-			show_debug_message(message);
-		}
-	}
+    @NativeCall("show_debug_message")
+    private static void ShowDebugMessage(string message);
 
-	public static void WriteLine(string message)
-	{
-		ShowDebugMessage(message);
-	}
+    public static void WriteLine(string message)
+    {
+        ShowDebugMessage(message);
+    }
 }

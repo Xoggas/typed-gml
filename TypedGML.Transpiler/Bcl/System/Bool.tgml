@@ -2,6 +2,21 @@
 
 public class Bool
 {
+    @NativeOperator("not")
+    public static bool operator not(bool value);
+
+    @NativeOperator("==")
+    public static bool operator ==(bool left, bool right);
+
+    @NativeOperator("!=")
+    public static bool operator !=(bool left, bool right);
+
+    @NativeOperator("and")
+    private static bool And(bool left, bool right);
+
+    @NativeOperator("or")
+    private static bool Or(bool left, bool right);
+
     public string ToString()
     {
         if (this == true)
@@ -13,10 +28,20 @@ public class Bool
     }
 
     @NativeCall("bool")
-    public static bool Parse(number value) {}
+    private static bool GmlBool(number value) {}
 
     @NativeCall("is_bool")
-    public static bool IsBool(number value) {}
+    private static bool GmlIsBool(number value) {}
+
+    public static bool Parse(number value)
+    {
+        return GmlBool(value);
+    }
+
+    public static bool IsBool(number value)
+    {
+        return GmlIsBool(value);
+    }
 
     public static implicit operator string(bool value)
     {

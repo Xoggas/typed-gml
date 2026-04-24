@@ -83,10 +83,13 @@ public sealed partial class ExprChecker
             return null;
         }
 
-        // Propagate NativeInstanceCallName so the emitter knows to pass the instance as first arg
-        if (resolvedMethod!.Metadata.TryGetValue("NativeInstanceCallName", out var nicn) && nicn is string nicnStr)
-            mc.Metadata["NativeInstanceCallName"] = nicnStr;
+        // Propagate NativeInstanceCallName so the emitter knows to pass the instance as first arg.
+        // Decorator handlers run in generation, so checking must also read the decorator directly.
+        if (TryGetNativeInstanceCallName(resolvedMethod!, out var nativeInstanceCallName))
+            mc.Metadata["NativeInstanceCallName"] = nativeInstanceCallName;
 
+        mc.Metadata["ResolvedMethod"] = resolvedMethod!;
+        mc.Metadata["ResolvedMethodOwner"] = targetDecl;
         mc.Metadata["NormalizedArgs"] = bound!.Arguments.ToList();
         ApplyBoundArgumentConversions(bound.Parameters, bound.Arguments);
         return DefaultExpressionFacts.DescribeType(resolvedMethod!.ReturnType);
@@ -128,6 +131,27 @@ public sealed partial class ExprChecker
             Error(fc, $"Cannot call instance method '{fc.FunctionName}' from a static context.");
 
         return DefaultExpressionFacts.DescribeType(resolvedMethod!.ReturnType);
+    }
+
+    private static bool TryGetNativeInstanceCallName(TgmlMethodDecl method, out string nativeInstanceCallName)
+    {
+        if (method.Metadata.TryGetValue("NativeInstanceCallName", out var metadataValue) &&
+            metadataValue is string metadataName &&
+            !string.IsNullOrWhiteSpace(metadataName))
+        {
+            nativeInstanceCallName = metadataName;
+            return true;
+        }
+
+        var decoratorName = method.GetDecorator("NativeInstanceCall")?.GetFirstStringArg();
+        if (!string.IsNullOrWhiteSpace(decoratorName))
+        {
+            nativeInstanceCallName = decoratorName;
+            return true;
+        }
+
+        nativeInstanceCallName = string.Empty;
+        return false;
     }
 
 }

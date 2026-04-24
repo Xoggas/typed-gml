@@ -20,22 +20,21 @@ public sealed partial class ExprChecker
             _ => null
         };
 
-        if (bases is null)
-            return visited;
+        if (bases is not null)
+        {
+            foreach (var baseRef in bases)
+            {
+                visited.Add(baseRef.Name.Full);
+                if (_ctx.TypeTable.TryResolve(baseRef.Name.Full, out var baseDecl) && baseDecl is not null)
+                    CollectReachableTypeNames(baseDecl, visited);
+            }
+        }
 
         if (ObjectFacts.TryResolveImplicitObject(_ctx.TypeTable, decl, out var systemObject))
         {
             visited.Add("Object");
             visited.Add(ObjectFacts.SystemObjectQualifiedName);
             CollectReachableTypeNames(systemObject, visited);
-            return visited;
-        }
-
-        foreach (var baseRef in bases)
-        {
-            visited.Add(baseRef.Name.Full);
-            if (_ctx.TypeTable.TryResolve(baseRef.Name.Full, out var baseDecl) && baseDecl is not null)
-                CollectReachableTypeNames(baseDecl, visited);
         }
 
         return visited;
@@ -48,6 +47,9 @@ public sealed partial class ExprChecker
 
         while (baseTypeName.EndsWith("[]", StringComparison.Ordinal))
             baseTypeName = baseTypeName[..^2];
+
+        if (BuiltinTypeFacts.TryGetBclTypeName(baseTypeName, out var primitiveBclTypeName))
+            baseTypeName = primitiveBclTypeName;
 
         return _ctx.TypeTable.TryResolve(baseTypeName, typeArgCount, out decl);
     }
