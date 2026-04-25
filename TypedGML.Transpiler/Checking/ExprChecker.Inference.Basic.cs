@@ -19,8 +19,6 @@ public sealed partial class ExprChecker
         if (prop is not null)
         {
             EnsureReadable(prop, id);
-            if (prop.Property.IsStatic && AssetFacts.TryGetAssetName(prop.Property, out var assetName))
-                id.Metadata[AssetReferenceNameMetadata] = assetName;
             return DefaultExpressionFacts.DescribeType(prop.Property.Type);
         }
 

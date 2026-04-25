@@ -50,9 +50,10 @@ public sealed partial class ExprChecker
 
     private string? VisitFieldAccess(TgmlFieldAccessExpr fa)
     {
-        if (TryResolveStaticAssetMemberAccess(fa, out var assetName, out var assetType))
+        if (TryResolveStaticAssetMemberAccess(fa, out var assetName, out var assetType, out var assetViaProperty))
         {
-            fa.Metadata[AssetReferenceNameMetadata] = assetName;
+            if (!assetViaProperty)
+                fa.Metadata[AssetReferenceNameMetadata] = assetName;
             return assetType;
         }
 

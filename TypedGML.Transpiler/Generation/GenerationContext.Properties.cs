@@ -55,50 +55,69 @@ public sealed partial class GenerationContext
         return PropertyAccessHelper.FindIndexerInHierarchy(TypeTable, decl)?.Property;
     }
 
-    public bool TryResolveStaticAssetReference(TgmlExpression target, string memberName, out string assetName)
+    public bool TryResolveStaticAssetReference(TgmlExpression target, string memberName, out string emitted)
     {
-        assetName = string.Empty;
-        if (target is not TgmlIdExpr id)
+        emitted = string.Empty;
+        if (!TryGetQualifiedTypeName(target, out var qualifiedTypeName))
             return false;
 
-        if (!TypeTable.TryResolve(id.Name, out var decl) || decl is null)
+        if (!TypeTable.TryResolve(qualifiedTypeName, out var decl) || decl is null)
             return false;
 
-        return TryResolveStaticAssetReference(decl, memberName, out assetName);
+        return TryResolveStaticAssetReference(decl, memberName, out emitted, useQualifiedAccessor: true);
     }
 
-    public bool TryResolveCurrentTypeAssetReference(string memberName, out string assetName)
+    public bool TryResolveCurrentTypeAssetReference(string memberName, out string emitted)
     {
-        assetName = string.Empty;
-        return CurrentType is not null && TryResolveStaticAssetReference(CurrentType, memberName, out assetName);
+        emitted = string.Empty;
+        return CurrentType is not null && TryResolveStaticAssetReference(CurrentType, memberName, out emitted, useQualifiedAccessor: false);
     }
 
     public bool IsInsideAccessorOf(string propertyName)
         => (InsideGetter || InsideSetter) && CurrentPropertyName == propertyName;
 
-    private bool TryResolveStaticAssetReference(TgmlTypeDecl decl, string memberName, out string assetName)
+    private bool TryResolveStaticAssetReference(TgmlTypeDecl decl, string memberName, out string emitted, bool useQualifiedAccessor)
     {
-        assetName = string.Empty;
+        emitted = string.Empty;
+        var qualifier = useQualifiedAccessor ? $"{GetGmlTypeName(decl)}." : string.Empty;
 
         switch (decl)
         {
             case TgmlClassDecl cls:
             {
                 var property = cls.Properties.FirstOrDefault(p => p.IsStatic && string.Equals(p.Name, memberName, StringComparison.Ordinal));
-                if (AssetFacts.TryGetAssetName(property, out assetName))
+                if (property is not null && AssetFacts.TryGetAssetName(property, out var propertyAssetName))
+                {
+                    emitted = $"{qualifier}get_{memberName}()";
                     return true;
+                }
 
                 var field = cls.Fields.FirstOrDefault(f => f.IsStatic && string.Equals(f.Name, memberName, StringComparison.Ordinal));
-                return AssetFacts.TryGetAssetName(field, out assetName);
+                if (AssetFacts.TryGetAssetName(field, out var fieldAssetName))
+                {
+                    emitted = fieldAssetName;
+                    return true;
+                }
+
+                return false;
             }
             case TgmlStructDecl str:
             {
                 var property = str.Properties.FirstOrDefault(p => p.IsStatic && string.Equals(p.Name, memberName, StringComparison.Ordinal));
-                if (AssetFacts.TryGetAssetName(property, out assetName))
+                if (property is not null && AssetFacts.TryGetAssetName(property, out var propertyAssetName))
+                {
+                    emitted = $"{qualifier}get_{memberName}()";
                     return true;
+                }
 
                 var field = str.Fields.FirstOrDefault(f => f.IsStatic && string.Equals(f.Name, memberName, StringComparison.Ordinal));
-                return AssetFacts.TryGetAssetName(field, out assetName);
+                if (AssetFacts.TryGetAssetName(field, out var fieldAssetName))
+                {
+                    emitted = fieldAssetName;
+                    return true;
+                }
+
+                return false;
             }
         }
 
@@ -120,4 +139,25 @@ public sealed partial class GenerationContext
         _ when typeName.EndsWith("[]", StringComparison.Ordinal) => "System.Array",
         _ => typeName
     };
+
+    private static string GetGmlTypeName(TgmlTypeDecl decl)
+        => (decl.QualifiedName ?? decl.Name).Replace(".", "_");
+
+    private bool TryGetQualifiedTypeName(TgmlExpression expression, out string qualifiedTypeName)
+    {
+        switch (expression)
+        {
+            case TgmlIdExpr id when !IsLocalShadow(id.Name) && !TryGetIdentifierAlias(id.Name, out _):
+                qualifiedTypeName = id.Name;
+                return true;
+
+            case TgmlFieldAccessExpr fieldAccess when TryGetQualifiedTypeName(fieldAccess.Target, out var targetTypeName):
+                qualifiedTypeName = targetTypeName + "." + fieldAccess.FieldName;
+                return true;
+
+            default:
+                qualifiedTypeName = string.Empty;
+                return false;
+        }
+    }
 }

@@ -49,6 +49,28 @@ public class AssetRegistry
     public static System.Sprite Sprite { get; set; }
 }
 
+@Object("obj_DecoratedNegativeBase")
+public class DecoratedNegativeBase : System.GameObject
+{
+    public constructor(number x, number y, string layer) : base(x, y, layer)
+    {
+    }
+}
+
+public class MissingObjectDecoratorDirect : System.GameObject
+{
+    public constructor(number x, number y, string layer) : base(x, y, layer)
+    {
+    }
+}
+
+public class MissingObjectDecoratorIndirect : DecoratedNegativeBase
+{
+    public constructor(number x, number y, string layer) : base(x, y, layer)
+    {
+    }
+}
+
 public class PlainWithTarget
 {
     public void Tick()

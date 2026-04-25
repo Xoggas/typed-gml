@@ -7,6 +7,7 @@ var rootCommand = new RootCommand
 };
 
 rootCommand.Add(new InitCommand().BuildCommand());
+rootCommand.Add(new BuildProjectCommand().BuildCommand());
 
 ParseResult parseResult = rootCommand.Parse(args);
 

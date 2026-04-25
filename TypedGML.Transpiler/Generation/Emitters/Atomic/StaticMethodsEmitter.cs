@@ -6,7 +6,7 @@ using TypedGML.Transpiler.Checking;
 namespace TypedGML.Transpiler.Generation.Emitters.Atomic;
 
 /// <summary>
-///     Emits methods as GML <c>static Name = function(…) { … };</c> assignments,
+///     Emits methods as GML function assignments,
 ///     including runtime overload-dispatch wrappers when multiple overloads share a name.
 /// </summary>
 /// <remarks>
@@ -19,13 +19,13 @@ internal static class StaticMethodsEmitter
     /// <summary>
     ///     Groups <paramref name="methods"/> by name and emits each group.
     ///     <list type="bullet">
-    ///         <item>Single overload → <c>static Name = function(…) { … };</c></item>
+    ///         <item>Single overload → <c>Name = function(…) { … };</c></item>
     ///         <item>
     ///             Multiple overloads → numbered variants <c>Name_0</c> … <c>Name_N</c>
     ///             plus a dispatcher <c>Name</c> that checks <c>argument_count</c>.
     ///         </item>
     ///     </list>
-    /// </remarks>
+    /// </summary>
     /// <param name="methods">
     ///     Methods to emit; abstract and operator methods are filtered internally.
     /// </param>
@@ -59,7 +59,7 @@ internal static class StaticMethodsEmitter
     // ── Single method ─────────────────────────────────────────────────────────
 
     /// <summary>
-    ///     Emits a single <c>static gmlName = function(…) { … };</c>,
+    ///     Emits a single <c>gmlName = function(…) { … };</c>,
     ///     honouring <c>NativeCallName</c> metadata for BCL native-call stubs.
     /// </summary>
     public static void EmitOne(
@@ -69,16 +69,17 @@ internal static class StaticMethodsEmitter
         GmlWriter w)
     {
         var paramStr = string.Join(", ", method.Params.Select(p => p.Name));
+        var keywordPrefix = method.IsStatic ? "static " : string.Empty;
 
         if (method.Metadata.TryGetValue("NativeCallName", out var nco) && nco is string nativeCallName)
         {
             var prefix = method.ReturnType.Name.Full == "void" ? string.Empty : "return ";
-            w.WriteLine($"static {gmlName} = function({paramStr}) {{ {prefix}{nativeCallName}({paramStr}); }}");
+            w.WriteLine($"{keywordPrefix}{gmlName} = function({paramStr}) {{ {prefix}{nativeCallName}({paramStr}); }}");
             return;
         }
 
         var stmtEmit = new StatementEmitter(ctx);
-        w.WriteLine($"static {gmlName} = function({paramStr})");
+        w.WriteLine($"{keywordPrefix}{gmlName} = function({paramStr})");
         w.OpenBrace();
         ctx.PushLocalScope(method.Params.Select(p => p.Name));
         if (method.Body is not null) stmtEmit.EmitBlock(method.Body, w);
@@ -110,9 +111,10 @@ internal static class StaticMethodsEmitter
             .Select((m, idx) => (Method: m, Idx: idx))
             .OrderByDescending(x => OverloadDispatchHelper.MethodSpecificity(x.Method))
             .ToList();
+        var keywordPrefix = overloads[0].IsStatic ? "static " : string.Empty;
 
         w.WriteLine();
-        w.WriteLine($"static {baseName} = function()");
+        w.WriteLine($"{keywordPrefix}{baseName} = function()");
         w.OpenBrace();
 
         for (var di = 0; di < dispatchOrder.Count; di++)

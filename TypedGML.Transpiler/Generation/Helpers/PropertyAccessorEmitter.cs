@@ -33,6 +33,17 @@ internal static class PropertyAccessorEmitter
         var prefix = isStatic ? "static " : string.Empty;
         ctx.CurrentPropertyName = prop.Name;
 
+        if (AssetFacts.TryGetAssetName(prop, out var assetName))
+        {
+            if (prop.Getter is not null)
+                w.WriteLine($"{prefix}get_{prop.Name} = function() {{ return {assetName}; }}{(isStatic ? ";" : string.Empty)}");
+
+            ctx.InsideGetter = false;
+            ctx.InsideSetter = false;
+            ctx.CurrentPropertyName = null;
+            return;
+        }
+
         if (prop.Getter is { } getter)
         {
             ctx.InsideGetter = true;

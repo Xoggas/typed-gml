@@ -5,6 +5,7 @@ namespace TypedGML.Transpiler.Checking;
 public static class ObjectFacts
 {
     public const string SystemObjectQualifiedName = "System.Object";
+    public const string SystemGameObjectQualifiedName = "System.GameObject";
     public const string GetTypeMethodName = "GetType";
     public const string ToStringMethodName = "ToString";
     public const string ResolvedStringLiteralConversionMetadata = "ResolvedStringLiteralConversion";
@@ -13,6 +14,9 @@ public static class ObjectFacts
 
     public static bool IsSystemObject(TgmlTypeDecl decl)
         => string.Equals(decl.QualifiedName ?? decl.Name, SystemObjectQualifiedName, StringComparison.Ordinal);
+
+    public static bool IsSystemGameObject(TgmlTypeDecl decl)
+        => string.Equals(decl.QualifiedName ?? decl.Name, SystemGameObjectQualifiedName, StringComparison.Ordinal);
 
     public static bool HasImplicitObjectBase(TgmlTypeDecl decl, TypeTable typeTable)
     {

@@ -40,9 +40,10 @@ public sealed partial class ExprChecker
 
     private string? InferLValueFieldAccessType(TgmlFieldAccessExpr expr)
     {
-        if (TryResolveStaticAssetMemberAccess(expr, out var assetName, out var assetType))
+        if (TryResolveStaticAssetMemberAccess(expr, out var assetName, out var assetType, out var assetViaProperty))
         {
-            expr.Metadata[AssetReferenceNameMetadata] = assetName;
+            if (!assetViaProperty)
+                expr.Metadata[AssetReferenceNameMetadata] = assetName;
             return assetType;
         }
 
@@ -73,12 +74,14 @@ public sealed partial class ExprChecker
     {
         switch (target)
         {
-            case TgmlIdExpr id when TryResolveCurrentTypeAssetMember(id.Name, out assetName, out assetType):
-                id.Metadata[AssetReferenceNameMetadata] = assetName;
+            case TgmlIdExpr id when TryResolveCurrentTypeAssetMember(id.Name, out assetName, out assetType, out var idViaProperty):
+                if (!idViaProperty)
+                    id.Metadata[AssetReferenceNameMetadata] = assetName;
                 return true;
 
-            case TgmlFieldAccessExpr fieldAccess when TryResolveStaticAssetMemberAccess(fieldAccess, out assetName, out assetType):
-                fieldAccess.Metadata[AssetReferenceNameMetadata] = assetName;
+            case TgmlFieldAccessExpr fieldAccess when TryResolveStaticAssetMemberAccess(fieldAccess, out assetName, out assetType, out var fieldViaProperty):
+                if (!fieldViaProperty)
+                    fieldAccess.Metadata[AssetReferenceNameMetadata] = assetName;
                 return true;
 
             default:
@@ -88,37 +91,65 @@ public sealed partial class ExprChecker
         }
     }
 
-    private bool TryResolveCurrentTypeAssetMember(string memberName, out string assetName, out string assetType)
+    private bool TryResolveCurrentTypeAssetMember(string memberName, out string assetName, out string assetType, out bool viaProperty)
     {
         assetName = string.Empty;
         assetType = string.Empty;
+        viaProperty = false;
         if (_owner is null)
             return false;
 
-        return TryResolveAssetMember(_owner, memberName, staticOnly: true, out assetName, out assetType);
+        return TryResolveAssetMember(_owner, memberName, staticOnly: true, out assetName, out assetType, out viaProperty);
     }
 
-    private bool TryResolveStaticAssetMemberAccess(TgmlFieldAccessExpr access, out string assetName, out string assetType)
+    private bool TryResolveStaticAssetMemberAccess(TgmlFieldAccessExpr access, out string assetName, out string assetType, out bool viaProperty)
     {
         assetName = string.Empty;
         assetType = string.Empty;
+        viaProperty = false;
 
-        if (access.Target is not TgmlIdExpr id)
+        if (!TryResolveStaticAssetTargetType(access.Target, out var qualifiedTypeName))
             return false;
 
-        if (Symbols.TryResolve(id.Name, out var symbolType) && symbolType is not null)
+        if (!_ctx.TypeTable.TryResolve(qualifiedTypeName, out var targetDecl) || targetDecl is null)
             return false;
 
-        if (!_ctx.TypeTable.TryResolve(id.Name, out var targetDecl) || targetDecl is null)
-            return false;
-
-        return TryResolveAssetMember(targetDecl, access.FieldName, staticOnly: true, out assetName, out assetType);
+        return TryResolveAssetMember(targetDecl, access.FieldName, staticOnly: true, out assetName, out assetType, out viaProperty);
     }
 
-    private static bool TryResolveAssetMember(TgmlTypeDecl owner, string memberName, bool staticOnly, out string assetName, out string assetType)
+    private bool TryResolveStaticAssetTargetType(TgmlExpression target, out string qualifiedTypeName)
+    {
+        qualifiedTypeName = string.Empty;
+        if (!TryGetQualifiedTypeName(target, out qualifiedTypeName))
+            return false;
+
+        var rootName = qualifiedTypeName.Split('.', 2)[0];
+        return !(Symbols.TryResolve(rootName, out var symbolType) && symbolType is not null);
+    }
+
+    private static bool TryGetQualifiedTypeName(TgmlExpression expression, out string qualifiedTypeName)
+    {
+        switch (expression)
+        {
+            case TgmlIdExpr id:
+                qualifiedTypeName = id.Name;
+                return true;
+
+            case TgmlFieldAccessExpr fieldAccess when TryGetQualifiedTypeName(fieldAccess.Target, out var targetTypeName):
+                qualifiedTypeName = targetTypeName + "." + fieldAccess.FieldName;
+                return true;
+
+            default:
+                qualifiedTypeName = string.Empty;
+                return false;
+        }
+    }
+
+    private static bool TryResolveAssetMember(TgmlTypeDecl owner, string memberName, bool staticOnly, out string assetName, out string assetType, out bool viaProperty)
     {
         assetName = string.Empty;
         assetType = string.Empty;
+        viaProperty = false;
 
         switch (owner)
         {
@@ -131,6 +162,7 @@ public sealed partial class ExprChecker
                 if (property is not null && AssetFacts.TryGetAssetName(property, out assetName))
                 {
                     assetType = DefaultExpressionFacts.DescribeType(property.Type);
+                    viaProperty = true;
                     return true;
                 }
 
@@ -156,6 +188,7 @@ public sealed partial class ExprChecker
                 if (property is not null && AssetFacts.TryGetAssetName(property, out assetName))
                 {
                     assetType = DefaultExpressionFacts.DescribeType(property.Type);
+                    viaProperty = true;
                     return true;
                 }
 

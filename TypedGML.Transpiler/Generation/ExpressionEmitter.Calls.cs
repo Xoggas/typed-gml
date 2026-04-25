@@ -39,14 +39,12 @@ public sealed partial class ExpressionEmitter
 
     private string EmitFieldAccess(TgmlFieldAccessExpr e)
     {
+        if (_ctx.TryResolveStaticAssetReference(e.Target, e.FieldName, out var resolvedAssetReference))
+            return resolvedAssetReference;
         if (e.Metadata.TryGetValue(AssetReferenceNameMetadata, out var assetReference) && assetReference is string assetName)
             return assetName;
         if (e.Metadata.TryGetValue(EnumFacts.EnumMemberMacroMetadata, out var enumMacro) && enumMacro is string enumMacroName)
             return enumMacroName;
-        if (_ctx.TryResolveStaticAssetReference(e.Target, e.FieldName, out var resolvedAssetName))
-            return resolvedAssetName;
-        if (TryEmitNativePropertyAccess(e.Target, e.FieldName, out var nativeAccess))
-            return nativeAccess;
         if (TryEmitPropertyAccess(e.Target, e.FieldName, out var propertyAccess))
             return propertyAccess;
 

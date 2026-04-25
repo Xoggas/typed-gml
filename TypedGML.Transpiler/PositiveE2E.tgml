@@ -226,7 +226,7 @@ public class PropertyFeature
     public number Clamped
     {
         get => field;
-        set => field = Number.Clamp(value, 0, 100);
+        set => field = Math.Clamp(value, 0, 100);
     }
 
     public number Percent

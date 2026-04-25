@@ -56,11 +56,17 @@ public sealed partial class ScriptClassEmitter
         if (matchedCtor?.Body is { } body)
             stmtEmit.EmitBlock(body, w);
 
-        StaticMethodsEmitter.Emit(ancestor.Methods.Where(m => !IsCompilerSynthesized(m)).ToList(), ctx, w);
-        foreach (var prop in ancestor.Properties.Where(p => !AssetFacts.TryGetAssetName(p, out _)))
+        StaticMethodsEmitter.Emit(
+            ancestor.Methods
+                .Where(m => !IsCompilerSynthesized(m) &&
+                            !string.Equals(m.Name, ObjectFacts.ToStringMethodName, StringComparison.Ordinal))
+                .ToList(),
+            ctx,
+            w);
+        foreach (var prop in ancestor.Properties)
         {
             w.WriteLine();
-            PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: true);
+            PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: prop.IsStatic);
         }
     }
 

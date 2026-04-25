@@ -13,8 +13,13 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="BaseClassLibrary\**">
+        <ProjectReference Include="..\TypedGML.Transpiler\TypedGML.Transpiler.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="..\TypedGML.Transpiler\BCL\**\*.tgml">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <TargetPath>BCL\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
         </Content>
     </ItemGroup>
 

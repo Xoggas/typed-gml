@@ -28,7 +28,7 @@ public sealed partial class ScriptClassEmitter
 
         w.WriteLine($"function {gmlName}({string.Join(", ", allParams)}) constructor");
         w.OpenBrace();
-        TypeMetadataEmitter.EmitHeader(typeIds, typeArgParams, qualifiedTypeName, w);
+        TypeMetadataEmitter.EmitHeader(typeIds, typeArgParams, w);
 
         var ancestorChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(ctor), ctx.TypeTable);
         foreach (var (ancestor, baseArgs) in ancestorChain)
@@ -46,7 +46,7 @@ public sealed partial class ScriptClassEmitter
             ctx.PopLocalScope();
         }
 
-        EmitOwnMembers(properties, methods, ctx, gmlName, w);
+        EmitOwnMembers(properties, methods, ctx, qualifiedTypeName, gmlName, w);
         w.CloseBrace();
     }
 
@@ -68,7 +68,7 @@ public sealed partial class ScriptClassEmitter
     {
         w.WriteLine($"function {gmlName}({string.Join(", ", typeArgParams)}) constructor");
         w.OpenBrace();
-        TypeMetadataEmitter.EmitHeader(typeIds, typeArgParams, qualifiedTypeName, w);
+        TypeMetadataEmitter.EmitHeader(typeIds, typeArgParams, w);
 
         var sharedChain = CollectAncestorChain(decl, GetNormalizedBaseArgs(constructors[0]), ctx.TypeTable);
         foreach (var (ancestor, _) in Enumerable.Reverse(sharedChain))
@@ -115,7 +115,7 @@ public sealed partial class ScriptClassEmitter
             w.CloseBrace();
         }
 
-        EmitOwnMembers(properties, methods, ctx, gmlName, w);
+        EmitOwnMembers(properties, methods, ctx, qualifiedTypeName, gmlName, w);
         w.CloseBrace();
     }
 
@@ -145,11 +145,17 @@ public sealed partial class ScriptClassEmitter
         var aGmlName = ancestor.QualifiedName?.Replace(".", "_") ?? ancestor.Name;
         FieldInitEmitter.Emit(ancestor.Fields, aGmlName, exprEmit, w);
         BackingFieldEmitter.Emit(ancestor.Properties, exprEmit, ctx, w, useTypeDefault: true);
-        StaticMethodsEmitter.Emit(ancestor.Methods.Where(m => !IsCompilerSynthesized(m)).ToList(), ctx, w);
-        foreach (var prop in ancestor.Properties.Where(p => !AssetFacts.TryGetAssetName(p, out _)))
+        StaticMethodsEmitter.Emit(
+            ancestor.Methods
+                .Where(m => !IsCompilerSynthesized(m) &&
+                            !string.Equals(m.Name, ObjectFacts.ToStringMethodName, StringComparison.Ordinal))
+                .ToList(),
+            ctx,
+            w);
+        foreach (var prop in ancestor.Properties)
         {
             w.WriteLine();
-            PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: true);
+            PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: prop.IsStatic);
         }
     }
 
@@ -157,15 +163,20 @@ public sealed partial class ScriptClassEmitter
         IEnumerable<TgmlPropertyDecl> properties,
         IEnumerable<TgmlMethodDecl> methods,
         GenerationContext ctx,
+        string qualifiedTypeName,
         string gmlName,
         GmlWriter w)
     {
-        StaticMethodsEmitter.Emit(methods.Where(m => !IsCompilerSynthesized(m)).ToList(), ctx, w);
-        foreach (var prop in properties.Where(p => !AssetFacts.TryGetAssetName(p, out _)))
+        var methodList = methods.Where(m => !IsCompilerSynthesized(m)).ToList();
+        StaticMethodsEmitter.Emit(methodList, ctx, w);
+        foreach (var prop in properties)
         {
             w.WriteLine();
-            PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: true);
+            PropertyAccessorEmitter.EmitProperty(prop, ctx, w, isStatic: prop.IsStatic);
         }
+
+        if (!methodList.Any(m => string.Equals(m.Name, ObjectFacts.ToStringMethodName, StringComparison.Ordinal) && m.Body is not null))
+            TypeMetadataEmitter.EmitDefaultToString(qualifiedTypeName, w);
 
         TypeMetadataEmitter.EmitGetType(gmlName, w);
     }

@@ -1,84 +1,43 @@
 ﻿using System.CommandLine;
-using System.Reflection;
-using Newtonsoft.Json;
-using TypedGML.CLI.Extensions;
+using TypedGML.CLI.GameMaker;
 
 namespace TypedGML.CLI.Commands;
 
 public class InitCommand : ICommand
 {
-    private static string CliDirectoryPath => Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ??
-                                              Environment.CurrentDirectory;
-
-    private static string BaseClassLibraryPath => Path.Combine(CliDirectoryPath, "BaseClassLibrary");
-
     public Command BuildCommand()
     {
         var pathOption = new Option<string>("--path", "-p")
         {
             Required = true,
-            Description = "Path to the GameMaker project folder",
+            Description = "Path to the GameMaker project folder"
         };
 
         pathOption.Validators.Add(result =>
         {
             var projectFolderPath = result.GetValue(pathOption);
-
-            if (Directory.Exists(projectFolderPath) is false)
-            {
-                result.AddError("Directory doesn't exist");
-            }
+            if (string.IsNullOrWhiteSpace(projectFolderPath) || Directory.Exists(projectFolderPath) is false)
+                result.AddError("Directory doesn't exist.");
         });
 
-        var initCommand = new Command("init", "Initializes the project");
+        var initCommand = new Command("init", "Initializes TypedGML source folders inside a GameMaker project");
         initCommand.Options.Add(pathOption);
         initCommand.SetAction(parseResult =>
         {
             var projectPath = parseResult.GetValue(pathOption);
-
-            if (projectPath is null)
-            {
+            if (string.IsNullOrWhiteSpace(projectPath))
                 return 1;
-            }
 
-            InitializeProject(projectPath);
+            var gameMakerProject = GameMakerProject.Open(projectPath);
+            gameMakerProject.EnsureTypedGmlSourceStructure();
+            gameMakerProject.EnsureGeneratedFolders();
+            AssetRegistryGenerator.Generate(gameMakerProject.ProjectRootPath, gameMakerProject.TypedGmlSourcePath);
+            gameMakerProject.Save();
+
+            Console.WriteLine($"Initialized TypedGML in '{gameMakerProject.ProjectRootPath}'.");
             return 0;
         });
 
         return initCommand;
-    }
-
-    private static void InitializeProject(string projectPath)
-    {
-        var folderHasMetadataFile = Directory.GetFiles(projectPath, "tgmlMetadata.json").Length != 0;
-
-        if (folderHasMetadataFile)
-        {
-            Console.WriteLine("Project already initialized");
-            return;
-        }
-
-        var projectFilePath = Directory.GetFiles(projectPath, "*.yyp").FirstOrDefault();
-
-        if (projectFilePath is null)
-        {
-            Console.WriteLine("Project not found");
-            return;
-        }
-
-        var tgmlMetadata = new TgmlProjectFile
-        {
-            ProjectFileName = Path.GetFileName(projectFilePath)
-        };
-
-        var tgmlMetadataPath = Path.Combine(projectPath, "tgmlMetadata.json");
-        var json = JsonConvert.SerializeObject(tgmlMetadata, Formatting.Indented);
-        File.WriteAllText(tgmlMetadataPath, json);
-
-        var tgmlBaseClassLibraryPath = Path.Combine(projectPath, "tgml", "BaseClassLibrary");
-        Directory.CreateDirectory(tgmlBaseClassLibraryPath);
-        FileExtensions.CopyFilesRecursively(BaseClassLibraryPath, tgmlBaseClassLibraryPath);
-
-        Console.WriteLine("Project initialized");
     }
 }

@@ -17,6 +17,16 @@ public sealed class InheritanceCheck : IAtomicCheck
 
     private static void CheckType(TranspileContext ctx, TgmlFile file, TgmlTypeDecl decl)
     {
+        if (decl is TgmlClassDecl cls &&
+            !ObjectFacts.IsSystemGameObject(cls) &&
+            InheritsFromGameObject(cls, ctx.TypeTable) &&
+            !cls.HasDecorator("Object"))
+        {
+            ctx.AddError(
+                $"GameObject-derived class '{cls.Name}' must declare an @Object decorator.",
+                file.FileName);
+        }
+
         // Enums and delegates do not support inheritance at all
         if (decl is TgmlEnumDecl or TgmlDelegateDecl)
             return;
@@ -30,7 +40,10 @@ public sealed class InheritanceCheck : IAtomicCheck
         };
 
         if (bases is null || bases.Count == 0)
+        {
+            CheckNestedTypes(ctx, file, decl);
             return;
+        }
 
         // Static classes cannot inherit from anything
         if (decl is TgmlClassDecl { ClassModifier: ClassModifier.Static })
@@ -38,6 +51,7 @@ public sealed class InheritanceCheck : IAtomicCheck
             ctx.AddError(
                 $"Static class '{decl.Name}' cannot have a base type.",
                 file.FileName);
+            CheckNestedTypes(ctx, file, decl);
             return;
         }
 
@@ -87,6 +101,49 @@ public sealed class InheritanceCheck : IAtomicCheck
                     file.FileName);
             }
         }
+
+        CheckNestedTypes(ctx, file, decl);
+    }
+
+    private static void CheckNestedTypes(TranspileContext ctx, TgmlFile file, TgmlTypeDecl decl)
+    {
+        if (decl is TgmlClassDecl classDecl)
+        {
+            foreach (var nested in classDecl.NestedTypes)
+                CheckType(ctx, file, nested);
+        }
+        else if (decl is TgmlStructDecl structDecl)
+        {
+            foreach (var nested in structDecl.NestedTypes)
+                CheckType(ctx, file, nested);
+        }
+    }
+
+    private static bool InheritsFromGameObject(TgmlClassDecl cls, TypeTable typeTable)
+        => InheritsFromGameObject(cls, typeTable, new HashSet<string>(StringComparer.Ordinal));
+
+    private static bool InheritsFromGameObject(TgmlClassDecl cls, TypeTable typeTable, ISet<string> visited)
+    {
+        var qualifiedName = cls.QualifiedName ?? cls.Name;
+        if (!visited.Add(qualifiedName))
+            return false;
+
+        foreach (var baseRef in cls.BaseTypes)
+        {
+            if (!typeTable.TryResolve(baseRef.Name.Full, out var baseDecl) || baseDecl is not TgmlClassDecl baseClass)
+                continue;
+
+            if (ObjectFacts.IsSystemGameObject(baseClass))
+                return true;
+
+            if (ObjectFacts.IsSystemObject(baseClass))
+                continue;
+
+            if (InheritsFromGameObject(baseClass, typeTable, visited))
+                return true;
+        }
+
+        return false;
     }
 
     private static bool IsBuiltIn(string name)

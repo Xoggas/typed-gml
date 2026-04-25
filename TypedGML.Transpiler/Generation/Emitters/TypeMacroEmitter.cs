@@ -3,8 +3,8 @@
 /// <summary>
 ///     Emits a single __TypeMacros.gml file containing:
 ///     <list type="bullet">
-///         <item>Built-in primitive type ID macros (negative IDs, always present)</item>
-///         <item>User-defined type ID macros (<c>#macro __TYPE_X N</c>, N starting at 1)</item>
+///         <item>Built-in primitive type ID macros (stringified IDs, always present)</item>
+///         <item>User-defined type ID macros (<c>#macro __TYPE_X "N"</c>, N starting at 1)</item>
 ///     </list>
 /// </summary>
 public sealed class TypeMacroEmitter
@@ -12,7 +12,8 @@ public sealed class TypeMacroEmitter
     /// <summary>
     ///     Built-in primitive types that have no user declaration but may be used as
     ///     generic type arguments or in <c>typeof()</c> expressions.
-    ///     Negative IDs avoid clashing with user-type IDs which start at 1.
+///     IDs remain numeric inside the compiler, but are emitted as strings for GameMaker
+///     runtime metadata so they can be safely used as struct keys in <c>__types</c>.
     /// </summary>
     private static readonly (string Name, int Id)[] BuiltinTypes =
     [
@@ -38,7 +39,7 @@ public sealed class TypeMacroEmitter
 
         w.WriteLine("// ── Built-in primitive types ─────────────────────────────────────────────");
         foreach (var (name, id) in BuiltinTypes)
-            w.WriteLine($"#macro __TYPE_{name} {id}");
+            w.WriteLine($"#macro __TYPE_{name} \"{id}\"");
 
         w.WriteLine();
         w.WriteLine("// ── User-defined types ───────────────────────────────────────────────────");
@@ -46,7 +47,7 @@ public sealed class TypeMacroEmitter
         {
             var id = ctx.TypeTable.GetTypeId(decl);
             var gmlName = (decl.QualifiedName ?? decl.Name).Replace(".", "_");
-            w.WriteLine($"#macro __TYPE_{gmlName} {id}");
+            w.WriteLine($"#macro __TYPE_{gmlName} \"{id}\"");
         }
 
         return new GeneratedFile("Scripts/__TypeMacros/__TypeMacros.gml", w.ToString());

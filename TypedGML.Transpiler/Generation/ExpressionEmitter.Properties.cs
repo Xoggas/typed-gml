@@ -9,16 +9,16 @@ public sealed partial class ExpressionEmitter
     {
         if (_ctx.TryGetIdentifierAlias(e.Name, out var alias))
             return alias;
-        if (e.Metadata.TryGetValue(AssetReferenceNameMetadata, out var assetReference) && assetReference is string assetName)
-            return assetName;
         if (_ctx.TryResolveCurrentTypeAssetReference(e.Name, out var currentTypeAssetName))
             return currentTypeAssetName;
+        if (e.Metadata.TryGetValue(AssetReferenceNameMetadata, out var assetReference) && assetReference is string assetName)
+            return assetName;
 
         if (!_ctx.IsInsideAccessorOf(e.Name) && !_ctx.IsLocalShadow(e.Name) && !CurrentTypeHasOwnField(e.Name))
         {
             var prop = _ctx.FindProperty(e.Name);
             if (prop?.Getter is not null)
-                return _ctx.GetNativePropertyName(prop) ?? $"get_{e.Name}()";
+                return $"get_{e.Name}()";
         }
 
         return e.Name == "this" ? _ctx.SelfAlias : e.Name;
@@ -31,15 +31,10 @@ public sealed partial class ExpressionEmitter
 
         if (!IsWriteTargetInOwnAccessor(e.Target))
         {
-            var (propName, qualifier, prop, nativeTarget) = ExtractPropertyAccess(e.Target);
+            var (propName, qualifier, prop) = ExtractPropertyAccess(e.Target);
             if (propName is not null && prop?.Setter is not null)
             {
                 var propertyType = DefaultExpressionFacts.DescribeType(prop.Type);
-                if (nativeTarget is not null)
-                    return e.Operator == "="
-                        ? $"{nativeTarget} = {Emit(e.Value)}"
-                        : $"{nativeTarget} = {nativeTarget} {e.Operator[..^1]} {Emit(e.Value)}";
-
                 var setPrefix = qualifier is not null ? $"{qualifier}." : string.Empty;
                 var setterCall = $"{setPrefix}set_{propName}";
                 if (TryEmitDelegateAssignment(propertyType, e.Operator, $"{setPrefix}get_{propName}()", setterCall, e.Value, out var delegateSetterExpr))
@@ -70,19 +65,17 @@ public sealed partial class ExpressionEmitter
         };
     }
 
-    private (string? propName, string? qualifier, TgmlPropertyDecl? property, string? nativeTarget) ExtractPropertyAccess(TgmlExpression target)
+    private (string? propName, string? qualifier, TgmlPropertyDecl? property) ExtractPropertyAccess(TgmlExpression target)
     {
         if (target is TgmlIdExpr id && _ctx.FindProperty(id.Name) is { } idProperty)
-            return (id.Name, null, idProperty, _ctx.GetNativePropertyName(idProperty));
+            return (id.Name, null, idProperty);
 
         if (target is TgmlFieldAccessExpr { Target: TgmlIdExpr { Name: "self" or "this" } } fa &&
             !CurrentTypeHasOwnField(fa.FieldName) &&
             _ctx.FindProperty(fa.FieldName) is { } fieldProperty)
         {
-            var selfQualifier = _ctx.SelfAlias != "self" ? _ctx.SelfAlias : (string?)null;
-            var nativePropName = _ctx.GetNativePropertyName(fieldProperty);
-            var nativeTarget = selfQualifier is not null && nativePropName is not null ? $"{selfQualifier}.{nativePropName}" : nativePropName;
-            return (fa.FieldName, selfQualifier, fieldProperty, nativeTarget);
+            string? selfQualifier = _ctx.SelfAlias != "self" ? _ctx.SelfAlias : null;
+            return (fa.FieldName, selfQualifier, fieldProperty);
         }
 
         if (target is TgmlFieldAccessExpr fieldAccess &&
@@ -93,13 +86,9 @@ public sealed partial class ExpressionEmitter
                                     fieldAccess.Target is TgmlIdExpr { Name: var targetName } &&
                                     targetName == alias;
             var qualifier = isWithAliasTarget ? null : Emit(fieldAccess.Target);
-            var nativePropertyName = _ctx.GetNativePropertyName(resolvedProperty);
-            var nativeTarget = nativePropertyName is null ? null : $"{qualifier}.{nativePropertyName}";
-            if (isWithAliasTarget && nativePropertyName is not null)
-                nativeTarget = nativePropertyName;
-            return (fieldAccess.FieldName, qualifier, resolvedProperty, nativeTarget);
+            return (fieldAccess.FieldName, qualifier, resolvedProperty);
         }
 
-        return (null, null, null, null);
+        return (null, null, null);
     }
 }

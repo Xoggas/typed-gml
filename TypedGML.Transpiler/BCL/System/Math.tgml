@@ -1,0 +1,55 @@
+﻿namespace System;
+
+public static class Math
+{
+    public static number Abs(number value)
+    {
+        return Number.Abs(value);
+    }
+
+    public static number Floor(number value)
+    {
+        return Number.Floor(value);
+    }
+
+    public static number Ceil(number value)
+    {
+        return Number.Ceil(value);
+    }
+
+    public static number Round(number value)
+    {
+        return Number.Round(value);
+    }
+
+    public static number Sqrt(number value)
+    {
+        return Number.Sqrt(value);
+    }
+
+    public static number Pow(number value, number exp)
+    {
+        return Number.Pow(value, exp);
+    }
+
+    public static number Clamp(number value, number min, number max)
+    {
+        return Number.Clamp(value, min, max);
+    }
+
+    public static number Min(number a, number b)
+    {
+        return Number.Min(a, b);
+    }
+
+    public static number Max(number a, number b)
+    {
+        return Number.Max(a, b);
+    }
+
+    public static number Lerp(number a, number b, number amount)
+    {
+        return Number.Lerp(a, b, amount);
+    }
+}
+

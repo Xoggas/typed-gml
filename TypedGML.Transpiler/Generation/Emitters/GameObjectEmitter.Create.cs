@@ -17,7 +17,9 @@ public sealed partial class GameObjectEmitter
         BackingFieldEmitter.Emit(sourceClass.Properties, exprEmit, ctx, w);
 
         var instanceMethods = sourceClass.Methods
-            .Where(m => !IsNativeEvent(sourceClass, m, ctx) && !m.IsStatic)
+            .Where(m => !IsNativeEvent(sourceClass, m, ctx) &&
+                        !m.IsStatic &&
+                        !string.Equals(m.Name, ObjectFacts.ToStringMethodName, StringComparison.Ordinal))
             .ToList();
         InstanceMethodsEmitter.Emit(instanceMethods, sourceClass, ctx, w);
 
