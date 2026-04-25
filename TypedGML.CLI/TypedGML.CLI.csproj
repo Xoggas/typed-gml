@@ -21,6 +21,7 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <TargetPath>BCL\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
         </Content>
+        <Content Remove="..\TypedGML.Transpiler\BCL\System\**" />
     </ItemGroup>
 
 </Project>
