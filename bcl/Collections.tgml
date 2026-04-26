@@ -1,0 +1,48 @@
+public class List<T>
+{
+    public number Count { get; }
+
+    public T Item[number index]
+    {
+        get;
+        set;
+    }
+
+    public constructor() { }
+
+    public void Add(T item) { }
+    public void Remove(T item) { }
+    public void RemoveAt(number index) { }
+    public void Clear() { }
+    public bool Contains(T item) { return false; }
+    public T[] ToArray() { return []; }
+}
+
+public class Dictionary<TKey, TValue>
+{
+    public number Count { get; }
+
+    public TValue Item[TKey key]
+    {
+        get;
+        set;
+    }
+
+    public constructor() { }
+
+    public void Add(TKey key, TValue value) { }
+    public void Remove(TKey key) { }
+    public bool ContainsKey(TKey key) { return false; }
+
+    public TKey[] Keys
+    {
+        get { return []; }
+    }
+
+    public TValue[] Values
+    {
+        get { return []; }
+    }
+
+    public void Destroy() { }
+}

@@ -5,7 +5,7 @@ grammar TypedGML;
 // -------------------------------------------------------------------------------
 
 program
-    : usingDecl* namespaceDecl* typeDecl* EOF
+    : usingDecl* namespaceDecl* topLevelDecl* EOF
     ;
 
 // -------------------------------------------------------------------------------
@@ -14,10 +14,12 @@ program
 
 usingDecl
     : USING qualifiedName SEMI
+    | USING ID ASSIGN qualifiedName SEMI
     ;
 
 namespaceDecl
     : NAMESPACE qualifiedName SEMI
+    | NAMESPACE qualifiedName LBRACE topLevelDecl* RBRACE
     ;
 
 // -------------------------------------------------------------------------------
@@ -30,6 +32,18 @@ typeDecl
     | enumDecl
     | interfaceDecl
     | delegateDecl
+    ;
+
+functionDecl
+    : decorator*
+      accessMod methodModifiers typeRef nameId typeParams?
+      LPAREN paramList? RPAREN
+      block
+    ;
+
+topLevelDecl
+    : typeDecl
+    | functionDecl
     ;
 
 // public abstract? class Name<T: IConstraint> : Base, IFace { ... }
@@ -112,7 +126,7 @@ inheritanceList
 
 // int[]  /  List<string>[]  /  Map<string, int>
 typeRef
-    : qualifiedName typeArgs? (LBRACKET RBRACKET)*
+    : qualifiedName typeArgs? QUESTION? (LBRACKET RBRACKET)*
     ;
 
 qualifiedName
@@ -139,6 +153,7 @@ memberDecl
     | indexerDecl
     | methodDecl
     | constructorDecl
+    | eventDecl
     | typeDecl
     ;
 
@@ -191,9 +206,6 @@ overloadableOperator
     | STAR
     | SLASH
     | PERCENT
-    | BITAND
-    | BITOR
-    | BITXOR
     | BITNOT
     | EQ
     | NEQ
@@ -201,9 +213,6 @@ overloadableOperator
     | GT
     | LE
     | GE
-    | LSHIFT
-    | GT GT
-    | NOT
     ;
 
 // public constructor(var p: int) : base(p) { ... }
@@ -211,8 +220,13 @@ constructorDecl
     : decorator*
       accessMod CONSTRUCTOR
       LPAREN paramList? RPAREN
-      (COLON BASE LPAREN argList? RPAREN)?
+      (COLON (BASE | THIS) LPAREN argList? RPAREN)?
       block
+    ;
+
+eventDecl
+    : decorator*
+      accessMod EVENT typeRef nameId SEMI
     ;
 
 // --- Interface members (no access modifier; abstract by definition) -----------
@@ -221,6 +235,7 @@ interfaceMemberDecl
     : interfaceMethodDecl
     | interfacePropertyDecl
     | interfaceIndexerDecl
+    | interfaceEventDecl
     ;
 
 interfaceMethodDecl
@@ -242,6 +257,10 @@ interfaceIndexerDecl
       typeRef nameId
       LBRACKET param RBRACKET
       LBRACE interfaceAccessorDecl+ RBRACE
+    ;
+
+interfaceEventDecl
+    : decorator* EVENT typeRef nameId SEMI
     ;
 
 interfaceAccessorDecl
@@ -277,7 +296,7 @@ fieldModifiers
     ;
 
 propertyModifiers
-    : accessMod scopeMod? READONLY? (VIRTUAL | ABSTRACT | OVERRIDE | SEALED)?
+    : accessMod GLOBAL? READONLY? (VIRTUAL | ABSTRACT | OVERRIDE | SEALED)?
     ;
 
 methodModifiers
@@ -335,6 +354,7 @@ statement
     | breakStmt
     | continueStmt
     | tryStmt
+    | throwStmt
     | rawStmt
     | expressionStmt
     ;
@@ -342,6 +362,7 @@ statement
 // int x = 5;
 localVarDecl
     : typeRef nameId (ASSIGN expression)? SEMI
+    | VAR nameId ASSIGN expression SEMI
     ;
 
 expressionStmt
@@ -388,7 +409,7 @@ switchSection
 
 // with (TypeName varName) { ... }  — GML-style instance iteration with a typed var
 withStmt
-    : WITH LPAREN typeRef nameId RPAREN block
+    : WITH LPAREN expression RPAREN block
     ;
 
 returnStmt
@@ -405,6 +426,10 @@ continueStmt
 
 tryStmt
     : TRY block catchClause* finallyClause?
+    ;
+
+throwStmt
+    : THROW expression SEMI
     ;
 
 catchClause
@@ -480,8 +505,6 @@ expression
 
     // -- Object / array creation -----------------------------------------------
     | NEW typeRef LPAREN argList? RPAREN                              # newObjectExpr
-    | NEW typeRef LBRACKET expression RBRACKET                        # newArrayExpr
-    | NEW LPAREN argList? RPAREN                                      # newImplicitExpr
 
     // -- Intrinsics ------------------------------------------------------------
     | TYPEOF LPAREN typeRef RPAREN                                    # typeofExpr
@@ -565,6 +588,8 @@ OPERATOR    : 'operator'    ;
 IMPLICIT    : 'implicit'    ;
 EXPLICIT    : 'explicit'    ;
 DELEGATE    : 'delegate'    ;
+VAR         : 'var'         ;
+EVENT       : 'event'       ;
 
 // -- Type operations -----------------------------------------------------------
 NEW    : 'new'    ;
@@ -574,6 +599,7 @@ AS     : 'as'     ;
 TYPEOF : 'typeof' ;
 NAMEOF : 'nameof' ;
 BASE   : 'base'   ;
+THIS   : 'this'   ;
 
 // -- Flow control --------------------------------------------------------------
 IF       : 'if'       ;
@@ -588,6 +614,7 @@ BREAK    : 'break'    ;
 CONTINUE : 'continue' ;
 RETURN   : 'return'   ;
 WITH     : 'with'     ;
+THROW    : 'throw'    ;
 
 // -- Error handling ------------------------------------------------------------
 TRY     : 'try'     ;
@@ -709,5 +736,6 @@ RAW_LINE : '#' ~[\r\n]* ;
 // -------------------------------------------------------------------------------
 
 WS            : [ \t\n\r\f]+ -> skip ;
+DOC_COMMENT   : '///' ~[\r\n]* ;
 LINE_COMMENT  : '//' ~[\r\n]* -> skip ;
 BLOCK_COMMENT : '/*' .*? '*/' -> skip ;

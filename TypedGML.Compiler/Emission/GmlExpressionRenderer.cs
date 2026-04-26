@@ -1,0 +1,86 @@
+using TypedGML.Compiler.Ast;
+using TypedGML.Compiler.Ast.Expressions;
+
+namespace TypedGML.Compiler.Emission;
+
+internal static class GmlExpressionRenderer
+{
+    public static bool CanRender(IAstNode node) => node switch
+    {
+        ArrayLiteralExpressionNode or AssignmentExpressionNode or BaseAccessExpressionNode or BaseCallExpressionNode or
+            BinaryExpressionNode or CastExpressionNode or DefaultExpressionNode or DictionaryLiteralExpressionNode or
+            IdentifierExpressionNode or IndexerAccessExpressionNode or InvocationExpressionNode or LambdaExpressionNode or
+            LiteralExpressionNode or MemberAccessExpressionNode or NameofExpressionNode or NullCoalescingExpressionNode or
+            NullConditionalExpressionNode or ObjectCreationExpressionNode or TernaryExpressionNode or TypeofExpressionNode or
+            UnaryExpressionNode => true,
+        _ => false
+    };
+
+    public static string Render(IAstNode node, EmitContext ctx) => node switch
+    {
+        ArrayLiteralExpressionNode n => $"[{string.Join(", ", n.Elements.Select(e => Render(e, ctx)))}]",
+        AssignmentExpressionNode n => $"{Render(n.Target, ctx)} {n.Op} {Render(n.Value, ctx)}",
+        BaseAccessExpressionNode n => n.MemberName,
+        BaseCallExpressionNode n => $"{n.MemberName}({string.Join(", ", n.Args.Select(a => Render(a, ctx)))})",
+        BinaryExpressionNode n => $"({Render(n.Left, ctx)} {n.Op} {Render(n.Right, ctx)})",
+        CastExpressionNode n => Render(n.Expression, ctx),
+        DefaultExpressionNode => "undefined",
+        DictionaryLiteralExpressionNode n => RenderDictionary(n, ctx),
+        IdentifierExpressionNode n => n.Name,
+        IndexerAccessExpressionNode n => $"{Render(n.Target, ctx)}[{Render(n.Index, ctx)}]",
+        InvocationExpressionNode n => $"{Render(n.Target, ctx)}({JoinArgs(n.PositionalArgs, n.NamedArgs, ctx)})",
+        LambdaExpressionNode n => RenderLambda(n, ctx),
+        LiteralExpressionNode n => RenderLiteral(n),
+        MemberAccessExpressionNode n => $"{Render(n.Target, ctx)}.{n.MemberName}",
+        NameofExpressionNode n => $"\"{n.Chain.LastOrDefault() ?? string.Empty}\"",
+        NullCoalescingExpressionNode n => $"({Render(n.Left, ctx)} != undefined ? {Render(n.Left, ctx)} : {Render(n.Right, ctx)})",
+        NullConditionalExpressionNode n => $"({Render(n.Target, ctx)} != undefined ? {Render(n.Target, ctx)}.{n.MemberName} : undefined)",
+        ObjectCreationExpressionNode n => $"{ResolveConstructorName(n.TypeRef, ctx)}({JoinArgs(n.PositionalArgs, n.NamedArgs, ctx)})",
+        TernaryExpressionNode n => $"({Render(n.Condition, ctx)} ? {Render(n.ThenExpr, ctx)} : {Render(n.ElseExpr, ctx)})",
+        TypeofExpressionNode n => $"\"{n.TypeName}\"",
+        UnaryExpressionNode n => $"{n.Op} {Render(n.Operand, ctx)}",
+        _ => string.Empty
+    };
+
+    private static string JoinArgs(IReadOnlyList<IAstNode> positionalArgs, IReadOnlyList<NamedArgNode> namedArgs, EmitContext ctx) =>
+        string.Join(", ", positionalArgs.Select(a => Render(a, ctx)).Concat(namedArgs.Select(a => Render(a.Value, ctx))));
+
+    private static string RenderDictionary(DictionaryLiteralExpressionNode node, EmitContext ctx) =>
+        $"(function() {{ var __map = ds_map_create(); {string.Join(" ", node.Entries.Select(e => $"ds_map_add(__map, {Render(e.Key, ctx)}, {Render(e.Value, ctx)});"))} return __map; }})()";
+
+    private static string RenderLambda(LambdaExpressionNode node, EmitContext ctx)
+    {
+        var parameters = string.Join(", ", node.Parameters.Select(p => p.Name));
+        if (node.Body is not Ast.Statements.BlockStatementNode)
+            return $"function({parameters}) {{ return {Render(node.Body, ctx)}; }}";
+
+        var writer = new GmlWriter();
+        var nested = new EmitContext(ctx.Symbols, writer, ctx.Files, ctx.Decorators, ctx.Diagnostics, ctx.Dispatch)
+        {
+            CurrentType = ctx.CurrentType,
+            CurrentNamespacePrefix = ctx.CurrentNamespacePrefix
+        };
+        writer.Write($"function({parameters})");
+        nested.Emitter.Emit(node.Body, nested);
+        return writer.GetOutput().TrimEnd();
+    }
+
+    private static string ResolveConstructorName(string typeRef, EmitContext ctx) =>
+        ctx.Symbols.TryResolve(typeRef, ctx.CurrentNamespacePrefix, [], out var symbol)
+            ? NamingConvention.ConstructorName(symbol)
+            : $"{typeRef.Replace(".", "_", StringComparison.Ordinal)}_create";
+
+    private static string RenderLiteral(LiteralExpressionNode node) => node.Kind switch
+    {
+        LiteralKind.String => $"\"{Escape(Unquote(node.Value?.ToString() ?? string.Empty))}\"",
+        LiteralKind.Bool => string.Equals(node.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false",
+        LiteralKind.Null => "undefined",
+        _ => node.Value?.ToString() ?? "undefined"
+    };
+
+    private static string Escape(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+
+    private static string Unquote(string value) =>
+        value.Length >= 2 && value[0] == '"' && value[^1] == '"' ? value[1..^1] : value;
+}

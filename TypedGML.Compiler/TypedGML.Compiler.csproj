@@ -17,14 +17,8 @@
         <Antlr4 Include="Grammar/TypedGML.g4">
             <Visitor>true</Visitor>
             <Listener>false</Listener>
-            <Package>TypedGML.Transpiler.Visitor</Package>
+            <Package>TypedGML.Compiler.Visitor</Package>
         </Antlr4>
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Remove="PositiveE2E.tgml" />
-      <None Remove="NegativeE2E.tgml" />
-      <None Remove="Test.tgml" />
     </ItemGroup>
 
 </Project>

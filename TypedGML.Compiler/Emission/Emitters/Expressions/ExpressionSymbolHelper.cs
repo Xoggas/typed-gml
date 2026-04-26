@@ -1,0 +1,98 @@
+using TypedGML.Compiler.Ast;
+using TypedGML.Compiler.Ast.Expressions;
+using TypedGML.Compiler.Symbols;
+
+namespace TypedGML.Compiler.Emission.Emitters.Expressions;
+
+internal static class ExpressionSymbolHelper
+{
+    public static bool TryResolveType(EmitContext ctx, string? typeRef, out TypeSymbol symbol) =>
+        ctx.Symbols.TryResolve(RootName(typeRef), CurrentNamespace(ctx), [], out symbol);
+
+    public static bool IsDelegateTarget(IAstNode target, EmitContext ctx) =>
+        TryResolveDelegateMember(target, ctx, out _) ||
+        target is IdentifierExpressionNode identifier &&
+        TryResolveType(ctx, identifier.Name, out var type) &&
+        type.Kind == TypeKind.Delegate;
+
+    public static bool TryResolveDelegateMember(IAstNode target, EmitContext ctx, out MemberSymbol member)
+    {
+        member = null!;
+        if (target is IdentifierExpressionNode identifier)
+            return TryResolveCurrentMember(ctx, identifier.Name, out member) && IsDelegateLike(member, ctx);
+
+        if (target is not MemberAccessExpressionNode access || !TryResolveTargetType(access.Target, ctx, out var type))
+            return false;
+
+        member = type.Members.FirstOrDefault(m => m.Name == access.MemberName)!;
+        return member is not null && IsDelegateLike(member, ctx);
+    }
+
+    public static bool TryResolveTargetType(IAstNode target, EmitContext ctx, out TypeSymbol type)
+    {
+        if (target is IdentifierExpressionNode identifier)
+        {
+            if (identifier.Name == "this" && ctx.CurrentType is not null) { type = ctx.CurrentType; return true; }
+            if (identifier.Name == "base" && ctx.CurrentType?.Base is not null) { type = ctx.CurrentType.Base; return true; }
+            if (TryResolveCurrentMember(ctx, identifier.Name, out var member))
+                return TryResolveType(ctx, member.ReturnType, out type);
+            return TryResolveType(ctx, identifier.Name, out type);
+        }
+
+        if (target is MemberAccessExpressionNode access && TryResolveTargetType(access.Target, ctx, out var accessType))
+        {
+            var member = accessType.Members.FirstOrDefault(m => m.Name == access.MemberName);
+            if (member is not null)
+                return TryResolveType(ctx, member.ReturnType, out type);
+
+            type = null!;
+            return false;
+        }
+
+        if (target is ObjectCreationExpressionNode creation)
+            return TryResolveType(ctx, creation.TypeRef, out type);
+
+        if (target is CastExpressionNode cast)
+            return TryResolveType(ctx, cast.TargetType, out type);
+
+        if (target is DefaultExpressionNode defaultValue)
+            return TryResolveType(ctx, defaultValue.TypeName, out type);
+
+        type = null!;
+        return false;
+    }
+
+    public static bool TryResolveCurrentMember(EmitContext ctx, string name, out MemberSymbol member)
+    {
+        for (var current = ctx.CurrentType; current is not null; current = current.Base)
+        {
+            member = current.Members.FirstOrDefault(m => m.Name == name)!;
+            if (member is not null)
+                return true;
+        }
+
+        member = null!;
+        return false;
+    }
+
+    private static bool IsDelegateLike(MemberSymbol member, EmitContext ctx) =>
+        member.Kind == MemberKind.Event ||
+        TryResolveType(ctx, member.ReturnType, out var type) && type.Kind == TypeKind.Delegate;
+
+    private static string CurrentNamespace(EmitContext ctx)
+    {
+        if (!string.IsNullOrEmpty(ctx.CurrentNamespacePrefix))
+            return ctx.CurrentNamespacePrefix;
+        if (ctx.CurrentType is null || !ctx.CurrentType.QualifiedName.Contains('.', StringComparison.Ordinal))
+            return string.Empty;
+        return ctx.CurrentType.QualifiedName[..ctx.CurrentType.QualifiedName.LastIndexOf('.')];
+    }
+
+    private static string RootName(string? typeRef)
+    {
+        if (string.IsNullOrWhiteSpace(typeRef))
+            return string.Empty;
+        var stop = typeRef.IndexOfAny(['<', '?', '[']);
+        return stop >= 0 ? typeRef[..stop] : typeRef;
+    }
+}

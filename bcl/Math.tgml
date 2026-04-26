@@ -1,0 +1,49 @@
+public class Math
+{
+    public const number PI = 3.14159265358979;
+
+    @NativeCall("abs")
+    public static number Abs(number x);
+
+    @NativeCall("floor")
+    public static number Floor(number x);
+
+    @NativeCall("ceil")
+    public static number Ceil(number x);
+
+    @NativeCall("round")
+    public static number Round(number x);
+
+    @NativeCall("sqrt")
+    public static number Sqrt(number x);
+
+    @NativeCall("power")
+    public static number Pow(number baseValue, number exp);
+
+    @NativeCall("sin")
+    public static number Sin(number x);
+
+    @NativeCall("cos")
+    public static number Cos(number x);
+
+    @NativeCall("tan")
+    public static number Tan(number x);
+
+    @NativeCall("min")
+    public static number Min(number a, number b);
+
+    @NativeCall("max")
+    public static number Max(number a, number b);
+
+    @NativeCall("clamp")
+    public static number Clamp(number value, number minValue, number maxValue);
+
+    @NativeCall("lerp")
+    public static number Lerp(number a, number b, number t);
+
+    @NativeCall("random")
+    public static number Random(number n);
+
+    @NativeCall("random_range")
+    public static number RandomRange(number minValue, number maxValue);
+}
