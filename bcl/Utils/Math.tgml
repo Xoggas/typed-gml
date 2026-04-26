@@ -1,3 +1,5 @@
+﻿namespace TypedGML.Utils;
+
 public class Math
 {
     public const number PI = 3.14159265358979;
@@ -49,3 +51,4 @@ public class Math
     @NativeCall("random_range")
     public static number RandomRange(number minValue, number maxValue) { return default(number); }
 }
+

@@ -1,0 +1,8 @@
+﻿namespace TypedGML.Core;
+
+public class Object
+{
+    @NativeCall("string")
+    public static string ToString(object value) { return default(string); }
+}
+

@@ -55,6 +55,7 @@ try
         new LambdaCheck(),
         new DecoratorPlacementCheck(),
         new ObjectDecoratorCheck(),
+        new GameObjectDecoratorCheck(),
         new ConstExpressionCheck(),
         new ReadonlyAssignmentCheck(),
         new StaticModifierCheck(),

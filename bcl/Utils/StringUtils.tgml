@@ -1,0 +1,22 @@
+﻿namespace TypedGML.Utils;
+
+public class StringUtils
+{
+    @NativeCall("string_repeat")
+    public static string Repeat(string s, number count) { return default(string); }
+
+    @NativeCall("string_starts_with")
+    public static bool StartsWith(string s, string prefix) { return default(bool); }
+
+    @NativeCall("string_ends_with")
+    public static bool EndsWith(string s, string suffix) { return default(bool); }
+
+    public static bool IsEmpty(string s)
+    {
+        return s == "";
+    }
+
+    @NativeCall("string_count")
+    public static number CountOccurrences(string s, string sub) { return default(number); }
+}
+

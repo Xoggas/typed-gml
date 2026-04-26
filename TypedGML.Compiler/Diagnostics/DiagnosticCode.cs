@@ -45,5 +45,7 @@ public enum DiagnosticCode
     InvalidDictionaryLiteralTarget = 38,
     DuplicateStaticConstructor = 43,
     CrossTypeStaticReference = 44,
-    InvalidStaticConstructorUsage = 45
+    GameObjectMissingObjectDecorator = 45,
+    ObjectDecoratorWithoutGameObject = 46,
+    InvalidStaticConstructorUsage = 47
 }

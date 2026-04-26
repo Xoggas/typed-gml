@@ -1,0 +1,114 @@
+﻿namespace TypedGML.Collections;
+using TypedGML.Core;
+using TypedGML.Utils;
+
+public struct KeyValuePair<TKey, TValue>
+{
+    public TKey Key;
+    public TValue Value;
+
+    public KeyValuePair(TKey key, TValue value)
+    {
+        Key = key;
+        Value = value;
+    }
+}
+
+public class Dictionary<TKey, TValue> : IDictionary<TKey, TValue>
+{
+    private number _map;
+
+    @NativeCall("ds_map_create")
+    private number __create() { return default(number); }
+
+    @NativeCall("ds_map_size")
+    private number __size(number map) { return default(number); }
+
+    @NativeCall("ds_map_find_value")
+    private TValue __find(number map, TKey key) { return default(TValue); }
+
+    @NativeCall("ds_map_set")
+    private void __set(number map, TKey key, TValue val) { }
+
+    @NativeCall("ds_map_add")
+    private void __add(number map, TKey key, TValue val) { }
+
+    @NativeCall("ds_map_delete")
+    private void __delete(number map, TKey key) { }
+
+    @NativeCall("ds_map_exists")
+    private bool __exists(number map, TKey key) { return default(bool); }
+
+    @NativeCall("ds_map_destroy")
+    private void __destroy(number map) { }
+
+    @NativeCall("ds_map_keys_to_array")
+    private TKey[] __keys(number map) { return default(TKey[]); }
+
+    @NativeCall("ds_map_values_to_array")
+    private TValue[] __values(number map) { return default(TValue[]); }
+
+    public Dictionary()
+    {
+        _map = __create();
+    }
+
+    public number Count
+    {
+        get { return __size(_map); }
+    }
+
+    public TValue this[TKey key]
+    {
+        get { return __find(_map, key); }
+        set { __set(_map, key, value); }
+    }
+
+    public void Add(TKey key, TValue value)
+    {
+        __add(_map, key, value);
+    }
+
+    public bool Remove(TKey key)
+    {
+        __delete(_map, key);
+        return true;
+    }
+
+    public bool ContainsKey(TKey key)
+    {
+        return __exists(_map, key);
+    }
+
+    public void Destroy()
+    {
+        __destroy(_map);
+    }
+
+    public TKey[] Keys()
+    {
+        return __keys(_map);
+    }
+
+    public TValue[] Values()
+    {
+        return __values(_map);
+    }
+
+    public KeyValuePair<TKey, TValue>[] Entries()
+    {
+        var keys = Keys();
+        var count = ArrayUtils.Length(keys);
+        var result = [];
+        for (var i = 0; i < count; i += 1)
+        {
+            result[i] = new KeyValuePair<TKey, TValue>(keys[i], this[keys[i]]);
+        }
+        return result;
+    }
+
+    public override string ToString()
+    {
+        return "Dictionary[" + Count + "]";
+    }
+}

@@ -1,3 +1,5 @@
+﻿namespace TypedGML.Core;
+
 public class Bool
 {
     @NativeCall("__op_eq")
@@ -14,3 +16,4 @@ public class Bool
         return value == "true";
     }
 }
+

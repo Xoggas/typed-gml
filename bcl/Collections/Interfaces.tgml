@@ -1,0 +1,50 @@
+﻿namespace TypedGML.Collections;
+
+public interface ICollection<T>
+{
+    number Count { get; }
+    void Add(T item);
+    bool Remove(T item);
+    bool Contains(T item);
+    void Clear();
+}
+
+public interface IList<T> : ICollection<T>
+{
+    T this[number index] { get; set; }
+    number IndexOf(T item);
+    void Insert(number index, T item);
+    void RemoveAt(number index);
+}
+
+public interface IDictionary<TKey, TValue>
+{
+    number Count { get; }
+    TValue this[TKey key] { get; set; }
+    void Add(TKey key, TValue value);
+    bool Remove(TKey key);
+    bool ContainsKey(TKey key);
+    TKey[] Keys();
+    TValue[] Values();
+}
+
+public interface IReadOnlyList<T>
+{
+    number Count { get; }
+    T this[number index] { get; }
+}
+
+public interface IReadOnlyDictionary<TKey, TValue>
+{
+    number Count { get; }
+    TValue this[TKey key] { get; }
+    bool ContainsKey(TKey key);
+    TKey[] Keys();
+    TValue[] Values();
+}
+
+public interface ISet<T> : ICollection<T>
+{
+    bool Add(T item);
+}
+

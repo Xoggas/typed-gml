@@ -1,3 +1,5 @@
+namespace TypedGML;
+
 public delegate void Action();
 public delegate void Action1<T>(T arg);
 public delegate void Action2<T1, T2>(T1 arg1, T2 arg2);

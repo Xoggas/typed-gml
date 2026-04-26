@@ -1,0 +1,375 @@
+﻿namespace TypedGML.GameObjects;
+using TypedGML.Assets;
+
+public class GameObject
+{
+    // ── Identity (read-only) ─────────────────────────────────────
+    @NativeProperty("id")
+    public number Id { get; }
+
+    @NativeProperty("object_index")
+    public number ObjectIndex { get; }
+
+    // ── Position ─────────────────────────────────────────────────
+    @NativeProperty("x")
+    public number X { get; set; }
+
+    @NativeProperty("y")
+    public number Y { get; set; }
+
+    @NativeProperty("xprevious")
+    public number XPrevious { get; }
+
+    @NativeProperty("yprevious")
+    public number YPrevious { get; }
+
+    @NativeProperty("xstart")
+    public number XStart { get; }
+
+    @NativeProperty("ystart")
+    public number YStart { get; }
+
+    // ── Movement ─────────────────────────────────────────────────
+    @NativeProperty("speed")
+    public number Speed { get; set; }
+
+    @NativeProperty("direction")
+    public number Direction { get; set; }
+
+    @NativeProperty("hspeed")
+    public number HSpeed { get; set; }
+
+    @NativeProperty("vspeed")
+    public number VSpeed { get; set; }
+
+    @NativeProperty("friction")
+    public number Friction { get; set; }
+
+    @NativeProperty("gravity")
+    public number Gravity { get; set; }
+
+    @NativeProperty("gravity_direction")
+    public number GravityDirection { get; set; }
+
+    // ── Sprite ───────────────────────────────────────────────────
+    @NativeProperty("sprite_index")
+    public SpriteAsset SpriteIndex { get; set; }
+
+    @NativeProperty("image_index")
+    public number ImageIndex { get; set; }
+
+    @NativeProperty("image_number")
+    public number ImageNumber { get; }
+
+    @NativeProperty("image_speed")
+    public number ImageSpeed { get; set; }
+
+    @NativeProperty("image_xscale")
+    public number ImageXScale { get; set; }
+
+    @NativeProperty("image_yscale")
+    public number ImageYScale { get; set; }
+
+    @NativeProperty("image_angle")
+    public number ImageAngle { get; set; }
+
+    @NativeProperty("image_alpha")
+    public number ImageAlpha { get; set; }
+
+    @NativeProperty("image_blend")
+    public number ImageBlend { get; set; }
+
+    @NativeProperty("sprite_width")
+    public number SpriteWidth { get; }
+
+    @NativeProperty("sprite_height")
+    public number SpriteHeight { get; }
+
+    @NativeProperty("sprite_xoffset")
+    public number SpriteXOffset { get; }
+
+    @NativeProperty("sprite_yoffset")
+    public number SpriteYOffset { get; }
+
+    // ── Collision / Mask ─────────────────────────────────────────
+    @NativeProperty("mask_index")
+    public SpriteAsset MaskIndex { get; set; }
+
+    @NativeProperty("bbox_left")
+    public number BboxLeft { get; }
+
+    @NativeProperty("bbox_right")
+    public number BboxRight { get; }
+
+    @NativeProperty("bbox_top")
+    public number BboxTop { get; }
+
+    @NativeProperty("bbox_bottom")
+    public number BboxBottom { get; }
+
+    // ── Rendering ────────────────────────────────────────────────
+    @NativeProperty("visible")
+    public bool Visible { get; set; }
+
+    @NativeProperty("depth")
+    public number Depth { get; set; }
+
+    @NativeProperty("layer")
+    public number Layer { get; set; }
+
+    // ── Instance flags ───────────────────────────────────────────
+    @NativeProperty("solid")
+    public bool Solid { get; set; }
+
+    @NativeProperty("persistent")
+    public bool Persistent { get; set; }
+
+    // ── Legacy game variables ────────────────────────────────────
+    @NativeProperty("score")
+    public number Score { get; set; }
+
+    @NativeProperty("lives")
+    public number Lives { get; set; }
+
+    @NativeProperty("health")
+    public number Health { get; set; }
+
+    // ── Lifecycle events ─────────────────────────────────────────
+    @NativeEvent("Create")
+    public virtual void OnCreate() { }
+
+    @NativeEvent("Destroy")
+    public virtual void OnDestroy() { }
+
+    @NativeEvent("CleanUp")
+    public virtual void OnCleanUp() { }
+
+    // ── Step events ──────────────────────────────────────────────
+    @NativeEvent("StepBegin")
+    public virtual void OnStepBegin() { }
+
+    @NativeEvent("Step")
+    public virtual void OnStep() { }
+
+    @NativeEvent("StepEnd")
+    public virtual void OnStepEnd() { }
+
+    // ── Alarm events ─────────────────────────────────────────────
+    @NativeEvent("Alarm0")
+    public virtual void OnAlarm0() { }
+
+    @NativeEvent("Alarm1")
+    public virtual void OnAlarm1() { }
+
+    @NativeEvent("Alarm2")
+    public virtual void OnAlarm2() { }
+
+    @NativeEvent("Alarm3")
+    public virtual void OnAlarm3() { }
+
+    @NativeEvent("Alarm4")
+    public virtual void OnAlarm4() { }
+
+    @NativeEvent("Alarm5")
+    public virtual void OnAlarm5() { }
+
+    @NativeEvent("Alarm6")
+    public virtual void OnAlarm6() { }
+
+    @NativeEvent("Alarm7")
+    public virtual void OnAlarm7() { }
+
+    @NativeEvent("Alarm8")
+    public virtual void OnAlarm8() { }
+
+    @NativeEvent("Alarm9")
+    public virtual void OnAlarm9() { }
+
+    @NativeEvent("Alarm10")
+    public virtual void OnAlarm10() { }
+
+    @NativeEvent("Alarm11")
+    public virtual void OnAlarm11() { }
+
+    // ── Draw events ──────────────────────────────────────────────
+    @NativeEvent("DrawBegin")
+    public virtual void OnDrawBegin() { }
+
+    @NativeEvent("Draw")
+    public virtual void OnDraw() { }
+
+    @NativeEvent("DrawEnd")
+    public virtual void OnDrawEnd() { }
+
+    @NativeEvent("DrawGui")
+    public virtual void OnDrawGui() { }
+
+    @NativeEvent("DrawGuiBegin")
+    public virtual void OnDrawGuiBegin() { }
+
+    @NativeEvent("DrawGuiEnd")
+    public virtual void OnDrawGuiEnd() { }
+
+    @NativeEvent("PreDraw")
+    public virtual void OnPreDraw() { }
+
+    @NativeEvent("PostDraw")
+    public virtual void OnPostDraw() { }
+
+    // ── Mouse events ─────────────────────────────────────────────
+    @NativeEvent("MouseLeft")
+    public virtual void OnMouseLeft() { }
+
+    @NativeEvent("MouseRight")
+    public virtual void OnMouseRight() { }
+
+    @NativeEvent("MouseMiddle")
+    public virtual void OnMouseMiddle() { }
+
+    @NativeEvent("MouseLeftPressed")
+    public virtual void OnMouseLeftPressed() { }
+
+    @NativeEvent("MouseRightPressed")
+    public virtual void OnMouseRightPressed() { }
+
+    @NativeEvent("MouseMiddlePressed")
+    public virtual void OnMouseMiddlePressed() { }
+
+    @NativeEvent("MouseLeftReleased")
+    public virtual void OnMouseLeftReleased() { }
+
+    @NativeEvent("MouseRightReleased")
+    public virtual void OnMouseRightReleased() { }
+
+    @NativeEvent("MouseMiddleReleased")
+    public virtual void OnMouseMiddleReleased() { }
+
+    @NativeEvent("MouseEnter")
+    public virtual void OnMouseEnter() { }
+
+    @NativeEvent("MouseLeave")
+    public virtual void OnMouseLeave() { }
+
+    @NativeEvent("MouseWheelUp")
+    public virtual void OnMouseWheelUp() { }
+
+    @NativeEvent("MouseWheelDown")
+    public virtual void OnMouseWheelDown() { }
+
+    @NativeEvent("GlobalMouseLeft")
+    public virtual void OnGlobalMouseLeft() { }
+
+    @NativeEvent("GlobalMouseRight")
+    public virtual void OnGlobalMouseRight() { }
+
+    @NativeEvent("GlobalMouseLeftPressed")
+    public virtual void OnGlobalMouseLeftPressed() { }
+
+    @NativeEvent("GlobalMouseRightPressed")
+    public virtual void OnGlobalMouseRightPressed() { }
+
+    @NativeEvent("GlobalMouseLeftReleased")
+    public virtual void OnGlobalMouseLeftReleased() { }
+
+    @NativeEvent("GlobalMouseRightReleased")
+    public virtual void OnGlobalMouseRightReleased() { }
+
+    // ── Other events ─────────────────────────────────────────────
+    @NativeEvent("OutsideRoom")
+    public virtual void OnOutsideRoom() { }
+
+    @NativeEvent("IntersectBoundary")
+    public virtual void OnIntersectBoundary() { }
+
+    @NativeEvent("GameStart")
+    public virtual void OnGameStart() { }
+
+    @NativeEvent("GameEnd")
+    public virtual void OnGameEnd() { }
+
+    @NativeEvent("RoomStart")
+    public virtual void OnRoomStart() { }
+
+    @NativeEvent("RoomEnd")
+    public virtual void OnRoomEnd() { }
+
+    @NativeEvent("AnimationEnd")
+    public virtual void OnAnimationEnd() { }
+
+    @NativeEvent("AnimationUpdate")
+    public virtual void OnAnimationUpdate() { }
+
+    @NativeEvent("PathEnded")
+    public virtual void OnPathEnded() { }
+
+    @NativeEvent("UserEvent0")
+    public virtual void OnUserEvent0() { }
+
+    @NativeEvent("UserEvent1")
+    public virtual void OnUserEvent1() { }
+
+    @NativeEvent("UserEvent2")
+    public virtual void OnUserEvent2() { }
+
+    @NativeEvent("UserEvent3")
+    public virtual void OnUserEvent3() { }
+
+    @NativeEvent("UserEvent4")
+    public virtual void OnUserEvent4() { }
+
+    @NativeEvent("UserEvent5")
+    public virtual void OnUserEvent5() { }
+
+    @NativeEvent("UserEvent6")
+    public virtual void OnUserEvent6() { }
+
+    @NativeEvent("UserEvent7")
+    public virtual void OnUserEvent7() { }
+
+    @NativeEvent("UserEvent8")
+    public virtual void OnUserEvent8() { }
+
+    @NativeEvent("UserEvent9")
+    public virtual void OnUserEvent9() { }
+
+    @NativeEvent("UserEvent10")
+    public virtual void OnUserEvent10() { }
+
+    @NativeEvent("UserEvent11")
+    public virtual void OnUserEvent11() { }
+
+    @NativeEvent("UserEvent12")
+    public virtual void OnUserEvent12() { }
+
+    @NativeEvent("UserEvent13")
+    public virtual void OnUserEvent13() { }
+
+    @NativeEvent("UserEvent14")
+    public virtual void OnUserEvent14() { }
+
+    @NativeEvent("UserEvent15")
+    public virtual void OnUserEvent15() { }
+
+    // ── Async events ─────────────────────────────────────────────
+    @NativeEvent("AsyncHttp")
+    public virtual void OnAsyncHttp() { }
+
+    @NativeEvent("AsyncAudioPlayback")
+    public virtual void OnAsyncAudioPlayback() { }
+
+    @NativeEvent("AsyncDialog")
+    public virtual void OnAsyncDialog() { }
+
+    @NativeEvent("AsyncSaveLoad")
+    public virtual void OnAsyncSaveLoad() { }
+
+    @NativeEvent("AsyncNetwork")
+    public virtual void OnAsyncNetwork() { }
+
+    @NativeEvent("AsyncSocial")
+    public virtual void OnAsyncSocial() { }
+
+    @NativeEvent("AsyncSystem")
+    public virtual void OnAsyncSystem() { }
+}
+

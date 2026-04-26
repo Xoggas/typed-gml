@@ -1,4 +1,6 @@
-public class GlobalRandom
+﻿namespace TypedGML.Utils;
+
+public class Random
 {
     @NativeCall("random")
     public static number Next(number maxValue) { return default(number); }
@@ -9,3 +11,4 @@ public class GlobalRandom
     @NativeCall("random_set_seed")
     public static void SetSeed(number seed) { }
 }
+

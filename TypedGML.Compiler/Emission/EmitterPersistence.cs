@@ -14,8 +14,13 @@ internal static class EmitterPersistence
         if (string.IsNullOrWhiteSpace(path))
             return;
 
+        PersistToPath(path, ctx.Writer.GetOutput());
+    }
+
+    internal static void PersistToPath(string path, string content)
+    {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, ctx.Writer.GetOutput());
+        File.WriteAllText(path, content);
     }
 
     private static TypeSymbol? ResolveType(IAstNode node, EmitContext ctx, SymbolTable symbols) => node switch

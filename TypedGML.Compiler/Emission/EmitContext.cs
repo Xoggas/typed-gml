@@ -30,4 +30,11 @@ public sealed class EmitContext(
     public DiagnosticBag Diagnostics { get; } = diagnostics;
 
     internal Action<TypedGML.Compiler.Ast.IAstNode, EmitContext> Dispatch { get; } = dispatch;
+
+    internal EmitContext WithWriter(GmlWriter newWriter) =>
+        new(Symbols, newWriter, Files, Decorators, Diagnostics, Dispatch)
+        {
+            CurrentType = CurrentType,
+            CurrentNamespacePrefix = CurrentNamespacePrefix,
+        };
 }

@@ -10,8 +10,21 @@ public sealed class DictionaryLiteralExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (DictionaryLiteralExpressionNode)node;
-        var entries = string.Join(" ", expression.Entries.Select(entry =>
-            $"ds_map_add(__map, {ctx.Emitter.Render(entry.Key, ctx)}, {ctx.Emitter.Render(entry.Value, ctx)});"));
-        ctx.Writer.Write($"(function() {{ var __map = ds_map_create(); {entries} return __map; }})()");
+        var ctorName = ResolveDictionaryCtorName(ctx);
+
+        if (expression.Entries.Count == 0)
+        {
+            ctx.Writer.Write($"{ctorName}()");
+            return;
+        }
+
+        var adds = string.Join(" ", expression.Entries.Select(entry =>
+            $"__d.Add({ctx.Emitter.Render(entry.Key, ctx)}, {ctx.Emitter.Render(entry.Value, ctx)});"));
+        ctx.Writer.Write($"(function() {{ var __d = {ctorName}(); {adds} return __d; }})()");
     }
+
+    private static string ResolveDictionaryCtorName(EmitContext ctx) =>
+        ctx.Symbols.TryResolve("Dictionary", ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
+            ? NamingConvention.ConstructorName(dictType)
+            : "Dictionary_create";
 }

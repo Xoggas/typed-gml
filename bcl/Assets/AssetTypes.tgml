@@ -1,0 +1,79 @@
+﻿namespace TypedGML.Assets;
+using TypedGML.Core;
+
+public struct SpriteAsset
+{
+    public number id;
+    public SpriteAsset(number id) { this.id = id; }
+    public override string ToString() { return "SpriteAsset(" + id + ")"; }
+}
+
+public struct ObjectAsset
+{
+    public number id;
+    public ObjectAsset(number id) { this.id = id; }
+    public override string ToString() { return "ObjectAsset(" + id + ")"; }
+}
+
+public struct SoundAsset
+{
+    public number id;
+    public SoundAsset(number id) { this.id = id; }
+    public override string ToString() { return "SoundAsset(" + id + ")"; }
+}
+
+public struct RoomAsset
+{
+    public number id;
+    public RoomAsset(number id) { this.id = id; }
+    public override string ToString() { return "RoomAsset(" + id + ")"; }
+}
+
+public struct FontAsset
+{
+    public number id;
+    public FontAsset(number id) { this.id = id; }
+    public override string ToString() { return "FontAsset(" + id + ")"; }
+}
+
+public struct TilesetAsset
+{
+    public number id;
+    public TilesetAsset(number id) { this.id = id; }
+    public override string ToString() { return "TilesetAsset(" + id + ")"; }
+}
+
+public struct PathAsset
+{
+    public number id;
+    public PathAsset(number id) { this.id = id; }
+    public override string ToString() { return "PathAsset(" + id + ")"; }
+}
+
+public struct ShaderAsset
+{
+    public number id;
+    public ShaderAsset(number id) { this.id = id; }
+    public override string ToString() { return "ShaderAsset(" + id + ")"; }
+}
+
+public struct TimelineAsset
+{
+    public number id;
+    public TimelineAsset(number id) { this.id = id; }
+    public override string ToString() { return "TimelineAsset(" + id + ")"; }
+}
+
+public struct SequenceAsset
+{
+    public number id;
+    public SequenceAsset(number id) { this.id = id; }
+    public override string ToString() { return "SequenceAsset(" + id + ")"; }
+}
+
+public struct AnimationCurveAsset
+{
+    public number id;
+    public AnimationCurveAsset(number id) { this.id = id; }
+    public override string ToString() { return "AnimationCurveAsset(" + id + ")"; }
+}

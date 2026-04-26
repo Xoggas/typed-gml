@@ -1,3 +1,5 @@
+﻿namespace TypedGML.Core;
+
 public class String
 {
     @NativeCall("__op_add")
@@ -43,3 +45,4 @@ public class String
     @NativeCall("real")
     public static number ToNumber(string s) { return default(number); }
 }
+

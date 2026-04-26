@@ -46,8 +46,21 @@ internal static class GmlExpressionRenderer
     private static string JoinArgs(IReadOnlyList<IAstNode> positionalArgs, IReadOnlyList<NamedArgNode> namedArgs, EmitContext ctx) =>
         string.Join(", ", positionalArgs.Select(a => Render(a, ctx)).Concat(namedArgs.Select(a => Render(a.Value, ctx))));
 
-    private static string RenderDictionary(DictionaryLiteralExpressionNode node, EmitContext ctx) =>
-        $"(function() {{ var __map = ds_map_create(); {string.Join(" ", node.Entries.Select(e => $"ds_map_add(__map, {Render(e.Key, ctx)}, {Render(e.Value, ctx)});"))} return __map; }})()";
+    private static string RenderDictionary(DictionaryLiteralExpressionNode node, EmitContext ctx)
+    {
+        var ctorName = ResolveDictionaryCtorName(ctx);
+        if (node.Entries.Count == 0)
+            return $"{ctorName}()";
+
+        var adds = string.Join(" ", node.Entries.Select(e =>
+            $"__d.Add({Render(e.Key, ctx)}, {Render(e.Value, ctx)});"));
+        return $"(function() {{ var __d = {ctorName}(); {adds} return __d; }})()";
+    }
+
+    private static string ResolveDictionaryCtorName(EmitContext ctx) =>
+        ctx.Symbols.TryResolve("Dictionary", ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
+            ? NamingConvention.ConstructorName(dictType)
+            : "Dictionary_create";
 
     private static string RenderLambda(LambdaExpressionNode node, EmitContext ctx)
     {

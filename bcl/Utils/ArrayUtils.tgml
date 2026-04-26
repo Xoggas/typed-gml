@@ -1,3 +1,5 @@
+﻿namespace TypedGML.Utils;
+
 public class ArrayUtils
 {
     @NativeCall("array_length")
@@ -8,3 +10,4 @@ public class ArrayUtils
         return ArrayUtils.Length(values) == 0;
     }
 }
+

@@ -2,6 +2,7 @@ using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Declarations;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
+using TypedGML.Compiler.Ast.Statements;
 using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Emission.Emitters;
@@ -48,13 +49,26 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
         {
             var eventName = DecoratorArg(method.Decorators, "NativeEvent");
             if (eventName is not null)
-                GmlEventMap.Resolve(eventName);
-            ctx.Dispatch(method, ctx);
+                EmitEventMethod(method, eventName, ctx);
+            else
+                ctx.Dispatch(method, ctx);
         }
         foreach (var member in declaration.Members.Where(m => m is not FieldDeclarationNode and not ConstructorDeclarationNode and not MethodDeclarationNode))
             ctx.Dispatch(member, ctx);
         if (ctx.CurrentType is not null)
             staticCtorEmitter.EmitStaticCtor(ctx.CurrentType, declaration.Members, ctx);
+    }
+
+    private static void EmitEventMethod(MethodDeclarationNode method, string eventName, EmitContext ctx)
+    {
+        if (method.Body is not BlockStatementNode { Statements.Count: > 0 } || ctx.CurrentType is null)
+            return;
+
+        var resolvedEvent = GmlEventMap.Resolve(eventName);
+        var eventWriter = new GmlWriter();
+        ctx.Dispatch(method, ctx.WithWriter(eventWriter));
+        var path = ctx.Files.GetEventPath(ctx.CurrentType, resolvedEvent);
+        EmitterPersistence.PersistToPath(path, eventWriter.GetOutput());
     }
 
     private static void EmitDefaultConstructor(EmitContext ctx)

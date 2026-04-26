@@ -1,3 +1,5 @@
+﻿namespace TypedGML.Core;
+
 public struct Exception
 {
     public string message;
@@ -12,3 +14,4 @@ public struct Exception
     {
     }
 }
+
