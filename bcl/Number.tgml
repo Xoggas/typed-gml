@@ -1,0 +1,96 @@
+public class Number
+{
+    public const number PI = 3.14159265358979;
+    public const number TAU = 6.28318530717958;
+    public const number E = 2.71828182845905;
+
+    @NativeCall("__op_add")
+    public static number operator +(number a, number b) { return default(number); }
+
+    @NativeCall("__op_sub")
+    public static number operator -(number a, number b) { return default(number); }
+
+    @NativeCall("__op_mul")
+    public static number operator *(number a, number b) { return default(number); }
+
+    @NativeCall("__op_div")
+    public static number operator /(number a, number b) { return default(number); }
+
+    @NativeCall("__op_mod")
+    public static number operator %(number a, number b) { return default(number); }
+
+    @NativeCall("__op_neg")
+    public static number operator -(number a) { return default(number); }
+
+    @NativeCall("__op_bitnot")
+    public static number operator ~(number a) { return default(number); }
+
+    @NativeCall("__op_eq")
+    public static bool operator ==(number a, number b) { return default(bool); }
+
+    @NativeCall("__op_neq")
+    public static bool operator !=(number a, number b) { return default(bool); }
+
+    @NativeCall("__op_lt")
+    public static bool operator <(number a, number b) { return default(bool); }
+
+    @NativeCall("__op_gt")
+    public static bool operator >(number a, number b) { return default(bool); }
+
+    @NativeCall("__op_lte")
+    public static bool operator <=(number a, number b) { return default(bool); }
+
+    @NativeCall("__op_gte")
+    public static bool operator >=(number a, number b) { return default(bool); }
+
+    @NativeCall("__op_str_num_add")
+    public static string operator +(string a, number b) { return default(string); }
+
+    @NativeCall("__op_num_str_add")
+    public static string operator +(number a, string b) { return default(string); }
+
+    @NativeCall("abs")
+    public static number Abs(number x) { return default(number); }
+
+    @NativeCall("floor")
+    public static number Floor(number x) { return default(number); }
+
+    @NativeCall("ceil")
+    public static number Ceil(number x) { return default(number); }
+
+    @NativeCall("round")
+    public static number Round(number x) { return default(number); }
+
+    @NativeCall("sqrt")
+    public static number Sqrt(number x) { return default(number); }
+
+    @NativeCall("power")
+    public static number Pow(number baseValue, number exp) { return default(number); }
+
+    @NativeCall("sin")
+    public static number Sin(number x) { return default(number); }
+
+    @NativeCall("cos")
+    public static number Cos(number x) { return default(number); }
+
+    @NativeCall("tan")
+    public static number Tan(number x) { return default(number); }
+
+    @NativeCall("min")
+    public static number Min(number a, number b) { return default(number); }
+
+    @NativeCall("max")
+    public static number Max(number a, number b) { return default(number); }
+
+    @NativeCall("clamp")
+    public static number Clamp(number value, number minValue, number maxValue) { return default(number); }
+
+    @NativeCall("lerp")
+    public static number Lerp(number a, number b, number t) { return default(number); }
+
+    @NativeCall("random")
+    public static number Random(number n) { return default(number); }
+
+    @NativeCall("random_range")
+    public static number RandomRange(number minValue, number maxValue) { return default(number); }
+}

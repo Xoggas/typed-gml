@@ -150,9 +150,10 @@ nameId
 memberDecl
     : fieldDecl
     | propertyDecl
-    | indexerDecl
     | methodDecl
     | constructorDecl
+    | staticConstructorDecl
+    | indexerDecl
     | eventDecl
     | typeDecl
     ;
@@ -222,6 +223,10 @@ constructorDecl
       LPAREN paramList? RPAREN
       (COLON (BASE | THIS) LPAREN argList? RPAREN)?
       block
+    ;
+
+staticConstructorDecl
+    : STATIC nameId LPAREN RPAREN block
     ;
 
 eventDecl
@@ -296,7 +301,7 @@ fieldModifiers
     ;
 
 propertyModifiers
-    : accessMod GLOBAL? READONLY? (VIRTUAL | ABSTRACT | OVERRIDE | SEALED)?
+    : accessMod STATIC? READONLY? (VIRTUAL | ABSTRACT | OVERRIDE | SEALED)?
     ;
 
 methodModifiers
@@ -574,7 +579,6 @@ PRIVATE   : 'private'   ;
 
 // -- Modifiers -----------------------------------------------------------------
 STATIC    : 'static'   ;
-GLOBAL    : 'global'   ;
 READONLY  : 'readonly' ;
 CONST     : 'const'    ;
 ABSTRACT  : 'abstract' ;

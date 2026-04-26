@@ -36,7 +36,11 @@ internal static class ExpressionSymbolHelper
             if (identifier.Name == "base" && ctx.CurrentType?.Base is not null) { type = ctx.CurrentType.Base; return true; }
             if (TryResolveCurrentMember(ctx, identifier.Name, out var member))
                 return TryResolveType(ctx, member.ReturnType, out type);
-            return TryResolveType(ctx, identifier.Name, out type);
+            if (TryResolveType(ctx, identifier.Name, out type))
+                return true;
+            if (TryResolveBclAlias(identifier.Name, ctx, out type))
+                return true;
+            return false;
         }
 
         if (target is MemberAccessExpressionNode access && TryResolveTargetType(access.Target, ctx, out var accessType))
@@ -95,4 +99,22 @@ internal static class ExpressionSymbolHelper
         var stop = typeRef.IndexOfAny(['<', '?', '[']);
         return stop >= 0 ? typeRef[..stop] : typeRef;
     }
+
+    private static bool TryResolveBclAlias(string name, EmitContext ctx, out TypeSymbol type)
+    {
+        foreach (var alias in Aliases(name))
+            if (TryResolveType(ctx, alias, out type))
+                return true;
+
+        type = null!;
+        return false;
+    }
+
+    private static IReadOnlyList<string> Aliases(string name) => name switch
+    {
+        "Number" => ["Math", "number"],
+        "String" => ["string"],
+        "Bool" => ["bool"],
+        _ => []
+    };
 }

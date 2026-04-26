@@ -10,6 +10,12 @@ public sealed class MemberAccessExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (MemberAccessExpressionNode)node;
+        if (StaticMemberAccessHelper.TryRenderRead(expression, ctx, out var rendered))
+        {
+            ctx.Writer.Write(rendered);
+            return;
+        }
+
         ctx.Writer.Write($"{ctx.Emitter.Render(expression.Target, ctx)}.{expression.MemberName}");
     }
 }

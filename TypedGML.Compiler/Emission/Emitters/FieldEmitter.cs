@@ -12,7 +12,9 @@ public sealed class FieldEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var field = (FieldDeclarationNode)node;
-        if (ctx.CurrentType is null || !field.Modifiers.Contains("const", StringComparer.Ordinal))
+        if (ctx.CurrentType is null ||
+            field.Modifiers.Contains("static", StringComparer.Ordinal) ||
+            !field.Modifiers.Contains("const", StringComparer.Ordinal))
             return;
 
         var symbol = ctx.CurrentType.Members.FirstOrDefault(m => m.Kind == MemberKind.Field && m.Name == field.Name);

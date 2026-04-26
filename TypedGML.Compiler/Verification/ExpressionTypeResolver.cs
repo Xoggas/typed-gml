@@ -1,6 +1,5 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
-using TypedGML.Compiler.Bcl;
 using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Verification;
@@ -27,13 +26,15 @@ internal static class ExpressionTypeResolver
         ArrayLiteralExpressionNode array => ResolveArray(array, ctx),
         MemberAccessExpressionNode access => ResolveMemberAccess(access, ctx),
         InvocationExpressionNode invocation => ResolveInvocation(invocation, ctx),
-        BinaryExpressionNode binary => PrimitiveOperationRegistry.ResolveResultType(
+        BinaryExpressionNode binary => OperatorResolutionHelper.ResolveBinaryResult(
             binary.Op,
-            Resolve(binary.Left, ctx) ?? string.Empty,
-            Resolve(binary.Right, ctx) ?? string.Empty),
-        UnaryExpressionNode unary => PrimitiveOperationRegistry.ResolveUnaryResultType(
+            Resolve(binary.Left, ctx),
+            Resolve(binary.Right, ctx),
+            ctx),
+        UnaryExpressionNode unary => OperatorResolutionHelper.ResolveUnaryResult(
             unary.Op,
-            Resolve(unary.Operand, ctx) ?? string.Empty),
+            Resolve(unary.Operand, ctx),
+            ctx),
         TernaryExpressionNode ternary => Resolve(ternary.ThenExpr, ctx) == Resolve(ternary.ElseExpr, ctx)
             ? Resolve(ternary.ThenExpr, ctx)
             : null,
@@ -56,7 +57,12 @@ internal static class ExpressionTypeResolver
             return scopedType;
 
         var member = SymbolResolver.FindMember(ctx.CurrentType, identifier.Name, out _);
-        return member?.ReturnType;
+        if (member is not null)
+            return member.ReturnType;
+
+        return SymbolResolver.TryResolveType(identifier.Name, ctx, out var type)
+            ? type.QualifiedName
+            : null;
     }
 
     private static string? ResolveMemberAccess(MemberAccessExpressionNode access, VerificationContext ctx)

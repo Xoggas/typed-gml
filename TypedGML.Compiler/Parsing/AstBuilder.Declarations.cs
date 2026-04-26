@@ -1,7 +1,7 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Declarations;
 using TypedGML.Compiler.Ast.Members;
-using TypedGML.Transpiler.Visitor;
+using TypedGML.Compiler.Visitor;
 
 namespace TypedGML.Compiler.Parsing;
 

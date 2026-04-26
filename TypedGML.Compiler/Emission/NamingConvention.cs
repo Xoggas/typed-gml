@@ -19,6 +19,21 @@ public static class NamingConvention
     public static string PropertySetter(TypeSymbol type, MemberSymbol prop) =>
         $"{TypeName(type)}_set_{prop.Name}";
 
+    public static string StaticMemberName(TypeSymbol type, MemberSymbol member) =>
+        $"global.{TypeName(type)}_{member.Name}";
+
+    public static string StaticGetterName(TypeSymbol type, MemberSymbol prop) =>
+        $"global.{TypeName(type)}_get_{prop.Name}";
+
+    public static string StaticSetterName(TypeSymbol type, MemberSymbol prop) =>
+        $"global.{TypeName(type)}_set_{prop.Name}";
+
+    public static string StaticCtorFunctionName(TypeSymbol type) =>
+        $"{TypeName(type)}_static_ctor";
+
+    public static string StaticPropertyBackingName(TypeSymbol type, MemberSymbol prop) =>
+        $"global.{TypeName(type)}__{prop.Name}";
+
     public static string OperatorName(TypeSymbol type, string op) =>
         $"{TypeName(type)}_op_{OperatorPart(op)}";
 

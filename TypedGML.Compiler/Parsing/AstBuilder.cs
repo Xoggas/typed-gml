@@ -4,7 +4,7 @@ using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Diagnostics;
-using TypedGML.Transpiler.Visitor;
+using TypedGML.Compiler.Visitor;
 
 namespace TypedGML.Compiler.Parsing;
 
@@ -62,9 +62,21 @@ public sealed partial class AstBuilder(DiagnosticBag diagnostics) : TypedGMLBase
     {
         var parts = new List<string>();
         foreach (var node in nodes.Where(n => n is not null))
-            if (!string.IsNullOrEmpty(node!.GetText()))
-                parts.Add(node.GetText());
+            CollectParts(node!, parts);
         return parts;
+    }
+
+    private static void CollectParts(IParseTree node, List<string> parts)
+    {
+        if (node.ChildCount == 0)
+        {
+            if (!string.IsNullOrEmpty(node.GetText()))
+                parts.Add(node.GetText());
+            return;
+        }
+
+        for (var i = 0; i < node.ChildCount; i++)
+            CollectParts(node.GetChild(i), parts);
     }
 
     private DocCommentNode? Doc(ParserRuleContext context)

@@ -12,7 +12,7 @@ public sealed class MethodEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var method = (MethodDeclarationNode)node;
-        if (ctx.CurrentType is null)
+        if (ctx.CurrentType is null || method.Modifiers.Contains("static", StringComparer.Ordinal))
             return;
 
         var symbol = ResolveSymbol(ctx.CurrentType, method);
@@ -30,8 +30,11 @@ public sealed class MethodEmitter : INodeEmitter
 
     private static void EmitNativeCall(EmitContext ctx, MethodDeclarationNode method, string nativeCall)
     {
-        var args = string.Join(", ", method.Parameters.Select(p => p.Name));
-        var invocation = $"{nativeCall}({args})";
+        var argNames = method.Parameters.Select(p => p.Name).ToArray();
+        if (IntrinsicOpEmitter.TryEmit(nativeCall, argNames, method.TypeRef, ctx.Writer))
+            return;
+
+        var invocation = $"{nativeCall}({string.Join(", ", argNames)})";
         if (string.Equals(method.TypeRef, "void", StringComparison.Ordinal))
             ctx.Writer.WriteLine($"{invocation};");
         else

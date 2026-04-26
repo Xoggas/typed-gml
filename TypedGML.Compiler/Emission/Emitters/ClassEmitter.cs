@@ -6,7 +6,7 @@ using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Emission.Emitters;
 
-public sealed class ClassEmitter : INodeEmitter
+public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmitter
 {
     public bool Matches(IAstNode node) => node is ClassDeclarationNode;
 
@@ -22,7 +22,7 @@ public sealed class ClassEmitter : INodeEmitter
         ctx.CurrentType = previousType;
     }
 
-    private static void EmitScript(ClassDeclarationNode declaration, EmitContext ctx)
+    private void EmitScript(ClassDeclarationNode declaration, EmitContext ctx)
     {
         foreach (var member in declaration.Members.OfType<FieldDeclarationNode>())
             ctx.Dispatch(member, ctx);
@@ -34,15 +34,17 @@ public sealed class ClassEmitter : INodeEmitter
             ctx.Dispatch(constructor, ctx);
         foreach (var member in declaration.Members.Where(m => m is not FieldDeclarationNode and not ConstructorDeclarationNode))
             ctx.Dispatch(member, ctx);
+        if (ctx.CurrentType is not null)
+            staticCtorEmitter.EmitStaticCtor(ctx.CurrentType, declaration.Members, ctx);
     }
 
-    private static void EmitGameObject(ClassDeclarationNode declaration, EmitContext ctx)
+    private void EmitGameObject(ClassDeclarationNode declaration, EmitContext ctx)
     {
         foreach (var member in declaration.Members.OfType<FieldDeclarationNode>())
             ctx.Dispatch(member, ctx);
         foreach (var constructor in declaration.Members.OfType<ConstructorDeclarationNode>())
             EmitObjectConstructor(ctx, constructor);
-        foreach (var method in declaration.Members.OfType<MethodDeclarationNode>())
+        foreach (var method in declaration.Members.OfType<MethodDeclarationNode>().Where(m => !m.Modifiers.Contains("static", StringComparer.Ordinal)))
         {
             var eventName = DecoratorArg(method.Decorators, "NativeEvent");
             if (eventName is not null)
@@ -51,6 +53,8 @@ public sealed class ClassEmitter : INodeEmitter
         }
         foreach (var member in declaration.Members.Where(m => m is not FieldDeclarationNode and not ConstructorDeclarationNode and not MethodDeclarationNode))
             ctx.Dispatch(member, ctx);
+        if (ctx.CurrentType is not null)
+            staticCtorEmitter.EmitStaticCtor(ctx.CurrentType, declaration.Members, ctx);
     }
 
     private static void EmitDefaultConstructor(EmitContext ctx)

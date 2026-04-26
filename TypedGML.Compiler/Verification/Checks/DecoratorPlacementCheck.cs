@@ -25,7 +25,7 @@ public sealed class DecoratorPlacementCheck : ISemanticCheck
         "Object" => node is ClassDeclarationNode,
         "NativeEvent" => node is MethodDeclarationNode,
         "NativeProperty" => node is PropertyDeclarationNode,
-        "NativeCall" => node is MethodDeclarationNode,
+        "NativeCall" => node is MethodDeclarationNode or OperatorDeclarationNode or ConversionOperatorNode,
         "Asset" => node is PropertyDeclarationNode,
         _ => true
     };

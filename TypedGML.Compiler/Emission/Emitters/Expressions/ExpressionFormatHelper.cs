@@ -1,4 +1,5 @@
 using TypedGML.Compiler.Ast.Expressions;
+using TypedGML.Compiler.Emission;
 
 namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 
@@ -16,6 +17,15 @@ internal static class ExpressionFormatHelper
         "not" => "!",
         _ => op
     };
+
+    public static string Unary(UnaryExpressionNode expression, EmitContext ctx)
+    {
+        var op = UnaryOperator(expression.Op);
+        var operand = ctx.Emitter.Render(expression.Operand, ctx);
+        return expression.Operand is LiteralExpressionNode or IdentifierExpressionNode or MemberAccessExpressionNode or InvocationExpressionNode
+            ? $"{op}{operand}"
+            : $"({op}{operand})";
+    }
 
     public static string Literal(LiteralExpressionNode literal) => literal.Kind switch
     {

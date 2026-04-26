@@ -29,6 +29,7 @@ internal static class ExpressionCallHelper
 
     public static string RenderTarget(IAstNode target, EmitContext ctx) => target switch
     {
+        _ when StaticMemberAccessHelper.TryRenderRead(target, ctx, out var rendered) => rendered,
         MemberAccessExpressionNode access => $"{ctx.Emitter.Render(access.Target, ctx)}.{access.MemberName}",
         _ => ctx.Emitter.Render(target, ctx)
     };

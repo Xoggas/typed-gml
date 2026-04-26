@@ -1,5 +1,6 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
+using TypedGML.Compiler.Emission.Emitters.Expressions;
 
 namespace TypedGML.Compiler.Emission;
 
@@ -38,7 +39,7 @@ internal static class GmlExpressionRenderer
         ObjectCreationExpressionNode n => $"{ResolveConstructorName(n.TypeRef, ctx)}({JoinArgs(n.PositionalArgs, n.NamedArgs, ctx)})",
         TernaryExpressionNode n => $"({Render(n.Condition, ctx)} ? {Render(n.ThenExpr, ctx)} : {Render(n.ElseExpr, ctx)})",
         TypeofExpressionNode n => $"\"{n.TypeName}\"",
-        UnaryExpressionNode n => $"{n.Op} {Render(n.Operand, ctx)}",
+        UnaryExpressionNode n => ExpressionFormatHelper.Unary(n, ctx),
         _ => string.Empty
     };
 

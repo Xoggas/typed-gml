@@ -10,6 +10,6 @@ public sealed class UnaryExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (UnaryExpressionNode)node;
-        ctx.Writer.Write($"({ExpressionFormatHelper.UnaryOperator(expression.Op)}{ctx.Emitter.Render(expression.Operand, ctx)})");
+        ctx.Writer.Write(ExpressionFormatHelper.Unary(expression, ctx));
     }
 }

@@ -15,7 +15,7 @@ public class List<T>
     public void RemoveAt(number index) { }
     public void Clear() { }
     public bool Contains(T item) { return false; }
-    public T[] ToArray() { return []; }
+    public T[] ToArray() { return default(T[]); }
 }
 
 public class Dictionary<TKey, TValue>
@@ -34,15 +34,9 @@ public class Dictionary<TKey, TValue>
     public void Remove(TKey key) { }
     public bool ContainsKey(TKey key) { return false; }
 
-    public TKey[] Keys
-    {
-        get { return []; }
-    }
+    public TKey[] Keys { get; }
 
-    public TValue[] Values
-    {
-        get { return []; }
-    }
+    public TValue[] Values { get; }
 
     public void Destroy() { }
 }

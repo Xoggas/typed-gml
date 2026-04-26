@@ -70,6 +70,7 @@ internal static class TypeReferenceHelper
     public static bool HasConversion(TypeSymbol type, string sourceType, string targetType, bool implicitOnly) =>
         type.Members.Any(member =>
             member.Kind == MemberKind.ConversionOperator &&
+            member.Modifiers.Contains("static", StringComparer.Ordinal) &&
             member.ReturnType == targetType &&
             member.Parameters.Count == 1 &&
             member.Parameters[0].TypeRef == sourceType &&

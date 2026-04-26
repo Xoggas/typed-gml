@@ -1,6 +1,6 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Statements;
-using TypedGML.Transpiler.Visitor;
+using TypedGML.Compiler.Visitor;
 
 namespace TypedGML.Compiler.Parsing;
 

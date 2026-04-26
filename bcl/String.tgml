@@ -1,0 +1,45 @@
+public class String
+{
+    @NativeCall("__op_add")
+    public static string operator +(string a, string b) { return default(string); }
+
+    @NativeCall("__op_eq")
+    public static bool operator ==(string a, string b) { return default(bool); }
+
+    @NativeCall("__op_neq")
+    public static bool operator !=(string a, string b) { return default(bool); }
+
+    @NativeCall("string_length")
+    public static number Length(string s) { return default(number); }
+
+    @NativeCall("string_upper")
+    public static string ToUpper(string s) { return default(string); }
+
+    @NativeCall("string_lower")
+    public static string ToLower(string s) { return default(string); }
+
+    @NativeCall("string_copy")
+    public static string Substring(string s, number start, number length) { return default(string); }
+
+    public static bool Contains(string s, string sub)
+    {
+        return String.IndexOf(s, sub) != 0;
+    }
+
+    @NativeCall("string_replace_all")
+    public static string Replace(string s, string old, string newStr) { return default(string); }
+
+    @NativeCall("string_pos")
+    public static number IndexOf(string s, string sub) { return default(number); }
+
+    public static string[] Split(string s, string delimiter) { return default(string[]); }
+
+    @NativeCall("string_trim")
+    public static string Trim(string s) { return default(string); }
+
+    @NativeCall("string")
+    public static string FromNumber(number n) { return default(string); }
+
+    @NativeCall("real")
+    public static number ToNumber(string s) { return default(number); }
+}

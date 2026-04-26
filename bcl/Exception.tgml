@@ -6,15 +6,9 @@ public struct Exception
 
     public constructor(string message)
     {
-        self.message = message;
-        self.stackTrace = "";
-        self.innerException = null;
     }
 
     public constructor(string message, Exception inner)
     {
-        self.message = message;
-        self.stackTrace = "";
-        self.innerException = inner;
     }
 }

@@ -58,7 +58,7 @@ try
         new ConstExpressionCheck(),
         new ReadonlyAssignmentCheck(),
         new StaticModifierCheck(),
-        new GlobalModifierCheck(),
+        new StaticConstructorCheck(),
         new WithTargetCheck(),
         new SwitchCaseConstantCheck(),
         new DuplicateCaseCheck(),
@@ -78,9 +78,10 @@ try
     if (diagnostics.HasErrors) return PrintAndExit(diagnostics);
 
     var fileOrganizer = new FileOrganizer(options.OutputPath);
+    var staticCtorEmitter = new StaticCtorEmitter();
     var nodeEmitters = new INodeEmitter[]
     {
-        new ClassEmitter(), new StructEmitter(), new EnumEmitter(), new DelegateEmitter(),
+        new ClassEmitter(staticCtorEmitter), new StructEmitter(staticCtorEmitter), new EnumEmitter(), new DelegateEmitter(),
         new ConstructorEmitter(), new MethodEmitter(), new PropertyEmitter(),
         new IndexerEmitter(), new OperatorEmitter(), new FieldEmitter(), new EventEmitter(),
         new BlockStatementEmitter(), new IfStatementEmitter(), new WhileStatementEmitter(),

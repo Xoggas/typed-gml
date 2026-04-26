@@ -1,87 +1,75 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
-using TypedGML.Compiler.Bcl;
 using TypedGML.Compiler.Diagnostics;
-using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Verification.Checks;
 
-public sealed class OperatorCheck(
-    Func<string, string, string, string?> resolveBinary,
-    Func<string, string, string?> resolveUnary) : ISemanticCheck
+public sealed class OperatorCheck : ISemanticCheck
 {
-    public OperatorCheck() : this(PrimitiveOperationRegistry.ResolveResultType, PrimitiveOperationRegistry.ResolveUnaryResultType) { }
-
-    public bool Matches(IAstNode node) => node is BinaryExpressionNode or UnaryExpressionNode or CastExpressionNode;
+    public bool Matches(IAstNode node) => node is BinaryExpressionNode or UnaryExpressionNode;
 
     public void Check(IAstNode node, VerificationContext ctx)
     {
-        if (node is BinaryExpressionNode binary)
-            CheckBinary(binary, ctx);
-        else if (node is UnaryExpressionNode unary)
-            CheckUnary(unary, ctx);
-        else
-            CheckCast((CastExpressionNode)node, ctx);
+        switch (node)
+        {
+            case BinaryExpressionNode binary:
+                CheckBinary(binary, ctx);
+                break;
+            case UnaryExpressionNode unary:
+                CheckUnary(unary, ctx);
+                break;
+        }
     }
 
-    private void CheckBinary(BinaryExpressionNode binary, VerificationContext ctx)
+    private static void CheckBinary(BinaryExpressionNode binary, VerificationContext ctx)
     {
-        var leftType = ExpressionTypeResolver.Resolve(binary.Left, ctx) ?? string.Empty;
-        var rightType = ExpressionTypeResolver.Resolve(binary.Right, ctx) ?? string.Empty;
-        if (resolveBinary(binary.Op, leftType, rightType) is not null || HasBinaryOverload(binary.Op, leftType, rightType, ctx))
+        var leftType = ExpressionTypeResolver.Resolve(binary.Left, ctx);
+        var rightType = ExpressionTypeResolver.Resolve(binary.Right, ctx);
+        if (binary.Op is "and" or "or")
+        {
+            CheckBool(binary.Left, leftType, $"Left operand of '{binary.Op}' must be bool.", ctx);
+            CheckBool(binary.Right, rightType, $"Right operand of '{binary.Op}' must be bool.", ctx);
+            return;
+        }
+
+        if (binary.Op is "==" or "!=")
+        {
+            if (OperatorResolutionHelper.FindBinary(binary.Op, leftType, rightType, ctx) is not null)
+                return;
+
+            return;
+        }
+
+        if (OperatorResolutionHelper.FindBinary(binary.Op, leftType, rightType, ctx) is not null)
             return;
 
-        Report(DiagnosticCode.TypeMismatch, $"Operator '{binary.Op}' cannot be applied to '{leftType}' and '{rightType}'.", binary.Location, ctx);
+        Report($"Operator '{binary.Op}' cannot be applied to '{leftType ?? "unknown"}' and '{rightType ?? "unknown"}'.", binary.Location, ctx);
     }
 
-    private void CheckUnary(UnaryExpressionNode unary, VerificationContext ctx)
+    private static void CheckUnary(UnaryExpressionNode unary, VerificationContext ctx)
     {
-        var operandType = ExpressionTypeResolver.Resolve(unary.Operand, ctx) ?? string.Empty;
-        if (resolveUnary(unary.Op, operandType) is not null || HasUnaryOverload(unary.Op, operandType, ctx))
+        var operandType = ExpressionTypeResolver.Resolve(unary.Operand, ctx);
+        if (unary.Op == "not")
+        {
+            CheckBool(unary.Operand, operandType, "Operand of 'not' must be bool.", ctx);
+            return;
+        }
+
+        if (OperatorResolutionHelper.FindUnary(unary.Op, operandType, ctx) is not null)
             return;
 
-        Report(DiagnosticCode.TypeMismatch, $"Operator '{unary.Op}' cannot be applied to '{operandType}'.", unary.Location, ctx);
+        Report($"Operator '{unary.Op}' cannot be applied to '{operandType ?? "unknown"}'.", unary.Location, ctx);
     }
 
-    private static void CheckCast(CastExpressionNode cast, VerificationContext ctx)
+    private static void CheckBool(IAstNode operand, string? type, string message, VerificationContext ctx)
     {
-        var sourceType = ExpressionTypeResolver.Resolve(cast.Expression, ctx) ?? string.Empty;
-        if (TypeReferenceHelper.IsAssignable(cast.TargetType, sourceType, ctx))
+        if (type == "bool")
             return;
 
-        if (HasConversion(cast.TargetType, sourceType, ctx, implicitOnly: false))
-            ctx.Diagnostics.Report(DiagnosticCode.TypeMismatch, DiagnosticSeverity.Warning, $"Cast from '{sourceType}' to '{cast.TargetType}' may be lossy.", cast.Location);
-        else
-            Report(DiagnosticCode.TypeMismatch, $"Cannot cast '{sourceType}' to '{cast.TargetType}'.", cast.Location, ctx);
+        var code = type == "number" ? DiagnosticCode.ImplicitNumberBoolConversion : DiagnosticCode.TypeMismatch;
+        ctx.Diagnostics.Report(code, DiagnosticSeverity.Error, message, operand.Location);
     }
 
-    private static bool HasBinaryOverload(string op, string leftType, string rightType, VerificationContext ctx) =>
-        HasOperator(leftType, op, rightType, ctx) || HasOperator(rightType, op, leftType, ctx);
-
-    private static bool HasUnaryOverload(string op, string operandType, VerificationContext ctx) =>
-        HasOperator(operandType, op, operandType, ctx, unary: true);
-
-    private static bool HasOperator(string ownerType, string op, string argType, VerificationContext ctx, bool unary = false)
-    {
-        if (!SymbolResolver.TryResolveType(ownerType, ctx, out var symbol))
-            return false;
-
-        return symbol.Members.Any(member =>
-            member.Kind == MemberKind.Operator &&
-            member.Name == op &&
-            member.Parameters.Count == (unary ? 1 : 2) &&
-            member.Parameters.Last().TypeRef == argType);
-    }
-
-    private static bool HasConversion(string targetType, string sourceType, VerificationContext ctx, bool implicitOnly)
-    {
-        if (!SymbolResolver.TryResolveType(sourceType, ctx, out var source) || !SymbolResolver.TryResolveType(targetType, ctx, out var target))
-            return false;
-
-        return TypeReferenceHelper.HasConversion(source, sourceType, targetType, implicitOnly) ||
-               TypeReferenceHelper.HasConversion(target, sourceType, targetType, implicitOnly);
-    }
-
-    private static void Report(DiagnosticCode code, string message, SourceLocation location, VerificationContext ctx) =>
-        ctx.Diagnostics.Report(code, DiagnosticSeverity.Error, message, location);
+    private static void Report(string message, SourceLocation location, VerificationContext ctx) =>
+        ctx.Diagnostics.Report(DiagnosticCode.TypeMismatch, DiagnosticSeverity.Error, message, location);
 }

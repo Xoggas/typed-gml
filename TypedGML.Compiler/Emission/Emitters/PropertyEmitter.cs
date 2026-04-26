@@ -12,7 +12,7 @@ public sealed class PropertyEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var property = (PropertyDeclarationNode)node;
-        if (ctx.CurrentType is null)
+        if (ctx.CurrentType is null || property.Modifiers.Contains("static", StringComparer.Ordinal))
             return;
 
         var symbol = ctx.CurrentType.Members.FirstOrDefault(m => m.Kind == MemberKind.Property && m.Name == property.Name);
@@ -52,8 +52,6 @@ public sealed class PropertyEmitter : INodeEmitter
         var native = DecoratorArg(property.Decorators, "NativeProperty");
         if (native is not null)
             return native;
-        if (property.Modifiers.Contains("global", StringComparer.Ordinal))
-            return $"global.{property.Name}";
         return DecoratorArg(property.Decorators, "Asset");
     }
 

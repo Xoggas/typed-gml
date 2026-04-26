@@ -111,7 +111,7 @@ TypedGML.Compiler/
 │   ├── ParameterSymbol.cs
 │   ├── ScopeStack.cs                     // Lexical scope chain for local variables
 │   ├── TypeKind.cs                       // Enum: Class | Struct | Interface | Enum | Delegate | Primitive
-│   └── BuiltinTypeRegistry.cs            // Hardcoded primitive type symbols + allowed operations
+│   └── BuiltinTypeRegistry.cs            // Primitive type symbols: number, string, bool, void, null, object
 │
 ├── Population/
 │   ├── Populator.cs                      // Orchestrates all populators in order
@@ -147,7 +147,7 @@ TypedGML.Compiler/
 │       ├── ObjectDecoratorCheck.cs       // Duplicate @Object, new @Object class arg count
 │       ├── ConstExpressionCheck.cs       // const RHS must be compile-time constant
 │       ├── ReadonlyAssignmentCheck.cs    // readonly field only assigned in constructor
-│       ├── GlobalModifierCheck.cs        // global only on properties, not fields
+│       ├── StaticConstructorCheck.cs     // static ctor rules: no params, no access mod, no cross-class deps
 │       ├── StaticModifierCheck.cs        // static anywhere → error (user code)
 │       ├── WithTargetCheck.cs            // with only on @Object instances
 │       ├── SwitchCaseConstantCheck.cs    // case labels must be compile-time constants
@@ -177,6 +177,7 @@ TypedGML.Compiler/
 │       ├── StructEmitter.cs
 │       ├── EnumEmitter.cs
 │       ├── DelegateEmitter.cs
+│       ├── StaticCtorEmitter.cs
 │       ├── ConstructorEmitter.cs
 │       ├── MethodEmitter.cs
 │       ├── PropertyEmitter.cs
@@ -214,8 +215,7 @@ TypedGML.Compiler/
 │           └── DefaultExpressionEmitter.cs
 │
 ├── Bcl/
-│   ├── BclLoader.cs                      // Locates bundled BCL folder, returns file paths
-│   └── PrimitiveOperationRegistry.cs     // Hardcoded: which operators are valid per primitive type pair
+│   └── BclLoader.cs                      // Locates bundled BCL folder, returns file paths
 │
 ├── Diagnostics/
 │   ├── Diagnostic.cs                     // record: Code, Severity, Message, Location
@@ -375,17 +375,19 @@ BCL files are prepended to the file list. Population processes all of them toget
 
 ### 5.2 Hardcoded Primitive Knowledge
 
-`PrimitiveOperationRegistry` and `BuiltinTypeRegistry` are populated in code, not from BCL files. This covers:
+`BuiltinTypeRegistry` is populated in code, not from BCL files. It covers only:
 
-- Primitive type symbols (`number`, `string`, `bool`, `void`, `null`, `object`) with their `TypeKind.Primitive`.
-- Allowed binary operations per type pair (see §7 checks, `OperatorCheck`):
-  - `number + number → number`, `string + string → string`, `string + number → string`, etc.
-  - `bool and bool → bool`, `bool or bool → bool`, `not bool → bool`.
-  - `number < number → bool`, etc.
-- `object.ToString()` method signature.
-- `GetType()` method signature.
+- Primitive type symbols (`number`, `string`, `bool`, `void`, `null`, `object`) registered with `TypeKind.Primitive`.
+- `object.ToString()` and `GetType()` method signatures.
+- The three `BclTypeName` aliases: `number` → `"Number"`, `string` → `"String"`, `bool` → `"Bool"`.
 
-BCL types (`List<T>`, `Dictionary<K,V>`, `Exception`, `Math`, etc.) are defined in `.tgml` BCL files and go through the normal Population phase. The compiler treats them as ordinary types, except `Exception` (recognized by name for `throw`/`catch` checks).
+**Operator validity for primitive types is NOT hardcoded.** It is defined entirely in BCL files (`Number.tgml`, `String.tgml`, `Bool.tgml`) using the same `static operator` syntax available to user code. `OperatorCheck` resolves operators for primitive types exactly the same way it resolves user-defined operator overloads — by looking up `operator +` (etc.) in `SymbolTable` on the relevant BCL type.
+
+`PrimitiveOperationRegistry` does not exist. It must not be created.
+
+BCL types (`List<T>`, `Dictionary<K,V>`, `Exception`, `Math`, `Number`, `String`, `Bool`, etc.) are all defined in `.tgml` BCL files and go through the normal Population phase. The compiler treats them as ordinary types, with two special exceptions hardcoded by name:
+- `Exception` — recognized for `throw`/`catch` checks.
+- `Number`, `String`, `Bool` — recognized as aliases for the `number`, `string`, `bool` keywords.
 
 ### 5.3 BclLoader
 
@@ -526,20 +528,17 @@ Below is the complete catalogue of semantic checks, grouped by concern.
 **File:** `OperatorCheck.cs`  
 **Matches:** `BinaryExpressionNode`, `UnaryExpressionNode`
 
+All operator resolution goes through `SymbolTable`. Primitive types (`number`, `string`, `bool`) define their operators in BCL files (`Number.tgml`, `String.tgml`, `Bool.tgml`) using `static operator` declarations. `OperatorCheck` treats primitive types identically to user-defined types — no special cases.
+
 | # | Rule |
 |---|---|
-| O01 | Arithmetic operators (`+`, `-`, `*`, `/`, `%`) require `number` operands, unless a matching `operator` overload exists on the type. |
-| O02 | `+` with at least one `string` operand: the other operand must be `string` or `number`. Otherwise error. |
-| O03 | `and`, `or` require both operands to be `bool`. |
-| O04 | `not` requires a `bool` operand. |
-| O05 | Unary `-` requires a `number` operand or an overloaded unary `-`. |
-| O06 | `~` requires a `number` operand. |
-| O07 | Comparison operators (`<`, `>`, `<=`, `>=`) require `number` operands unless overloaded. |
-| O08 | `==`, `!=` require compatible types (same type, or one is null, or overloaded). |
-| O09 | Implicit `number` → `bool` conversion is forbidden (e.g. `if (count)` → error). |
-| O10 | Operator overload resolution: if both operands are non-primitive, look for `operator +` etc. on either type; error if none found. |
-| O11 | `implicit` conversion: if source is not assignable to target but an implicit conversion operator exists, allow it. |
-| O12 | `explicit` conversion: `(TargetType)expr` — requires explicit conversion operator or compatible types; warn if lossy. |
+| O01 | For a binary expression `left op right`: resolve the left operand's type. Look up `operator op` with matching parameter types in `SymbolTable`. If found, the result type is the operator's return type. If not found, try the right operand's type. If neither has a matching operator → error. |
+| O02 | For a unary expression `op operand`: look up `operator op` on the operand's type in `SymbolTable`. If not found → error. |
+| O03 | `and`, `or`, `not` are logical operators — they are NOT overloadable. They always require `bool` operands (verified by direct type check, not operator lookup). Result is always `bool`. |
+| O04 | Implicit `number` → `bool` is forbidden. A `bool` context (if/while/for condition, `and`/`or`/`not` operand) that receives a `number` → error, even if `number` has a conversion operator to `bool`. |
+| O05 | `implicit` conversion: when a type mismatch occurs at an assignment or argument site, check for `static implicit operator TargetType(SourceType)` on either type. If found, allow and emit the conversion call. |
+| O06 | `explicit` conversion (`expr as TargetType` cast form): compile-time only, no runtime check emitted. |
+| O07 | `==` and `!=` on types with no `operator ==` defined: fall back to reference equality (valid for any type). |
 
 ---
 
@@ -712,18 +711,25 @@ Below is the complete catalogue of semantic checks, grouped by concern.
 ### 7.16 Modifier Validation
 
 **File:** `StaticModifierCheck.cs`  
-**Matches:** all declaration nodes
+**Matches:** declaration nodes with `static` modifier
 
 | # | Rule |
 |---|---|
-| MD01 | `static` modifier anywhere in user code → error. |
+| MD01 | `static` on a constructor (non-static) → error TGML0036. |
+| MD02 | `static` on an indexer → error TGML0036. |
+| MD03 | `static` member inside an interface → error TGML0037. |
 
-**File:** `GlobalModifierCheck.cs`  
-**Matches:** `FieldDeclarationNode`, `PropertyDeclarationNode`
+**File:** `StaticConstructorCheck.cs`  
+**Matches:** `ClassDeclarationNode`, `StructDeclarationNode`
 
 | # | Rule |
 |---|---|
-| MD02 | `global` modifier on a field (not a property) → error. |
+| SC01 | More than one static constructor in the same type → error TGML0043. |
+| SC02 | Static constructor has parameters → error. |
+| SC03 | Static constructor has an access modifier → error. |
+| SC04 | Static constructor body references `this` or any instance member → error. |
+| SC05 | Static constructor body references a static member of a different class → error TGML0044. |
+| SC06 | Static field initializer that is not a compile-time constant and references another class's static member → error TGML0044. |
 
 ---
 
@@ -768,7 +774,34 @@ Below is the complete catalogue of semantic checks, grouped by concern.
 
 ---
 
-### 7.20 Array Literals
+### 7.20 Dictionary Literals
+
+**File:** `DictionaryLiteralCheck.cs`  
+**Matches:** `DictionaryLiteralExpressionNode`
+
+| # | Rule |
+|---|---|
+| DL01 | A brace literal `{k: v, ...}` may only be assigned to a declared `Dictionary<TKey, TValue>`. Assigning to any other type → error. |
+| DL02 | All keys must be of type `TKey` (from the target Dictionary's generic args). |
+| DL03 | All values must be of type `TValue`. |
+| DL04 | Duplicate key expressions in the same literal (same compile-time constant value) → error `TGML0042`. |
+| DL05 | An empty literal `{}` is valid; it emits `ds_map_create()` with no `ds_map_add` calls. |
+
+> `DictionaryLiteralExpressionNode` is a new AST node: list of `(IAstNode Key, IAstNode Value)` pairs. Add it to `Ast/Expressions/`.
+
+**GML emission** is handled by a new `DictionaryLiteralExpressionEmitter.cs`:
+```gml
+// {"Alice": 10, "Bob": 20}
+(function() {
+    var __dict = ds_map_create();
+    ds_map_add(__dict, "Alice", 10);
+    ds_map_add(__dict, "Bob", 20);
+    return __dict;
+})()
+```
+The IIFE wrapper allows the literal to be used inline in any expression position.
+
+### 7.22 Array Literals
 
 **File:** `ArrayLiteralTypeCheck.cs`  
 **Matches:** `ArrayLiteralExpressionNode`
@@ -780,7 +813,7 @@ Below is the complete catalogue of semantic checks, grouped by concern.
 
 ---
 
-### 7.21 Throw
+### 7.23 Throw
 
 **File:** `ThrowTypeCheck.cs`  
 **Matches:** `ThrowStatementNode`
@@ -792,7 +825,7 @@ Below is the complete catalogue of semantic checks, grouped by concern.
 
 ---
 
-### 7.22 typeof / nameof
+### 7.24 typeof / nameof
 
 **File:** `TypeofNameCheck.cs`  
 **Matches:** `TypeofExpressionNode`, `NameofExpressionNode`
@@ -804,7 +837,7 @@ Below is the complete catalogue of semantic checks, grouped by concern.
 
 ---
 
-### 7.23 is / as Compatibility
+### 7.25 is / as Compatibility
 
 **File:** `IsAsCompatibilityCheck.cs`  
 **Matches:** `CastExpressionNode`
@@ -816,7 +849,7 @@ Below is the complete catalogue of semantic checks, grouped by concern.
 
 ---
 
-### 7.24 Duplicate Declarations
+### 7.26 Duplicate Declarations
 
 **File:** `DuplicateMemberCheck.cs`  
 **Matches:** `ClassDeclarationNode`, `StructDeclarationNode`, `InterfaceDeclarationNode`
@@ -837,7 +870,7 @@ Below is the complete catalogue of semantic checks, grouped by concern.
 
 ---
 
-### 7.25 Default Parameters
+### 7.27 Default Parameters
 
 **File:** `DefaultParameterConstCheck.cs`  
 **Matches:** `MethodDeclarationNode`, `ConstructorDeclarationNode`
@@ -849,7 +882,7 @@ Below is the complete catalogue of semantic checks, grouped by concern.
 
 ---
 
-### 7.26 Object Creation
+### 7.28 Object Creation
 
 **File:** `ObjectCreationCheck.cs`  
 **Matches:** `ObjectCreationExpressionNode`
@@ -918,6 +951,38 @@ sealed class GmlWriter
 }
 ```
 
+### 8.4 Static Member Emission
+
+All `static` members emit as `global.*` entries inside a generated `ClassName_static_ctor` function. The function is registered via `gml_pragma("global", "ClassName_static_ctor")`.
+
+`NamingConvention` gains these methods:
+
+```csharp
+public static string StaticMemberName(TypeSymbol type, MemberSymbol member);
+// global.ClassName_MemberName  (field/method variable)
+
+public static string StaticGetterName(TypeSymbol type, MemberSymbol prop);
+// global.ClassName_get_PropName
+
+public static string StaticSetterName(TypeSymbol type, MemberSymbol prop);
+// global.ClassName_set_PropName
+
+public static string StaticCtorFunctionName(TypeSymbol type);
+// ClassName_static_ctor
+```
+
+`BuiltinTypeRegistry` sets `TypeSymbol.BclTypeName` for the three primitives:
+
+| Keyword | BclTypeName |
+|---|---|
+| `number` | `"Number"` |
+| `string` | `"String"` |
+| `bool` | `"Bool"` |
+
+When resolving `String.Length(s)`, the emitter checks if `String` is a `BclTypeName`, resolves the static method, and emits `global.String_Length(s)`.
+
+A new `StaticCtorEmitter.cs` collects all static members of a type and emits the `ClassName_static_ctor` function + `gml_pragma` line. It is called by `ClassEmitter` / `StructEmitter` after emitting instance members.
+
 ### 8.5 GML Event Name Mapping
 
 `@NativeEvent` takes a **logical event name** (e.g. `"Create"`, `"Step"`, `"Draw"`). The compiler maps it to the GML file name via a hardcoded dictionary in `GmlEventMap`:
@@ -958,7 +1023,7 @@ static class GmlEventMap
 }
 ```
 
-Unknown logical names → error `TGML0035: Unknown @NativeEvent name '{name}'.`
+Unknown logical names → error `TGML0039: Unknown @NativeEvent name '{name}'.`
 
 `FileOrganizer.GetEventPath` calls `GmlEventMap.Resolve` when writing `@Object` event files.
 
@@ -982,8 +1047,8 @@ void Foo()                  → TypeName_Foo__
 1. Filter to methods with the same name.
 2. Filter to those where argument count is within [required params, total params].
 3. Filter to those where each argument type is assignable to the corresponding parameter type.
-4. If zero candidates → error `TGML0036: No overload of '{name}' matches the supplied arguments.`
-5. If multiple candidates remain → error `TGML0037: Ambiguous call to '{name}'; multiple overloads match.`
+4. If zero candidates → error `TGML0040: No overload of '{name}' matches the supplied arguments.`
+5. If multiple candidates remain → error `TGML0041: Ambiguous call to '{name}'; multiple overloads match.`
 
 ### 8.7 Emitter Matches — Non-Overlapping Design
 
@@ -1055,9 +1120,12 @@ Additional error codes added by the architecture:
 
 | Code | Phase | Description |
 |---|---|---|
-| TGML0035 | Verification | Unknown `@NativeEvent` logical name |
-| TGML0036 | Verification | No overload of method matches supplied arguments |
-| TGML0037 | Verification | Ambiguous call — multiple overloads match |
+| TGML0039 | Verification | Unknown `@NativeEvent` logical name |
+| TGML0040 | Verification | No overload of method matches supplied arguments |
+| TGML0041 | Verification | Ambiguous call — multiple overloads match |
+| TGML0042 | Verification | Duplicate key in Dictionary literal |
+| TGML0043 | Verification | Duplicate static constructor |
+| TGML0044 | Verification | Cross-class static dependency in static constructor |
 
 Output format (for stderr):
 ```
@@ -1101,7 +1169,7 @@ var checks = new ISemanticCheck[]
     new MemberAccessCheck(),
     new MethodCallCheck(),
     new ConstructorCallCheck(),
-    new OperatorCheck(new PrimitiveOperationRegistry()),
+    new OperatorCheck(),
     new ControlFlowCheck(),
     new AbstractCompletenessCheck(),
     new InterfaceImplementationCheck(),
@@ -1117,7 +1185,7 @@ var checks = new ISemanticCheck[]
     new ConstExpressionCheck(),
     new ReadonlyAssignmentCheck(),
     new StaticModifierCheck(),
-    new GlobalModifierCheck(),
+    new StaticConstructorCheck(),
     new WithTargetCheck(),
     new SwitchCaseConstantCheck(),
     new DuplicateCaseCheck(),

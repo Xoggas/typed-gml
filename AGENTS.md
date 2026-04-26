@@ -129,7 +129,12 @@ Rules:
 - GML functions are declared as `function name(params) { }` at the global scope.
 - GML struct literals use `{ field: value }`.
 - `#macro NAME value` is used for `const` fields and `enum` members.
-- `global.name` is used for `global`-modified properties.
+- `global.*` is used for ALL static members — methods, fields, properties. There are no top-level GML script functions for static members.
+- Static methods emit as `global.ClassName_Method = function(...) { };` inside `ClassName_static_ctor`.
+- Static fields emit as `global.ClassName_Field = value;` inside `ClassName_static_ctor`.
+- Static properties emit getter/setter lambdas: `global.ClassName_get_Prop = function() { ... };`.
+- `gml_pragma("global", "ClassName_static_ctor")` is always emitted immediately after the static ctor function, in the same output file.
+- The `global` keyword does not exist in TypedGML — use `static` instead.
 - `ds_map_create()` / `ds_map_add()` / `ds_map_destroy()` are used for `Dictionary<K,V>` literals and BCL methods.
 - Dictionary brace literals `{"key": value}` emit as an IIFE wrapping `ds_map_create` + `ds_map_add` calls — see `TypedGML_Specification.md §3.2`.
 - Brace literals are only valid as the RHS of a `Dictionary<K,V>` variable. Any other target type is a compile error.
@@ -143,7 +148,9 @@ Rules:
 - `BclLoader` finds this folder via `Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)`.
 - BCL files are prepended to the file list before user files. Population processes them first.
 - Primitive types (`number`, `string`, `bool`, `void`, `null`, `object`) are registered in `BuiltinTypeRegistry` in C# code — they do not come from BCL files.
-- Primitive operator rules are in `PrimitiveOperationRegistry` in C# code.
+- Primitive **operators** (`+`, `-`, `==`, etc.) are NOT hardcoded in the compiler. They are defined in `bcl/Number.tgml`, `bcl/String.tgml`, `bcl/Bool.tgml` as `static operator` declarations. `OperatorCheck` resolves them via `SymbolTable` like any other operator overload. `PrimitiveOperationRegistry` must not exist.
+- `and`, `or`, `not` are the only compiler-intrinsic logical operations — they always require `bool` and cannot be defined or overridden in BCL.
+- `@NativeCall("__op_*")` names are compiler-intrinsic shims that emit GML infix operators. See `TypedGML_Specification.md §19.12` for the full table.
 - `Exception` is defined in a BCL `.tgml` file but is also known to the compiler by name for `throw`/`catch` checks.
 
 ---

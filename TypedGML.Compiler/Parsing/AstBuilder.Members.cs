@@ -1,6 +1,6 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Members;
-using TypedGML.Transpiler.Visitor;
+using TypedGML.Compiler.Visitor;
 
 namespace TypedGML.Compiler.Parsing;
 
@@ -31,6 +31,9 @@ public sealed partial class AstBuilder
 
     public override IAstNode VisitConstructorDecl(TypedGMLParser.ConstructorDeclContext context) =>
         new ConstructorDeclarationNode(Parts(context.accessMod()), Parameters(context.paramList()), Decorators(context.decorator()), context.BASE() is not null ? ConstructorChainTarget.Base : context.THIS() is not null ? ConstructorChainTarget.This : ConstructorChainTarget.None, Args(context.argList()).PositionalArgs.Concat<IAstNode>(Args(context.argList()).NamedArgs).ToList(), Node(context.block()), Doc(context), Location(context));
+
+    public override IAstNode VisitStaticConstructorDecl(TypedGMLParser.StaticConstructorDeclContext context) =>
+        new StaticConstructorDeclarationNode(Text(context.nameId()), Node(context.block()), Location(context));
 
     public override IAstNode VisitEventDecl(TypedGMLParser.EventDeclContext context) =>
         new EventDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.accessMod()), Decorators(context.decorator()), Doc(context), Location(context));

@@ -6,6 +6,7 @@ public enum MemberKind
     Property,
     Method,
     Constructor,
+    StaticConstructor,
     Indexer,
     Operator,
     ConversionOperator,

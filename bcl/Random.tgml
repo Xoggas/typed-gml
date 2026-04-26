@@ -1,0 +1,11 @@
+public class GlobalRandom
+{
+    @NativeCall("random")
+    public static number Next(number maxValue) { return default(number); }
+
+    @NativeCall("random_range")
+    public static number Range(number minValue, number maxValue) { return default(number); }
+
+    @NativeCall("random_set_seed")
+    public static void SetSeed(number seed) { }
+}

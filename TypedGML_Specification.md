@@ -99,7 +99,35 @@ string[][] matrix = [["a","b"], ["c","d"]];
 - Element access: `arr[i]` (zero-indexed, as in GML).
 - No built-in `.length` on raw arrays — use BCL `List<T>` instead.
 
-### 3.2 BCL List
+### 3.2 BCL Dictionary
+
+`Dictionary<TKey, TValue>` uses **Python-style brace literal** syntax for initialization:
+
+```tgml
+Dictionary<string, number> scores = {"Alice": 10, "Bob": 20};
+Dictionary<number, string> labels = {0: "zero", 1: "one"};
+Dictionary<string, number> empty = {};
+```
+
+- Keys and values are **expressions**, not identifiers — any valid expression of the correct type works as a key.
+- Key type and value type are inferred from the variable's declared `Dictionary<TKey, TValue>` type.
+- Assigning a brace literal to anything other than `Dictionary<K, V>` is a compile error (brace literals are not anonymous structs).
+- Duplicate keys in a literal are a compile error (`TGML0042: Duplicate key in Dictionary literal`).
+
+**GML emission:**
+
+```tgml
+Dictionary<string, number> scores = {"Alice": 10, "Bob": 20};
+```
+```gml
+var scores = ds_map_create();
+ds_map_add(scores, "Alice", 10);
+ds_map_add(scores, "Bob", 20);
+```
+
+`ds_map_destroy` must be called manually via `scores.Destroy()` (mapped to `@NativeCall("ds_map_destroy")`).
+
+### 3.3 BCL List
 
 `List<T>` is a BCL type wrapping a GML array:
 ```tgml
@@ -421,7 +449,45 @@ public MyClass(number x) : this(x, 0) { }  // constructor chaining
 - `this(...)` delegates to another constructor in the same class.
 - `base(...)` / `this(...)` executes before the constructor body.
 
-### 8.4 Properties
+### 8.4 Static Constructor
+
+A class or struct may declare one **static constructor** to initialize static members:
+
+```tgml
+public class Config {
+    public static number Volume;
+    public static string Language;
+
+    static Config() {
+        Volume = 1;
+        Language = "en";
+    }
+}
+```
+
+Rules:
+- No access modifier, no parameters.
+- At most one per class or struct — duplicate is a compile error (`TGML0043`).
+- Cannot reference `this` or instance members.
+- A static constructor is **generated implicitly** if any static field has an initializer expression (even if the developer did not write one explicitly).
+- Cross-class static dependencies are **forbidden**: a static constructor body may not reference static members of another class (`TGML0044`). This avoids undefined initialization order.
+
+**GML emission:**
+
+```gml
+// Generated function:
+function Config_static_ctor() {
+    global.Config_Volume = 1;
+    global.Config_Language = "en";
+}
+
+// Registered via pragma (emitted in the same output file):
+gml_pragma("global", "Config_static_ctor");
+```
+
+The `gml_pragma` call causes GML to run the function before any game code executes.
+
+### 8.5 Properties
 
 Auto-property:
 ```tgml
@@ -440,14 +506,7 @@ public number X {
 
 - `value` — the implicit parameter in `set`.
 - `field` — refers to the compiler-generated backing field of an auto-property (usable inside the same property body only).
-- `global` modifier — makes the property emit as `global.PropertyName` in GML:
-
-```tgml
-public global number Score { get; set; }
-// emits: global.Score in all get/set contexts
-```
-
-`global` properties are only valid at class/struct scope. They become GML global variables.
+- `static` modifier on a property — see §16.2 and §19.10 for emission rules.
 
 Abstract property:
 ```tgml
@@ -821,14 +880,13 @@ Default (no modifier): `private` for members, `public` for top-level declaration
 
 | Modifier | Applies to | Meaning |
 |---|---|---|
-| `static` | — | **Not supported.** Use `global` properties for global state. |
+| `static` | class, method, property, field | All static members emit as `global.*` variables in GML. Static methods become `global.ClassName_Method = function(...) { }`. Static fields become `global.ClassName_Field`. Static properties emit getter/setter as `global.ClassName_get_Prop` / `global.ClassName_set_Prop`. A class with any static members or an explicit static constructor gets a `gml_pragma`-registered initializer. |
 | `abstract` | class, method, property | Class cannot be instantiated; members must be overridden. |
 | `sealed` | class | Cannot be subclassed. |
 | `virtual` | method, property | Can be overridden in subclasses. |
 | `override` | method, property | Overrides a `virtual` or `abstract` member. |
 | `readonly` | field | Can only be assigned in the constructor. Compile-time check. |
 | `const` | field | Compile-time constant. Emits as GML `#macro`. |
-| `global` | property | Emits as `global.PropertyName` in GML. |
 
 ---
 
@@ -934,13 +992,62 @@ public const number MaxSpeed = 100;
 
 Usage: `MyClass.MaxSpeed` in TypedGML → `MyClass_MaxSpeed` in GML.
 
-### 19.6 global Property Emission
+### 19.6 Static Member Emission
 
+All `static` members emit as `global.*` entries. No top-level GML script functions are generated for static members.
+
+**Static method:**
 ```tgml
-public global number Score { get; set; }
-// getter emits: global.Score
-// setter emits: global.Score = value
+public class Math {
+    public static number Abs(number x) { ... }
+}
 ```
+```gml
+// in static constructor:
+global.Math_Abs = function(x) {
+    return abs(x);
+};
+gml_pragma("global", "Math_static_ctor");
+```
+
+Call site: `Math.Abs(-5)` → `global.Math_Abs(-5)`
+
+**Static field:**
+```tgml
+public class Config {
+    public static number Volume = 1;
+}
+```
+```gml
+function Config_static_ctor() {
+    global.Config_Volume = 1;
+}
+gml_pragma("global", "Config_static_ctor");
+```
+
+**Static property:**
+```tgml
+public class Config {
+    public static number Volume { get; set; }
+}
+```
+```gml
+function Config_static_ctor() {
+    global.Config_get_Volume = function() { return global.Config_Volume; };
+    global.Config_set_Volume = function(value) { global.Config_Volume = value; };
+}
+gml_pragma("global", "Config_static_ctor");
+```
+
+**Naming convention for static members:**
+
+| TypedGML | GML |
+|---|---|
+| `ClassName.StaticMethod(args)` | `global.ClassName_StaticMethod(args)` |
+| `ClassName.StaticField` | `global.ClassName_StaticField` |
+| `ClassName.StaticProp` (get) | `global.ClassName_get_StaticProp()` |
+| `ClassName.StaticProp` (set) | `global.ClassName_set_StaticProp(value)` |
+| static ctor function | `ClassName_static_ctor` |
 
 ### 19.7 @Object Constructor Emission
 
@@ -964,7 +1071,37 @@ If there are no class-specific constructor parameters (only x, y, layer):
 return instance_create_layer(x, y, layer, OBJ_Player);
 ```
 
-### 19.8 Delegate Emission
+### 19.10 Static Constructor Emission
+
+If a class has **any** static members (methods, fields, properties) or an explicit `static ClassName()` body, the compiler generates a single `ClassName_static_ctor` GML function containing:
+
+1. All `global.ClassName_Method = function(...) { }` assignments for static methods.
+2. All `global.ClassName_Field = initializer` assignments for static fields (explicit initializer or `default(T)`).
+3. All `global.ClassName_get_Prop` / `global.ClassName_set_Prop` assignments for static properties.
+4. The body of the explicit static constructor (if declared), appended after the above.
+
+The function is registered with:
+```gml
+gml_pragma("global", "ClassName_static_ctor");
+```
+
+This line is emitted immediately after the function definition in the same output file.
+
+**Output file:** static constructor goes into the class's normal output file (same as instance methods). No separate file is generated.
+
+**Order within the static ctor:** methods first, then fields, then properties, then explicit body. This ensures methods exist before the explicit body can call them.
+
+### 19.11 Primitive Type BCL Mapping
+
+The compiler recognises the following aliases and maps them to BCL types:
+
+| TypedGML keyword | BCL file | BCL type name |
+|---|---|---|
+| `number` | `bcl/Number.tgml` | `Number` |
+| `string` | `bcl/String.tgml` | `String` |
+| `bool` | `bcl/Bool.tgml` | `Bool` |
+
+`object.ToString()` is defined in `bcl/Object.tgml` and inherited by all classes and structs. `GetType()` is compiler-hardcoded: it emits a string literal at the call site regardless of BCL.
 
 ```tgml
 myDelegate += Handler;
@@ -979,6 +1116,30 @@ myDelegate(arg1, arg2);
 // emits:
 __tgml_invoke_delegate(myDelegate, arg1, arg2);
 ```
+
+### 19.12 Operator Intrinsic Shims (`__op_*`)
+
+BCL operator declarations use `@NativeCall("__op_*")` names. These are **compiler-intrinsic** — the emitter recognises them and instead of generating a function call, emits the corresponding GML infix operator directly:
+
+| `@NativeCall` name | Emitted GML |
+|---|---|
+| `__op_add` | `a + b` |
+| `__op_sub` | `a - b` |
+| `__op_mul` | `a * b` |
+| `__op_div` | `a / b` |
+| `__op_mod` | `a % b` |
+| `__op_neg` | `-a` |
+| `__op_bitnot` | `~a` |
+| `__op_eq` | `a == b` |
+| `__op_neq` | `a != b` |
+| `__op_lt` | `a < b` |
+| `__op_gt` | `a > b` |
+| `__op_lte` | `a <= b` |
+| `__op_gte` | `a >= b` |
+| `__op_str_num_add` | `a + string(b)` |
+| `__op_num_str_add` | `string(a) + b` |
+
+Any `@NativeCall` name starting with `__op_` is treated as an intrinsic. Non-intrinsic `@NativeCall` names emit as regular GML function calls.
 
 ### 19.9 Nullable Emission
 
@@ -996,7 +1157,410 @@ a ?? b
 
 ## 20. BCL (Base Class Library)
 
-The BCL is written in TypedGML itself (with `@NativeCall` where needed) and compiled as part of every project.
+The BCL is written in TypedGML. All BCL files are compiled before user files.
+
+`@NativeCall("gmlName")` on a method means the body is ignored; the emitter substitutes a direct GML call to the named function.
+
+### 20.1 Object — `bcl/Object.tgml`
+
+```tgml
+public class Object {
+    public virtual string ToString() {
+        return "<object>";
+    }
+}
+```
+
+All classes and structs implicitly extend `Object`. `GetType()` is NOT defined here — the compiler emits a string literal at every `GetType()` call site.
+
+### 20.2 Exception — `bcl/Exception.tgml`
+
+```tgml
+public struct Exception {
+    public string message;
+    public string stackTrace;
+    public Exception? innerException;
+
+    public Exception(string message) {
+        this.message = message;
+        this.stackTrace = "";
+        this.innerException = null;
+    }
+
+    public Exception(string message, Exception inner) {
+        this.message = message;
+        this.stackTrace = "";
+        this.innerException = inner;
+    }
+
+    public override string ToString() {
+        return "Exception: " + message;
+    }
+}
+```
+
+Only `Exception` is throwable. GML 2.3+ native try/catch is used.
+
+### 20.3 Number — `bcl/Number.tgml`
+
+Defines the `Number` type. The compiler treats `number` as an alias for `Number`.
+
+All valid operations on `number` values are declared here as `static operator` members. `OperatorCheck` resolves primitive operators by looking these up in `SymbolTable` — no special cases in the compiler.
+
+```tgml
+public class Number {
+    // Arithmetic operators
+    public static number operator +(number a, number b) { ... }  // @NativeCall("__op_add")
+    public static number operator -(number a, number b) { ... }  // @NativeCall("__op_sub")
+    public static number operator *(number a, number b) { ... }  // @NativeCall("__op_mul")
+    public static number operator /(number a, number b) { ... }  // @NativeCall("__op_div")
+    public static number operator %(number a, number b) { ... }  // @NativeCall("__op_mod")
+
+    // Unary operators
+    public static number operator -(number a) { ... }            // @NativeCall("__op_neg")
+    public static number operator ~(number a) { ... }            // @NativeCall("__op_bitnot")
+
+    // Comparison operators
+    public static bool operator ==(number a, number b) { ... }   // @NativeCall("__op_eq")
+    public static bool operator !=(number a, number b) { ... }   // @NativeCall("__op_neq")
+    public static bool operator <(number a, number b) { ... }    // @NativeCall("__op_lt")
+    public static bool operator >(number a, number b) { ... }    // @NativeCall("__op_gt")
+    public static bool operator <=(number a, number b) { ... }   // @NativeCall("__op_lte")
+    public static bool operator >=(number a, number b) { ... }   // @NativeCall("__op_gte")
+
+    // String concatenation with number (string + number)
+    public static string operator +(string a, number b) { ... }  // @NativeCall("__op_str_num_add")
+    public static string operator +(number a, string b) { ... }  // @NativeCall("__op_num_str_add")
+
+    // Utility methods
+    public static string ToString(number value) { ... }           // @NativeCall("string")
+    public static bool IsNaN(number value) { ... }                // @NativeCall("is_nan")
+    public static bool IsInfinity(number value) { ... }          // @NativeCall("is_infinity")
+    public static number Parse(string s) { ... }                  // @NativeCall("real")
+    public static number Floor(number x) { ... }                  // @NativeCall("floor")
+    public static number Ceil(number x) { ... }                   // @NativeCall("ceil")
+    public static number Round(number x) { ... }                  // @NativeCall("round")
+}
+```
+
+> `@NativeCall("__op_add")` etc. are compiler-intrinsic shims that emit the raw GML operator inline (e.g. `a + b`). The `__op_*` names are reserved and handled by the emitter as special cases that produce infix GML rather than function calls.
+
+### 20.4 String — `bcl/String.tgml`
+
+Defines the `String` type. The compiler treats `string` as an alias for `String`.
+
+String indices are **1-based** (GML-native). This is intentional — TypedGML targets GML and does not hide GML conventions.
+
+```tgml
+public class String {
+    // Operators
+    public static string operator +(string a, string b) { ... }  // @NativeCall("__op_add")
+    public static bool operator ==(string a, string b) { ... }   // @NativeCall("__op_eq")
+    public static bool operator !=(string a, string b) { ... }   // @NativeCall("__op_neq")
+
+    // Methods
+    public static number Length(string s) { ... }                          // @NativeCall("string_length")
+    public static string ToUpper(string s) { ... }                         // @NativeCall("string_upper")
+    public static string ToLower(string s) { ... }                         // @NativeCall("string_lower")
+    public static string Substring(string s, number pos, number len) { ... } // @NativeCall("string_copy") — 1-based
+    public static string Repeat(string s, number count) { ... }            // @NativeCall("string_repeat")
+    public static string Reverse(string s) { ... }                         // @NativeCall("string_reverse")
+    public static number IndexOf(string s, string sub) { ... }             // @NativeCall("string_pos") — 1-based; 0 = not found
+    public static number IndexOfFrom(string s, string sub, number pos) { ... } // @NativeCall("string_pos_ext")
+    public static string Replace(string s, string old, string newStr) { ... }  // @NativeCall("string_replace")
+    public static string ReplaceAll(string s, string old, string newStr) { ... } // @NativeCall("string_replace_all")
+    public static bool Contains(string s, string sub) { ... }              // string_pos(sub, s) > 0
+    public static number Count(string s, string sub) { ... }               // @NativeCall("string_count")
+    public static string Trim(string s) { ... }                            // BCL helper
+    public static string TrimStart(string s) { ... }                       // BCL helper
+    public static string TrimEnd(string s) { ... }                         // BCL helper
+    public static string[] Split(string s, string delimiter) { ... }       // BCL loop using string_pos + string_copy
+    public static string FromNumber(number n) { ... }                      // @NativeCall("string")
+    public static number ToNumber(string s) { ... }                        // @NativeCall("real")
+    public static string CharAt(string s, number pos) { ... }              // @NativeCall("string_char_at") — 1-based
+    public static number OrdAt(string s, number pos) { ... }               // @NativeCall("string_ord_at")
+    public static string FromChar(number ord) { ... }                      // @NativeCall("chr")
+}
+```
+
+### 20.5 Bool — `bcl/Bool.tgml`
+
+Defines the `Bool` type. The compiler treats `bool` as an alias for `Bool`.
+
+`and`, `or`, `not` are **not** defined as operators here — they are compiler-intrinsic logical keywords that always require `bool` operands and cannot be overloaded.
+
+```tgml
+public class Bool {
+    // Equality operators
+    public static bool operator ==(bool a, bool b) { ... }   // @NativeCall("__op_eq")
+    public static bool operator !=(bool a, bool b) { ... }   // @NativeCall("__op_neq")
+
+    // Utility methods
+    public static string ToString(bool value) { ... }    // value ? "true" : "false"
+    public static bool Parse(string s) { ... }           // s == "true"
+}
+```
+
+### 20.6 Array utilities — `bcl/ArrayUtils.tgml`
+
+Static utility class for raw `T[]` arrays. Array indices are 0-based (GML arrays are 0-based).
+
+```tgml
+public class ArrayUtils {
+    public static number Length(object[] arr) { ... }              // @NativeCall("array_length")
+    public static object[] Copy(object[] arr) { ... }              // @NativeCall("array_copy") wrapper
+    public static object[] Slice(object[] arr, number pos, number len) { ... }  // BCL loop
+    public static number IndexOf(object[] arr, object value) { ... }  // @NativeCall("array_find_index")
+    public static bool Contains(object[] arr, object value) { ... }   // @NativeCall("array_contains")
+    public static object[] Concat(object[] a, object[] b) { ... }     // @NativeCall("array_concat")
+    public static void Reverse(object[] arr) { ... }                  // @NativeCall("array_reverse")
+    public static void Sort(object[] arr, bool ascending) { ... }     // @NativeCall("array_sort")
+    public static object[] Filter(object[] arr, Func<object, bool> predicate) { ... }  // BCL loop
+    public static object[] Map(object[] arr, Func<object, object> fn) { ... }          // BCL loop
+    public static void ForEach(object[] arr, Action<object> fn) { ... }               // BCL loop
+}
+```
+
+### 20.7 List — `bcl/Collections.tgml`
+
+```tgml
+public class List<T> {
+    private T[] _data;
+
+    public List() {
+        _data = [];
+    }
+
+    public number Count {
+        get { return Array.Length(_data); }
+    }
+
+    public T this[number index] {
+        get { return _data[index]; }
+        set { _data[index] = value; }
+    }
+
+    public void Add(T item) { ... }        // @NativeCall("array_push")  on _data
+    public void RemoveAt(number index) { ... } // @NativeCall("array_delete")
+    public void Clear() { ... }            // _data = []
+    public bool Contains(T item) { ... }   // @NativeCall("array_contains")
+    public number IndexOf(T item) { ... }  // @NativeCall("array_find_index")
+    public void Insert(number index, T item) { ... }  // @NativeCall("array_insert")
+    public void Reverse() { ... }          // @NativeCall("array_reverse")
+    public void Sort(bool ascending) { ... }  // @NativeCall("array_sort")
+    public T[] ToArray() { ... }           // @NativeCall("array_copy") of _data
+
+    public void Remove(T item) {
+        var idx = IndexOf(item);
+        if (idx >= 0) { RemoveAt(idx); }
+    }
+
+    public override string ToString() {
+        return "List[" + Count + "]";
+    }
+}
+```
+
+### 20.8 Dictionary — `bcl/Collections.tgml` (continued)
+
+```tgml
+public struct KeyValuePair<TKey, TValue> {
+    public TKey Key;
+    public TValue Value;
+
+    public KeyValuePair(TKey key, TValue value) {
+        Key = key;
+        Value = value;
+    }
+}
+
+public class Dictionary<TKey, TValue> {
+    private number _map;   // ds_map handle
+
+    public Dictionary() {
+        _map = __ds_map_create();    // @NativeCall("ds_map_create")
+    }
+
+    public number Count {
+        get { return __ds_map_size(_map); }  // @NativeCall("ds_map_size")
+    }
+
+    public TValue this[TKey key] {
+        get { return __ds_map_find_value(_map, key); }   // @NativeCall("ds_map_find_value")
+        set { __ds_map_set(_map, key, value); }          // @NativeCall("ds_map_set")
+    }
+
+    public void Add(TKey key, TValue value) { ... }       // @NativeCall("ds_map_add")
+    public void Remove(TKey key) { ... }                  // @NativeCall("ds_map_delete")
+    public bool ContainsKey(TKey key) { ... }             // @NativeCall("ds_map_exists")
+    public void Destroy() { ... }                         // @NativeCall("ds_map_destroy")
+
+    public TKey[] Keys() {
+        return __ds_map_keys_to_array(_map);    // @NativeCall("ds_map_keys_to_array")
+    }
+
+    public TValue[] Values() {
+        return __ds_map_values_to_array(_map);  // @NativeCall("ds_map_values_to_array")
+    }
+
+    public KeyValuePair<TKey, TValue>[] Entries() {
+        var keys = Keys();
+        var count = ArrayUtils.Length(keys);
+        var result = [];
+        for (var i = 0; i < count; i += 1) {
+            result[i] = new KeyValuePair<TKey, TValue>(keys[i], this[keys[i]]);
+        }
+        return result;
+    }
+
+    public override string ToString() {
+        return "Dictionary[" + Count + "]";
+    }
+}
+```
+
+### 20.9 Math — `bcl/Math.tgml`
+
+```tgml
+public class Math {
+    public const number PI  = 3.14159265358979;
+    public const number TAU = 6.28318530717959;
+    public const number E   = 2.71828182845905;
+
+    public static number Abs(number x) { ... }           // @NativeCall("abs")
+    public static number Floor(number x) { ... }         // @NativeCall("floor")
+    public static number Ceil(number x) { ... }          // @NativeCall("ceil")
+    public static number Round(number x) { ... }         // @NativeCall("round")
+    public static number Sqrt(number x) { ... }          // @NativeCall("sqrt")
+    public static number Sqr(number x) { ... }           // @NativeCall("sqr")
+    public static number Power(number base, number exp) { ... }  // @NativeCall("power")
+    public static number Exp(number x) { ... }           // @NativeCall("exp")
+    public static number Log(number x) { ... }           // @NativeCall("log2") — natural log via ln
+    public static number Log2(number x) { ... }          // @NativeCall("log2")
+    public static number Log10(number x) { ... }         // @NativeCall("log10")
+    public static number Ln(number x) { ... }            // @NativeCall("ln")
+    public static number Sin(number x) { ... }           // @NativeCall("sin")
+    public static number Cos(number x) { ... }           // @NativeCall("cos")
+    public static number Tan(number x) { ... }           // @NativeCall("tan")
+    public static number ArcSin(number x) { ... }        // @NativeCall("arcsin")
+    public static number ArcCos(number x) { ... }        // @NativeCall("arccos")
+    public static number ArcTan(number x) { ... }        // @NativeCall("arctan")
+    public static number ArcTan2(number y, number x) { ... } // @NativeCall("arctan2")
+    public static number DegToRad(number deg) { ... }    // @NativeCall("degtorad")
+    public static number RadToDeg(number rad) { ... }    // @NativeCall("radtodeg")
+    public static number Min(number a, number b) { ... } // @NativeCall("min")
+    public static number Max(number a, number b) { ... } // @NativeCall("max")
+    public static number Clamp(number value, number min, number max) { ... } // @NativeCall("clamp")
+    public static number Lerp(number a, number b, number t) { ... }         // @NativeCall("lerp")
+    public static number Frac(number x) { ... }          // @NativeCall("frac")
+    public static number Sign(number x) { ... }          // @NativeCall("sign")
+    public static number Mean(number a, number b) { ... } // @NativeCall("mean")
+    public static number PointDistance(number x1, number y1, number x2, number y2) { ... } // @NativeCall("point_distance")
+    public static number PointDirection(number x1, number y1, number x2, number y2) { ... } // @NativeCall("point_direction")
+    public static number LengthDir_x(number len, number dir) { ... }  // @NativeCall("lengthdir_x")
+    public static number LengthDir_y(number len, number dir) { ... }  // @NativeCall("lengthdir_y")
+}
+```
+
+### 20.10 Random — `bcl/Random.tgml`
+
+Stateful random number generator wrapping GML's random functions.
+
+```tgml
+public class Random {
+    public Random() { }
+
+    public number Next() { ... }                              // @NativeCall("random_get_seed") — random(1)
+    public number NextRange(number min, number max) { ... }   // @NativeCall("random_range")
+    public number NextInt(number n) { ... }                   // @NativeCall("irandom")
+    public number NextIntRange(number min, number max) { ... } // @NativeCall("irandom_range")
+    public void SetSeed(number seed) { ... }                  // @NativeCall("random_set_seed")
+    public number GetSeed() { ... }                           // @NativeCall("random_get_seed")
+    public bool NextBool() { ... }                            // irandom(1) == 1
+}
+```
+
+Global stateless helpers also available as static:
+
+```tgml
+public class GlobalRandom {
+    public static void Randomize() { ... }                   // @NativeCall("randomize")
+    public static number Range(number min, number max) { ... } // @NativeCall("random_range")
+    public static number IRange(number min, number max) { ... } // @NativeCall("irandom_range")
+    public static number Choose(object[] options) { ... }    // BCL loop + irandom(length-1)
+}
+```
+
+### 20.11 Debug — `bcl/Debug.tgml`
+
+```tgml
+public class Debug {
+    public static void Log(string message) { ... }           // @NativeCall("show_debug_message")
+    public static void LogValue(string label, object value) { ... }  // show_debug_message(label + ": " + string(value))
+    public static void Assert(bool condition, string message) { ... } // if (!condition) throw new Exception(message)
+    public static void Break() { ... }                       // @NativeCall("breakpoint")
+}
+```
+
+### 20.12 Delegates — `bcl/Delegates.tgml`
+
+```tgml
+public delegate void Action();
+public delegate void Action<T>(T arg);
+public delegate void Action<T1, T2>(T1 arg1, T2 arg2);
+public delegate void Action<T1, T2, T3>(T1 arg1, T2 arg2, T3 arg3);
+public delegate void Action<T1, T2, T3, T4>(T1 arg1, T2 arg2, T3 arg3, T4 arg4);
+public delegate void Action<T1, T2, T3, T4, T5>(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5);
+public delegate void Action<T1, T2, T3, T4, T5, T6>(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6);
+public delegate void Action<T1, T2, T3, T4, T5, T6, T7>(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6, T7 a7);
+public delegate void Action<T1, T2, T3, T4, T5, T6, T7, T8>(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6, T7 a7, T8 a8);
+
+public delegate TResult Func<TResult>();
+public delegate TResult Func<T, TResult>(T arg);
+public delegate TResult Func<T1, T2, TResult>(T1 arg1, T2 arg2);
+public delegate TResult Func<T1, T2, T3, TResult>(T1 arg1, T2 arg2, T3 arg3);
+public delegate TResult Func<T1, T2, T3, T4, TResult>(T1 a1, T2 a2, T3 a3, T4 a4);
+public delegate TResult Func<T1, T2, T3, T4, T5, TResult>(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5);
+public delegate TResult Func<T1, T2, T3, T4, T5, T6, TResult>(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6);
+public delegate TResult Func<T1, T2, T3, T4, T5, T6, T7, TResult>(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6, T7 a7);
+public delegate TResult Func<T1, T2, T3, T4, T5, T6, T7, T8, TResult>(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6, T7 a7, T8 a8);
+
+public delegate bool Predicate<T>(T arg);
+public delegate TResult Converter<TInput, TResult>(TInput input);
+public delegate number Comparison<T>(T a, T b);
+```
+
+### 20.13 BCL Runtime Helpers — emitted as GML scripts
+
+These are emitted by the compiler directly (not from `.tgml` files):
+
+```gml
+function __tgml_invoke_delegate(delegate) {
+    var _len = array_length(delegate);
+    var _result = undefined;
+    for (var _i = 0; _i < _len; _i++) {
+        _result = delegate[_i]();   // args passed via ... in real emission
+    }
+    return _result;
+}
+
+function __tgml_delegate_remove(delegate, fn) {
+    var _out = [];
+    var _len = array_length(delegate);
+    for (var _i = 0; _i < _len; _i++) {
+        if (delegate[_i] != fn) array_push(_out, delegate[_i]);
+    }
+    return _out;
+}
+
+function __tgml_default(typeName) {
+    switch (typeName) {
+        case "number": return 0;
+        case "bool":   return false;
+        default:       return undefined;
+    }
+}
+```
 
 ### 20.1 Exception
 
@@ -1036,9 +1600,11 @@ public class Dictionary<TKey, TValue> {
     public bool ContainsKey(TKey key) { ... }
     public TKey[] Keys { get; }
     public TValue[] Values { get; }
-    public void Destroy() { ... }   // must be called to free ds_map
+    public void Destroy() { ... }   // must be called to free ds_map; wraps ds_map_destroy
 }
 ```
+
+Literal initialization syntax: `{"key": value, ...}` — see §3.2 for full rules and GML emission.
 
 ### 20.3 Math
 
@@ -1227,15 +1793,25 @@ Compilation halts after the Population phase if any structural errors are found.
 | TGML0023 | Verification | `@Object` decorator missing object name string |
 | TGML0024 | Verification | Multiple `@Object` decorators on one class |
 | TGML0025 | Verification | `new` on `@Object` class with wrong parameter count (not x, y, layer + extras) |
-| TGML0026 | Verification | `static` modifier used (not supported) |
-| TGML0027 | Verification | `global` modifier used on field (only properties) |
-| TGML0028 | Verification | Delegate signature mismatch on `+=` / `-=` |
-| TGML0029 | Verification | Event assigned directly from outside declaring class |
-| TGML0030 | Verification | `null` assigned to non-nullable type |
-| TGML0031 | Population | Namespace conflict with existing type name |
-| TGML0032 | Verification | Struct inherits from another type (not allowed) |
-| TGML0033 | Verification | `break` or `continue` outside loop or switch |
-| TGML0034 | Verification | `return` value in void method or missing in non-void method |
+| TGML0026 | Verification | `static` used on indexer or constructor (not allowed) |
+| TGML0027 | Verification | `static` used inside an interface (not allowed) |
+| TGML0028 | Verification | `global` modifier used on field (only properties) |
+| TGML0029 | Verification | Delegate signature mismatch on `+=` / `-=` |
+| TGML0030 | Verification | Event assigned directly from outside declaring class |
+| TGML0031 | Verification | `null` assigned to non-nullable type |
+| TGML0032 | Population | Namespace conflict with existing type name |
+| TGML0033 | Verification | Struct inherits from another type (not allowed) |
+| TGML0034 | Verification | `break` or `continue` outside loop or switch |
+| TGML0035 | Verification | `return` value in void method or missing in non-void method |
+| TGML0036 | Verification | `static` used on indexer or constructor |
+| TGML0037 | Verification | `static` used inside an interface |
+| TGML0038 | Verification | `static` field initializer references another class's static member (cross-class static dependency) |
+| TGML0039 | Verification | Unknown `@NativeEvent` logical name |
+| TGML0040 | Verification | No overload of method matches the supplied arguments |
+| TGML0041 | Verification | Ambiguous call — multiple overloads match |
+| TGML0042 | Verification | Duplicate key in Dictionary literal |
+| TGML0043 | Verification | Duplicate static constructor in the same class |
+| TGML0044 | Verification | Static constructor body references static member of another class |
 
 ---
 
@@ -1253,4 +1829,5 @@ Compilation halts after the Population phase if any structural errors are found.
 | Generics = type erasure | `__genericArgs` for runtime names only | One GML function per generic method; no monomorphization bloat. |
 | No `foreach` | Omitted | Requires IEnumerable state machine; not worth the complexity at this stage. |
 | No string interpolation | Omitted | Use `+` concatenation. |
-| No `static` | Only `global` properties | GML global variables cover the use case; avoids class-level state complexity. |
+| `static` → `global.*` | All static members emit as `global.ClassName_Member` | GML has no class-level scope; `global.*` is the cleanest uniform mapping. One codegen path, no branching between script functions and global vars. |
+| Static constructor via `gml_pragma` | `gml_pragma("global", "ClassName_static_ctor()")` | GameMaker's native mechanism for pre-game initialization. Zero runtime overhead, no controller object needed. |

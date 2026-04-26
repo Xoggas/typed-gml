@@ -6,7 +6,7 @@ using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Emission.Emitters;
 
-public sealed class StructEmitter : INodeEmitter
+public sealed class StructEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmitter
 {
     public bool Matches(IAstNode node) => node is StructDeclarationNode;
 
@@ -18,6 +18,8 @@ public sealed class StructEmitter : INodeEmitter
         EmitCreate(declaration, ctx);
         foreach (var member in declaration.Members.Where(m => m is not ConstructorDeclarationNode))
             ctx.Dispatch(member, ctx);
+        if (ctx.CurrentType is not null)
+            staticCtorEmitter.EmitStaticCtor(ctx.CurrentType, declaration.Members, ctx);
         ctx.CurrentType = previousType;
     }
 
@@ -25,7 +27,10 @@ public sealed class StructEmitter : INodeEmitter
     {
         ctx.Writer.Write($"function {NamingConvention.ConstructorName(ctx.CurrentType!)}()");
         ctx.Writer.BeginBlock();
-        var fields = declaration.Members.OfType<FieldDeclarationNode>().Where(f => !f.Modifiers.Contains("const", StringComparer.Ordinal)).ToList();
+        var fields = declaration.Members
+            .OfType<FieldDeclarationNode>()
+            .Where(f => !f.Modifiers.Contains("const", StringComparer.Ordinal) && !f.Modifiers.Contains("static", StringComparer.Ordinal))
+            .ToList();
         if (fields.Count == 0)
         {
             ctx.Writer.WriteLine("return {};");

@@ -39,6 +39,11 @@ public enum DiagnosticCode
     InvalidReturnUsage = 34,
     UnknownNativeEventName = 35,
     NoMatchingMethodOverload = 36,
+    InvalidStaticModifierTarget = 36,
     AmbiguousMethodCall = 37,
-    InvalidDictionaryLiteralTarget = 38
+    StaticMemberInInterface = 37,
+    InvalidDictionaryLiteralTarget = 38,
+    DuplicateStaticConstructor = 43,
+    CrossTypeStaticReference = 44,
+    InvalidStaticConstructorUsage = 45
 }

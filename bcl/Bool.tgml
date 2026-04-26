@@ -1,0 +1,16 @@
+public class Bool
+{
+    @NativeCall("__op_eq")
+    public static bool operator ==(bool a, bool b) { return default(bool); }
+
+    @NativeCall("__op_neq")
+    public static bool operator !=(bool a, bool b) { return default(bool); }
+
+    @NativeCall("string")
+    public static string ToString(bool value) { return default(string); }
+
+    public static bool Parse(string value)
+    {
+        return value == "true";
+    }
+}

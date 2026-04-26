@@ -64,6 +64,9 @@ public sealed class MemberAccessCheck : ISemanticCheck
             return;
         }
 
+        if (SymbolResolver.TryResolveType(identifier.Name, ctx, out _))
+            return;
+
         Report(DiagnosticCode.TypeMismatch, $"Identifier '{identifier.Name}' is not declared in the current scope.", identifier.Location, ctx);
     }
 
