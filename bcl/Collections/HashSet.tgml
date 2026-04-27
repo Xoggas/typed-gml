@@ -1,7 +1,7 @@
 namespace TypedGML.Collections;
 using TypedGML.Core;
 
-public class HashSet<T> : ISet<T>
+public class HashSet<T> : ICollection<T>
 {
     private number _map;
 
@@ -39,11 +39,10 @@ public class HashSet<T> : ISet<T>
         get { return __size(_map); }
     }
 
-    public bool Add(T item)
+    public void Add(T item) 
     {
-        if (Contains(item)) { return false; }
+        if (Contains(item)) { return; }
         __set(_map, item, true);
-        return true;
     }
 
     public bool Remove(T item)
