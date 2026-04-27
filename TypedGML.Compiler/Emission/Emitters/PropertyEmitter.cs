@@ -12,7 +12,9 @@ public sealed class PropertyEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var property = (PropertyDeclarationNode)node;
-        if (ctx.CurrentType is null || property.Modifiers.Contains("static", StringComparer.Ordinal))
+        if (ctx.CurrentType is null ||
+            property.Modifiers.Contains("static", StringComparer.Ordinal) ||
+            property.Modifiers.Contains("abstract", StringComparer.Ordinal))
             return;
 
         var symbol = ctx.CurrentType.Members.FirstOrDefault(m => m.Kind == MemberKind.Property && m.Name == property.Name);
@@ -26,25 +28,30 @@ public sealed class PropertyEmitter : INodeEmitter
     private static void EmitAccessor(EmitContext ctx, PropertyDeclarationNode property, MemberSymbol symbol, AccessorNode accessor)
     {
         var target = PropertyTarget(property);
+        var selfName = ctx.CurrentType?.ObjectAssetName is null ? "self" : null;
         if (accessor.Kind == AccessorKind.Get)
         {
-            ctx.Writer.Write($"function {NamingConvention.PropertyGetter(ctx.CurrentType!, symbol)}()");
-            ctx.Writer.BeginBlock();
+            ctx.Writer.Write($"function {NamingConvention.PropertyGetter(ctx.CurrentType!, symbol)}({ParameterList(selfName)})");
             if (accessor.Body is null || target is not null)
-                ctx.Writer.WriteLine($"return {target ?? $"__backing_{property.Name}"};");
+            {
+                ctx.Writer.BeginBlock();
+                ctx.Writer.WriteLine($"return {AccessorTarget(target, property, selfName)};");
+                ctx.Writer.EndBlock();
+            }
             else
-                ctx.Dispatch(accessor.Body, ctx);
-            ctx.Writer.EndBlock();
+                WithAccessorContext(ctx, symbol, selfName, false, () => ctx.Dispatch(accessor.Body, ctx));
             return;
         }
 
-        ctx.Writer.Write($"function {NamingConvention.PropertySetter(ctx.CurrentType!, symbol)}(value)");
-        ctx.Writer.BeginBlock();
+        ctx.Writer.Write($"function {NamingConvention.PropertySetter(ctx.CurrentType!, symbol)}({ParameterList(selfName, "value")})");
         if (accessor.Body is null || target is not null)
-            ctx.Writer.WriteLine($"{target ?? $"__backing_{property.Name}"} = value;");
+        {
+            ctx.Writer.BeginBlock();
+            ctx.Writer.WriteLine($"{AccessorTarget(target, property, selfName)} = value;");
+            ctx.Writer.EndBlock();
+        }
         else
-            ctx.Dispatch(accessor.Body, ctx);
-        ctx.Writer.EndBlock();
+            WithAccessorContext(ctx, symbol, selfName, true, () => ctx.Dispatch(accessor.Body, ctx));
     }
 
     private static string? PropertyTarget(PropertyDeclarationNode property)
@@ -59,4 +66,37 @@ public sealed class PropertyEmitter : INodeEmitter
         decorators.FirstOrDefault(d => d.Name == name)?.Args.FirstOrDefault() is LiteralExpressionNode literal
             ? literal.Value?.ToString()
             : null;
+
+    private static string ParameterList(string? selfName, string? extra = null) =>
+        string.Join(", ", string.IsNullOrEmpty(selfName)
+            ? (extra is null ? [] : [extra])
+            : (extra is null ? [selfName] : [selfName, extra]));
+
+    private static string AccessorTarget(string? target, PropertyDeclarationNode property, string? selfName)
+    {
+        if (target is not null)
+            return string.IsNullOrEmpty(selfName) ? target : $"{selfName}.{target}";
+        return string.IsNullOrEmpty(selfName) ? $"__backing_{property.Name}" : $"{selfName}.__backing_{property.Name}";
+    }
+
+    private static void WithAccessorContext(EmitContext ctx, MemberSymbol symbol, string? selfName, bool hasValue, Action action)
+    {
+        var previousMember = ctx.CurrentMember;
+        var previousSelf = ctx.SelfName;
+        ctx.CurrentMember = symbol;
+        ctx.SelfName = selfName;
+        ctx.Scope.Push();
+        if (hasValue)
+            ctx.Scope.Declare("value", symbol.ReturnType);
+        try
+        {
+            action();
+        }
+        finally
+        {
+            ctx.Scope.Pop();
+            ctx.SelfName = previousSelf;
+            ctx.CurrentMember = previousMember;
+        }
+    }
 }

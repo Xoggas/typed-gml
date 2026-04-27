@@ -120,13 +120,21 @@ Dictionary<string, number> empty = {};
 Dictionary<string, number> scores = {"Alice": 10, "Bob": 20};
 ```
 ```gml
-var scores = ds_map_create();
-ds_map_add(scores, "Alice", 10);
-ds_map_add(scores, "Bob", 20);
+// Non-empty literal — emitted as IIFE using BCL constructor and Add():
+(function() {
+    var __d = Dictionary_create();
+    Dictionary_Add(__d, "Alice", 10);
+    Dictionary_Add(__d, "Bob", 20);
+    return __d;
+})()
+
+// Empty literal {}:
+Dictionary_create()   // no IIFE needed
 ```
 
-`ds_map_destroy` must be called manually via `scores.Destroy()` (mapped to `@NativeCall("ds_map_destroy")`).
+The compiler emits calls to BCL-generated GML functions (`Dictionary_create`, `Dictionary_Add`) derived via `NamingConvention`. It contains zero `ds_map_*` strings — all GML data structure details live in `bcl/Collections/Dictionary.tgml`.
 
+`ds_map_destroy` must be called manually via `scores.Destroy()` (mapped to `@NativeCall("ds_map_destroy")`).
 ### 3.3 BCL List
 
 `List<T>` is a BCL type wrapping a GML array:
@@ -432,7 +440,6 @@ public const number MaxCount = 100;
 
 - `readonly` — compile-time enforcement; can only be assigned in the constructor body.
 - `const` — emits as a GML `#macro`. Must be assigned a compile-time constant expression.
-- `global` is **not** a field modifier; it applies to **properties** only (see §8.4).
 
 ### 8.3 Constructors
 
@@ -482,7 +489,7 @@ function Config_static_ctor() {
 }
 
 // Registered via pragma (emitted in the same output file):
-gml_pragma("global", "Config_static_ctor");
+gml_pragma("global", "Config_static_ctor()");
 ```
 
 The `gml_pragma` call causes GML to run the function before any game code executes.
@@ -506,14 +513,14 @@ public number X {
 
 - `value` — the implicit parameter in `set`.
 - `field` — refers to the compiler-generated backing field of an auto-property (usable inside the same property body only).
-- `static` modifier on a property — see §16.2 and §19.10 for emission rules.
+- `static` modifier on a property — see §16.2 and §19.6 for emission rules.
 
 Abstract property:
 ```tgml
 public abstract number Value { get; set; }
 ```
 
-### 8.5 Methods
+### 8.6 Methods
 
 ```tgml
 public number Compute(number input) {
@@ -540,7 +547,7 @@ Abstract:
 public abstract number Calculate(number x);
 ```
 
-### 8.6 Indexers
+### 8.7 Indexers
 
 ```tgml
 public number this[number index] {
@@ -552,7 +559,7 @@ public number this[number index] {
 Multiple indexers with different index types are allowed.
 Read-only indexers: omit `set`.
 
-### 8.7 new — Object Instantiation
+### 8.8 new — Object Instantiation
 
 **Struct:**
 ```tgml
@@ -571,16 +578,16 @@ The `MyObject_create` script:
 2. If the class has additional constructor parameters (beyond the three spatial ones), sets them via a `with` block on the returned instance.
 3. If no additional parameters: directly returns the instance without a `with` block.
 
-### 8.8 Abstract Classes
+### 8.9 Abstract Classes
 
 - Cannot be instantiated. `new AbstractClass(...)` is a **compile error**.
 - All `abstract` members must be overridden in concrete subclasses. Failure to do so is a **compile error**.
 
-### 8.9 Sealed Classes
+### 8.10 Sealed Classes
 
 - Cannot be subclassed. Inheriting from a `sealed` class is a **compile error**.
 
-### 8.10 object Base Type
+### 8.11 object Base Type
 
 `object` is the root of all classes and structs. It provides:
 ```tgml
@@ -838,7 +845,7 @@ namespace MyGame.Entities {
 ```
 
 - Dot-separated namespace segments become underscore-separated prefixes in GML.
-- `MyGame.Entities.Player` → GML identifier prefix `MyGame_Entities_Player_`.
+- `MyGame.Entities.Player` → GML identifier `MyGame_Entities_Player`
 
 ### 15.2 Using Directive
 
@@ -880,7 +887,7 @@ Default (no modifier): `private` for members, `public` for top-level declaration
 
 | Modifier | Applies to | Meaning |
 |---|---|---|
-| `static` | class, method, property, field | All static members emit as `global.*` variables in GML. Static methods become `global.ClassName_Method = function(...) { }`. Static fields become `global.ClassName_Field`. Static properties emit getter/setter as `global.ClassName_get_Prop` / `global.ClassName_set_Prop`. A class with any static members or an explicit static constructor gets a `gml_pragma`-registered initializer. |
+| `static` | method, property, field | All static members emit as `global.*` variables in GML. Static methods become `global.ClassName_Method = function(...) { }` inside the static ctor. Static fields become `global.ClassName_Field`. Static properties emit getter/setter lambdas as `global.ClassName_get_Prop` / `global.ClassName_set_Prop`. Any class or struct with static members gets a `gml_pragma`-registered initializer. |
 | `abstract` | class, method, property | Class cannot be instantiated; members must be overridden. |
 | `sealed` | class | Cannot be subclassed. |
 | `virtual` | method, property | Can be overridden in subclasses. |
@@ -949,10 +956,11 @@ This enables `typeof(T)` → `inst.__genericArgs.T` inside generic methods.
 | Source construct | Output |
 |---|---|
 | Non-`@Object` class / struct | One `.gml` script file per class/struct. |
-| `@Object`-decorated class | One `.gml` file **per GML event** (Create, Step, Draw, etc.), named `OBJ_Name_EventName.gml`. Initialization code goes in the Create event. |
-| Top-level functions | Emitted into a shared scripts file for the namespace, or one file per function. |
-| `const` fields | `#macro ClassName_FieldName value` emitted at the top of the class's output file or a shared macros file. |
-| `enum` members | `#macro EnumName_MemberName value` emitted into a dedicated enums file. |
+| `@Object`-decorated class | One `.gml` file **per GML event** (Create, Step, Draw, etc.) for each overridden event method. Named per GmlEventMap. |
+| Top-level functions | One `.gml` script file per function, named after the function. |
+| Class / struct with static members | Static ctor function + `gml_pragma("global", "ClassName_static_ctor()")` appended to the class's output file. |
+| `const` fields | `#macro ClassName_FieldName value` emitted at the top of the class's output file. |
+| `enum` members | `#macro EnumName_MemberName value` emitted into a dedicated enums file per namespace. |
 
 ### 19.2 Naming Convention
 
@@ -1003,11 +1011,13 @@ public class Math {
 }
 ```
 ```gml
-// in static constructor:
-global.Math_Abs = function(x) {
-    return abs(x);
-};
-gml_pragma("global", "Math_static_ctor");
+// in Math.gml — static ctor wraps all static members:
+function Math_static_ctor() {
+    global.Math_Abs = function(x) {
+        return abs(x);
+    };
+}
+gml_pragma("global", "Math_static_ctor()");
 ```
 
 Call site: `Math.Abs(-5)` → `global.Math_Abs(-5)`
@@ -1022,7 +1032,7 @@ public class Config {
 function Config_static_ctor() {
     global.Config_Volume = 1;
 }
-gml_pragma("global", "Config_static_ctor");
+gml_pragma("global", "Config_static_ctor()");
 ```
 
 **Static property:**
@@ -1036,7 +1046,7 @@ function Config_static_ctor() {
     global.Config_get_Volume = function() { return global.Config_Volume; };
     global.Config_set_Volume = function(value) { global.Config_Volume = value; };
 }
-gml_pragma("global", "Config_static_ctor");
+gml_pragma("global", "Config_static_ctor()");
 ```
 
 **Naming convention for static members:**
@@ -1051,9 +1061,11 @@ gml_pragma("global", "Config_static_ctor");
 
 ### 19.7 @Object Constructor Emission
 
+All `@Object` classes must explicitly extend `TypedGML.GameObjects.GameObject`. The `@Object` decorator binds the class to a GML object asset name used in `instance_create_layer`.
+
 ```tgml
 @Object("OBJ_Player")
-public class Player {
+public class Player : GameObject {
     public number Health;
     public Player(number x, number y, string layer, number health) { ... }
 }
@@ -1071,7 +1083,9 @@ If there are no class-specific constructor parameters (only x, y, layer):
 return instance_create_layer(x, y, layer, OBJ_Player);
 ```
 
-### 19.10 Static Constructor Emission
+Event methods overridden from `GameObject` are emitted into separate GML event files. Only overridden events generate output files — unoverridden events produce no GML file.
+
+### 19.8 Static Constructor Emission
 
 If a class has **any** static members (methods, fields, properties) or an explicit `static ClassName()` body, the compiler generates a single `ClassName_static_ctor` GML function containing:
 
@@ -1082,7 +1096,7 @@ If a class has **any** static members (methods, fields, properties) or an explic
 
 The function is registered with:
 ```gml
-gml_pragma("global", "ClassName_static_ctor");
+gml_pragma("global", "ClassName_static_ctor()");
 ```
 
 This line is emitted immediately after the function definition in the same output file.
@@ -1090,6 +1104,34 @@ This line is emitted immediately after the function definition in the same outpu
 **Output file:** static constructor goes into the class's normal output file (same as instance methods). No separate file is generated.
 
 **Order within the static ctor:** methods first, then fields, then properties, then explicit body. This ensures methods exist before the explicit body can call them.
+
+### 19.9 Delegate Emission
+
+```tgml
+myDelegate += Handler;
+// emits:
+myDelegate[array_length(myDelegate)] = Handler;
+
+myDelegate -= Handler;
+// emits:
+myDelegate = __tgml_delegate_remove(myDelegate, Handler);
+
+myDelegate(arg1, arg2);
+// emits:
+__tgml_invoke_delegate(myDelegate, arg1, arg2);
+```
+
+### 19.10 Nullable Emission
+
+```tgml
+obj?.Field
+// emits:
+(obj != undefined ? obj.Field : undefined)
+
+a ?? b
+// emits:
+(a != undefined ? a : b)
+```
 
 ### 19.11 Primitive Type BCL Mapping
 
@@ -1102,20 +1144,6 @@ The compiler recognises the following aliases and maps them to BCL types:
 | `bool` | `bcl/Bool.tgml` | `Bool` |
 
 `object.ToString()` is defined in `bcl/Object.tgml` and inherited by all classes and structs. `GetType()` is compiler-hardcoded: it emits a string literal at the call site regardless of BCL.
-
-```tgml
-myDelegate += Handler;
-// emits:
-myDelegate[array_length(myDelegate)] = Handler;
-
-myDelegate -= Handler;
-// emits (using BCL helper):
-myDelegate = __tgml_delegate_remove(myDelegate, Handler);
-
-myDelegate(arg1, arg2);
-// emits:
-__tgml_invoke_delegate(myDelegate, arg1, arg2);
-```
 
 ### 19.12 Operator Intrinsic Shims (`__op_*`)
 
@@ -1140,18 +1168,6 @@ BCL operator declarations use `@NativeCall("__op_*")` names. These are **compile
 | `__op_num_str_add` | `string(a) + b` |
 
 Any `@NativeCall` name starting with `__op_` is treated as an intrinsic. Non-intrinsic `@NativeCall` names emit as regular GML function calls.
-
-### 19.9 Nullable Emission
-
-```tgml
-obj?.Field
-// emits:
-(obj != undefined ? obj.Field : undefined)
-
-a ?? b
-// emits:
-(a != undefined ? a : b)
-```
 
 ---
 
@@ -1793,25 +1809,27 @@ Compilation halts after the Population phase if any structural errors are found.
 | TGML0023 | Verification | `@Object` decorator missing object name string |
 | TGML0024 | Verification | Multiple `@Object` decorators on one class |
 | TGML0025 | Verification | `new` on `@Object` class with wrong parameter count (not x, y, layer + extras) |
-| TGML0026 | Verification | `static` used on indexer or constructor (not allowed) |
-| TGML0027 | Verification | `static` used inside an interface (not allowed) |
-| TGML0028 | Verification | `global` modifier used on field (only properties) |
-| TGML0029 | Verification | Delegate signature mismatch on `+=` / `-=` |
-| TGML0030 | Verification | Event assigned directly from outside declaring class |
-| TGML0031 | Verification | `null` assigned to non-nullable type |
-| TGML0032 | Population | Namespace conflict with existing type name |
-| TGML0033 | Verification | Struct inherits from another type (not allowed) |
-| TGML0034 | Verification | `break` or `continue` outside loop or switch |
-| TGML0035 | Verification | `return` value in void method or missing in non-void method |
-| TGML0036 | Verification | `static` used on indexer or constructor |
-| TGML0037 | Verification | `static` used inside an interface |
-| TGML0038 | Verification | `static` field initializer references another class's static member (cross-class static dependency) |
-| TGML0039 | Verification | Unknown `@NativeEvent` logical name |
-| TGML0040 | Verification | No overload of method matches the supplied arguments |
-| TGML0041 | Verification | Ambiguous call — multiple overloads match |
-| TGML0042 | Verification | Duplicate key in Dictionary literal |
-| TGML0043 | Verification | Duplicate static constructor in the same class |
-| TGML0044 | Verification | Static constructor body references static member of another class |
+| TGML0026 | Verification | `static` used on indexer or constructor |
+| TGML0027 | Verification | `static` used inside an interface |
+| TGML0028 | Verification | Delegate signature mismatch on `+=` / `-=` |
+| TGML0029 | Verification | Event assigned directly from outside declaring class |
+| TGML0030 | Verification | `null` assigned to non-nullable type |
+| TGML0031 | Population | Namespace conflict with existing type name |
+| TGML0032 | Verification | Struct inherits from another type (not allowed) |
+| TGML0033 | Verification | `break` or `continue` outside loop or switch |
+| TGML0034 | Verification | `return` value in void method or missing in non-void method |
+| TGML0035 | Verification | `return` value in void method or missing in non-void method (control-flow path) |
+| TGML0036 | Verification | Static field initializer references another class's static member (cross-class static dependency) |
+| TGML0037 | Verification | Unknown `@NativeEvent` logical name |
+| TGML0038 | Verification | No overload of method matches the supplied arguments |
+| TGML0039 | Verification | Ambiguous call — multiple overloads match |
+| TGML0040 | Verification | Duplicate key in Dictionary literal |
+| TGML0041 | Verification | Duplicate static constructor in the same class |
+| TGML0042 | Verification | Static constructor body references static member of another class |
+| TGML0043 | Verification | Static constructor has parameters |
+| TGML0044 | Verification | Static constructor has an access modifier |
+| TGML0045 | Verification | Class extends `GameObject` but is missing the `@Object` decorator |
+| TGML0046 | Verification | Class has `@Object` decorator but does not explicitly extend `GameObject` |
 
 ---
 

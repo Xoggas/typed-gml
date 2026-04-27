@@ -12,8 +12,8 @@ internal static class GmlExpressionRenderer
             BinaryExpressionNode or CastExpressionNode or DefaultExpressionNode or DictionaryLiteralExpressionNode or
             IdentifierExpressionNode or IndexerAccessExpressionNode or InvocationExpressionNode or LambdaExpressionNode or
             LiteralExpressionNode or MemberAccessExpressionNode or NameofExpressionNode or NullCoalescingExpressionNode or
-            NullConditionalExpressionNode or ObjectCreationExpressionNode or TernaryExpressionNode or TypeofExpressionNode or
-            UnaryExpressionNode => true,
+            NullConditionalExpressionNode or ObjectCreationExpressionNode or TernaryExpressionNode or ThisExpressionNode or
+            TypeofExpressionNode or UnaryExpressionNode => true,
         _ => false
     };
 
@@ -27,18 +27,23 @@ internal static class GmlExpressionRenderer
         CastExpressionNode n => Render(n.Expression, ctx),
         DefaultExpressionNode => "undefined",
         DictionaryLiteralExpressionNode n => RenderDictionary(n, ctx),
-        IdentifierExpressionNode n => n.Name,
+        IdentifierExpressionNode n => RenderIdentifier(n, ctx),
         IndexerAccessExpressionNode n => $"{Render(n.Target, ctx)}[{Render(n.Index, ctx)}]",
         InvocationExpressionNode n => $"{Render(n.Target, ctx)}({JoinArgs(n.PositionalArgs, n.NamedArgs, ctx)})",
         LambdaExpressionNode n => RenderLambda(n, ctx),
         LiteralExpressionNode n => RenderLiteral(n),
-        MemberAccessExpressionNode n => $"{Render(n.Target, ctx)}.{n.MemberName}",
+        MemberAccessExpressionNode n => Emitters.Expressions.StaticMemberAccessHelper.TryRenderRead(n, ctx, out var staticMember)
+            ? staticMember
+            : Emitters.Expressions.InstanceMemberAccessHelper.TryRenderRead(n, ctx, out var instanceMember)
+                ? instanceMember
+                : $"{Render(n.Target, ctx)}.{n.MemberName}",
         NameofExpressionNode n => $"\"{n.Chain.LastOrDefault() ?? string.Empty}\"",
         NullCoalescingExpressionNode n => $"({Render(n.Left, ctx)} != undefined ? {Render(n.Left, ctx)} : {Render(n.Right, ctx)})",
         NullConditionalExpressionNode n => $"({Render(n.Target, ctx)} != undefined ? {Render(n.Target, ctx)}.{n.MemberName} : undefined)",
         ObjectCreationExpressionNode n => $"{ResolveConstructorName(n.TypeRef, ctx)}({JoinArgs(n.PositionalArgs, n.NamedArgs, ctx)})",
         TernaryExpressionNode n => $"({Render(n.Condition, ctx)} ? {Render(n.ThenExpr, ctx)} : {Render(n.ElseExpr, ctx)})",
-        TypeofExpressionNode n => $"\"{n.TypeName}\"",
+        ThisExpressionNode => ctx.SelfName ?? "self",
+        TypeofExpressionNode n => RenderTypeof(n, ctx),
         UnaryExpressionNode n => ExpressionFormatHelper.Unary(n, ctx),
         _ => string.Empty
     };
@@ -49,11 +54,12 @@ internal static class GmlExpressionRenderer
     private static string RenderDictionary(DictionaryLiteralExpressionNode node, EmitContext ctx)
     {
         var ctorName = ResolveDictionaryCtorName(ctx);
+        var addName = ResolveDictionaryAddName(ctx);
         if (node.Entries.Count == 0)
             return $"{ctorName}()";
 
         var adds = string.Join(" ", node.Entries.Select(e =>
-            $"__d.Add({Render(e.Key, ctx)}, {Render(e.Value, ctx)});"));
+            $"{addName}(__d, {Render(e.Key, ctx)}, {Render(e.Value, ctx)});"));
         return $"(function() {{ var __d = {ctorName}(); {adds} return __d; }})()";
     }
 
@@ -61,6 +67,11 @@ internal static class GmlExpressionRenderer
         ctx.Symbols.TryResolve("Dictionary", ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
             ? NamingConvention.ConstructorName(dictType)
             : "Dictionary_create";
+
+    private static string ResolveDictionaryAddName(EmitContext ctx) =>
+        ctx.Symbols.TryResolve("Dictionary", ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
+            ? NamingConvention.MethodName(dictType, dictType.Members.First(m => m.Kind == Symbols.MemberKind.Method && m.Name == "Add"))
+            : "Dictionary_Add";
 
     private static string RenderLambda(LambdaExpressionNode node, EmitContext ctx)
     {
@@ -74,6 +85,11 @@ internal static class GmlExpressionRenderer
             CurrentType = ctx.CurrentType,
             CurrentNamespacePrefix = ctx.CurrentNamespacePrefix
         };
+        nested.UsingPrefixes = ctx.UsingPrefixes;
+        nested.Scope = ctx.Scope;
+        nested.CurrentMember = ctx.CurrentMember;
+        nested.SelfName = ctx.SelfName;
+        nested.IsObjectEventContext = ctx.IsObjectEventContext;
         writer.Write($"function({parameters})");
         nested.Emitter.Emit(node.Body, nested);
         return writer.GetOutput().TrimEnd();
@@ -83,6 +99,18 @@ internal static class GmlExpressionRenderer
         ctx.Symbols.TryResolve(typeRef, ctx.CurrentNamespacePrefix, [], out var symbol)
             ? NamingConvention.ConstructorName(symbol)
             : $"{typeRef.Replace(".", "_", StringComparison.Ordinal)}_create";
+
+    private static string RenderIdentifier(IdentifierExpressionNode node, EmitContext ctx) =>
+        Emitters.Expressions.StaticMemberAccessHelper.TryRenderRead(node, ctx, out var rendered)
+            ? rendered
+            : Emitters.Expressions.InstanceMemberAccessHelper.TryRenderRead(node, ctx, out var instanceRendered)
+                ? instanceRendered
+                : node.Name;
+
+    private static string RenderTypeof(TypeofExpressionNode node, EmitContext ctx) =>
+        ctx.Symbols.TryResolve(TypeRoot(node.TypeName), ctx.CurrentNamespacePrefix, ctx.UsingPrefixes, out var type)
+            ? $"\"{NamingConvention.TypeName(type)}\""
+            : $"\"{node.TypeName}\"";
 
     private static string RenderLiteral(LiteralExpressionNode node) => node.Kind switch
     {
@@ -97,4 +125,10 @@ internal static class GmlExpressionRenderer
 
     private static string Unquote(string value) =>
         value.Length >= 2 && value[0] == '"' && value[^1] == '"' ? value[1..^1] : value;
+
+    private static string TypeRoot(string value)
+    {
+        var stop = value.IndexOfAny(['<', '?', '[']);
+        return stop >= 0 ? value[..stop] : value;
+    }
 }

@@ -1,5 +1,6 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Declarations;
+using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Diagnostics;
 using TypedGML.Compiler.Symbols;
@@ -38,6 +39,9 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
                 case InterfaceDeclarationNode type:
                     PopulateMembers(type.Members, Combine(currentNamespace, type.Name));
                     break;
+                case EnumDeclarationNode type:
+                    PopulateEnumMembers(type.Members, Combine(currentNamespace, type.Name));
+                    break;
             }
         }
     }
@@ -52,8 +56,17 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
             var symbol = member switch
             {
                 FieldDeclarationNode field => new MemberSymbol { Name = field.Name, Kind = MemberKind.Field, ReturnType = field.TypeRef, Parameters = [], Modifiers = field.Modifiers.ToHashSet(StringComparer.Ordinal) },
-                PropertyDeclarationNode property => new MemberSymbol { Name = property.Name, Kind = MemberKind.Property, ReturnType = property.TypeRef, Parameters = [], Modifiers = property.Modifiers.ToHashSet(StringComparer.Ordinal) },
-                MethodDeclarationNode method => new MemberSymbol { Name = method.Name, Kind = MemberKind.Method, ReturnType = method.TypeRef, Parameters = Parameters(method.Parameters), Modifiers = method.Modifiers.ToHashSet(StringComparer.Ordinal) },
+                PropertyDeclarationNode property => new MemberSymbol
+                {
+                    Name = property.Name,
+                    Kind = MemberKind.Property,
+                    ReturnType = property.TypeRef,
+                    Parameters = [],
+                    Modifiers = property.Modifiers.ToHashSet(StringComparer.Ordinal),
+                    NativePropertyName = DecoratorArg(property.Decorators, "NativeProperty"),
+                    AssetName = DecoratorArg(property.Decorators, "Asset")
+                },
+                MethodDeclarationNode method => new MemberSymbol { Name = method.Name, Kind = MemberKind.Method, ReturnType = method.TypeRef, Parameters = Parameters(method.Parameters), Modifiers = method.Modifiers.ToHashSet(StringComparer.Ordinal), NativeEventName = DecoratorArg(method.Decorators, "NativeEvent") },
                 ConstructorDeclarationNode ctor => new MemberSymbol { Name = ".ctor", Kind = MemberKind.Constructor, ReturnType = "void", Parameters = Parameters(ctor.Parameters), Modifiers = ctor.Modifiers.ToHashSet(StringComparer.Ordinal) },
                 StaticConstructorDeclarationNode ctor => new MemberSymbol { Name = ".cctor", Kind = MemberKind.StaticConstructor, ReturnType = "void", Parameters = [], Modifiers = new HashSet<string>(StringComparer.Ordinal) { "static" } },
                 IndexerDeclarationNode indexer => new MemberSymbol { Name = "this", Kind = MemberKind.Indexer, ReturnType = indexer.TypeRef, Parameters = [Parameter(indexer.Parameter)], Modifiers = indexer.Modifiers.ToHashSet(StringComparer.Ordinal) },
@@ -80,6 +93,30 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
 
     private static ParameterSymbol Parameter(ParameterNode parameter) =>
         new(parameter.Name, parameter.TypeRef, parameter.DefaultValue is not null, parameter.DefaultValue);
+
+    private static string? DecoratorArg(IEnumerable<DecoratorNode> decorators, string name)
+    {
+        var decorator = decorators.FirstOrDefault(d => string.Equals(d.Name, name, StringComparison.Ordinal));
+        return decorator?.Args.FirstOrDefault() is LiteralExpressionNode literal
+            ? literal.Value?.ToString()
+            : null;
+    }
+
+    private void PopulateEnumMembers(IEnumerable<EnumMemberNode> members, string qualifiedTypeName)
+    {
+        if (!symbolTable.TryResolve(qualifiedTypeName, null, [], out var typeSymbol))
+            return;
+
+        foreach (var member in members)
+            typeSymbol.Members.Add(new MemberSymbol
+            {
+                Name = member.Name,
+                Kind = MemberKind.Field,
+                ReturnType = "number",
+                Parameters = [],
+                Modifiers = new HashSet<string>(StringComparer.Ordinal) { "const" }
+            });
+    }
 
     private static string Combine(string currentNamespace, string name) =>
         string.IsNullOrEmpty(currentNamespace) ? name : $"{currentNamespace}.{name}";

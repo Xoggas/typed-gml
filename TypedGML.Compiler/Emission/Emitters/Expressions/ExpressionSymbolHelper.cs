@@ -7,7 +7,7 @@ namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 internal static class ExpressionSymbolHelper
 {
     public static bool TryResolveType(EmitContext ctx, string? typeRef, out TypeSymbol symbol) =>
-        ctx.Symbols.TryResolve(RootName(typeRef), CurrentNamespace(ctx), [], out symbol);
+        ctx.Symbols.TryResolve(RootName(typeRef), CurrentNamespace(ctx), ctx.UsingPrefixes, out symbol);
 
     public static bool IsDelegateTarget(IAstNode target, EmitContext ctx) =>
         TryResolveDelegateMember(target, ctx, out _) ||
@@ -34,6 +34,8 @@ internal static class ExpressionSymbolHelper
         {
             if (identifier.Name == "this" && ctx.CurrentType is not null) { type = ctx.CurrentType; return true; }
             if (identifier.Name == "base" && ctx.CurrentType?.Base is not null) { type = ctx.CurrentType.Base; return true; }
+            if (ctx.Scope.TryResolve(identifier.Name, out var scopedTypeRef) && TryResolveType(ctx, scopedTypeRef, out type))
+                return true;
             if (TryResolveCurrentMember(ctx, identifier.Name, out var member))
                 return TryResolveType(ctx, member.ReturnType, out type);
             if (TryResolveType(ctx, identifier.Name, out type))

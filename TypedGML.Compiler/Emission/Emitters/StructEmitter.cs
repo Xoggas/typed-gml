@@ -2,6 +2,7 @@ using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Declarations;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
+using TypedGML.Compiler.Ast.Statements;
 using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Emission.Emitters;
@@ -25,29 +26,43 @@ public sealed class StructEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEm
 
     private static void EmitCreate(StructDeclarationNode declaration, EmitContext ctx)
     {
-        ctx.Writer.Write($"function {NamingConvention.ConstructorName(ctx.CurrentType!)}()");
-        ctx.Writer.BeginBlock();
-        var fields = declaration.Members
-            .OfType<FieldDeclarationNode>()
-            .Where(f => !f.Modifiers.Contains("const", StringComparer.Ordinal) && !f.Modifiers.Contains("static", StringComparer.Ordinal))
-            .ToList();
-        if (fields.Count == 0)
+        var constructor = declaration.Members.OfType<ConstructorDeclarationNode>().FirstOrDefault();
+        var parameters = constructor is null ? string.Empty : string.Join(", ", constructor.Parameters.Select(p => p.Name));
+        ctx.Writer.Write($"function {NamingConvention.ConstructorName(ctx.CurrentType!)}({parameters})");
+        WithConstructorContext(ctx, constructor?.Parameters ?? [], () =>
         {
-            ctx.Writer.WriteLine("return {};");
+            ctx.Writer.BeginBlock();
+
+            var fields = declaration.Members
+                .OfType<FieldDeclarationNode>()
+                .Where(f => !f.Modifiers.Contains("const", StringComparer.Ordinal) && !f.Modifiers.Contains("static", StringComparer.Ordinal))
+                .ToList();
+
+            ctx.Writer.WriteLine("var self = {};");
+            if (constructor is null)
+            {
+                foreach (var field in fields)
+                    ctx.Writer.WriteLine($"self.{field.Name} = {FormatValue(field.Initializer)};");
+            }
+            else
+            {
+                EmitConstructorStatements(constructor.Body, ctx);
+            }
+
+            ctx.Writer.WriteLine("return self;");
             ctx.Writer.EndBlock();
+        });
+    }
+
+    private static void EmitConstructorStatements(IAstNode body, EmitContext ctx)
+    {
+        if (body is BlockStatementNode block)
+        {
+            foreach (var stmt in block.Statements)
+                ctx.Dispatch(stmt, ctx);
             return;
         }
-
-        ctx.Writer.WriteLine("return {");
-        ctx.Writer.Indent();
-        for (var i = 0; i < fields.Count; i++)
-        {
-            var suffix = i < fields.Count - 1 ? "," : string.Empty;
-            ctx.Writer.WriteLine($"{fields[i].Name}: {FormatValue(fields[i].Initializer)}{suffix}");
-        }
-        ctx.Writer.Dedent();
-        ctx.Writer.WriteLine("};");
-        ctx.Writer.EndBlock();
+        ctx.Dispatch(body, ctx);
     }
 
     private static TypeSymbol? ResolveType(EmitContext ctx, string name) =>
@@ -65,4 +80,22 @@ public sealed class StructEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEm
         IdentifierExpressionNode identifier => identifier.Name,
         _ => "undefined"
     };
+
+    private static void WithConstructorContext(EmitContext ctx, IReadOnlyList<ParameterNode> parameters, Action action)
+    {
+        var previousSelf = ctx.SelfName;
+        ctx.SelfName = "self";
+        ctx.Scope.Push();
+        foreach (var parameter in parameters)
+            ctx.Scope.Declare(parameter.Name, parameter.TypeRef);
+        try
+        {
+            action();
+        }
+        finally
+        {
+            ctx.Scope.Pop();
+            ctx.SelfName = previousSelf;
+        }
+    }
 }

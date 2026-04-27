@@ -7,7 +7,7 @@ namespace TypedGML.Compiler.Verification.Checks;
 
 public sealed class DictionaryLiteralCheck : ISemanticCheck
 {
-    public bool Matches(IAstNode node) => node is DictionaryLiteralExpressionNode or AssignmentExpressionNode or VarDeclarationStatementNode;
+    public bool Matches(IAstNode node) => node is DictionaryLiteralExpressionNode or AssignmentExpressionNode or VarDeclarationStatementNode or ReturnStatementNode;
 
     public void Check(IAstNode node, VerificationContext ctx)
     {
@@ -17,6 +17,8 @@ public sealed class DictionaryLiteralCheck : ISemanticCheck
             CheckTarget(ExpressionTypeResolver.Resolve(assignment.Target, ctx), value.Location, ctx);
         else if (node is VarDeclarationStatementNode declaration && declaration.Initializer is DictionaryLiteralExpressionNode init)
             CheckTarget(declaration.TypeRef, init.Location, ctx);
+        else if (node is ReturnStatementNode @return && @return.Value is DictionaryLiteralExpressionNode returned)
+            CheckTarget(ctx.CurrentMember?.ReturnType, returned.Location, ctx);
     }
 
     private static void CheckEntries(DictionaryLiteralExpressionNode literal, VerificationContext ctx)

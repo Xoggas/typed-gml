@@ -5,7 +5,7 @@ grammar TypedGML;
 // -------------------------------------------------------------------------------
 
 program
-    : usingDecl* namespaceDecl* topLevelDecl* EOF
+    : (usingDecl | namespaceDecl)* topLevelDecl* EOF
     ;
 
 // -------------------------------------------------------------------------------
@@ -36,7 +36,7 @@ typeDecl
 
 functionDecl
     : decorator*
-      accessMod methodModifiers typeRef nameId typeParams?
+      methodModifiers typeRef nameId typeParams?
       LPAREN paramList? RPAREN
       block
     ;
@@ -150,9 +150,9 @@ nameId
 memberDecl
     : fieldDecl
     | propertyDecl
-    | methodDecl
     | constructorDecl
     | staticConstructorDecl
+    | methodDecl
     | indexerDecl
     | eventDecl
     | typeDecl
@@ -173,7 +173,7 @@ propertyDecl
 
 indexerDecl
     : decorator*
-      propertyModifiers typeRef nameId
+      propertyModifiers typeRef THIS
       LBRACKET param RBRACKET
       LBRACE accessorDecl+ RBRACE
     ;
@@ -216,10 +216,10 @@ overloadableOperator
     | GE
     ;
 
-// public constructor(var p: int) : base(p) { ... }
+// public TypeName(var p: int) : base(p) { ... }
 constructorDecl
     : decorator*
-      accessMod CONSTRUCTOR
+      accessMod (nameId | CONSTRUCTOR)
       LPAREN paramList? RPAREN
       (COLON (BASE | THIS) LPAREN argList? RPAREN)?
       block
@@ -259,7 +259,7 @@ interfacePropertyDecl
 
 interfaceIndexerDecl
     : decorator*
-      typeRef nameId
+      typeRef THIS
       LBRACKET param RBRACKET
       LBRACE interfaceAccessorDecl+ RBRACE
     ;
@@ -391,6 +391,7 @@ forStmt
 
 forInit
     : typeRef nameId (ASSIGN expression)?
+    | VAR nameId ASSIGN expression
     | expression
     |
     ;
@@ -463,6 +464,7 @@ expression
     : expression LPAREN argList? RPAREN                                   # invokeExpr
     | expression PERIOD nameId LPAREN argList? RPAREN                     # methodCallExpr
     | expression PERIOD nameId                                            # fieldAccessExpr
+    | expression NULL_CONDITIONAL nameId                                  # nullConditionalAccessExpr
     | expression LBRACKET expression RBRACKET                         # indexExpr
 
     // -- Unary prefix ----------------------------------------------------------
@@ -496,6 +498,9 @@ expression
     // -- Logical ---------------------------------------------------------------
     | expression AND expression                                       # logicalAnd
     | expression OR expression                                        # logicalOr
+
+    // -- Null coalescing -------------------------------------------------------
+    | <assoc=right> expression NULL_COALESCE expression               # nullCoalesceExpr
 
     // -- Ternary (right-associative) -------------------------------------------
     | <assoc=right> expression QUESTION expression COLON expression   # ternaryExpr
@@ -532,6 +537,7 @@ expression
     // -- Primary ---------------------------------------------------------------
     | nameId LPAREN argList? RPAREN                                       # funcCallExpr
     | LPAREN expression RPAREN                                        # parenExpr
+    | THIS                                                            # thisExpr
     | FIELD                                                           # fieldKeywordExpr
     | VALUE                                                           # valueKeywordExpr
     | ID                                                              # idExpr
@@ -690,6 +696,8 @@ BITXOR : '^'  ;
 BITNOT : '~' ;
 
 // -- Other ---------------------------------------------------------------------
+NULL_COALESCE : '??' ;
+NULL_CONDITIONAL : '?.' ;
 QUESTION : '?' ;
 
 // -------------------------------------------------------------------------------

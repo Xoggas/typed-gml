@@ -19,8 +19,8 @@ public sealed class OverrideSignatureCheck : ISemanticCheck
 
     private static void CheckMethod(MethodDeclarationNode method, VerificationContext ctx)
     {
-        if (ctx.CurrentType?.Kind == TypeKind.Struct && HasAny(method.Modifiers, "virtual", "override"))
-            Report(DiagnosticCode.TypeMismatch, $"Struct member '{method.Name}' cannot be virtual or override.", method.Location, ctx);
+        if (ctx.CurrentType?.Kind == TypeKind.Struct && method.Modifiers.Contains("virtual", StringComparer.Ordinal))
+            Report(DiagnosticCode.TypeMismatch, $"Struct member '{method.Name}' cannot be virtual.", method.Location, ctx);
 
         if (!method.Modifiers.Contains("override", StringComparer.Ordinal))
             return;
@@ -35,8 +35,8 @@ public sealed class OverrideSignatureCheck : ISemanticCheck
 
     private static void CheckProperty(PropertyDeclarationNode property, VerificationContext ctx)
     {
-        if (ctx.CurrentType?.Kind == TypeKind.Struct && HasAny(property.Modifiers, "virtual", "override"))
-            Report(DiagnosticCode.TypeMismatch, $"Struct member '{property.Name}' cannot be virtual or override.", property.Location, ctx);
+        if (ctx.CurrentType?.Kind == TypeKind.Struct && property.Modifiers.Contains("virtual", StringComparer.Ordinal))
+            Report(DiagnosticCode.TypeMismatch, $"Struct member '{property.Name}' cannot be virtual.", property.Location, ctx);
 
         if (!property.Modifiers.Contains("override", StringComparer.Ordinal))
             return;

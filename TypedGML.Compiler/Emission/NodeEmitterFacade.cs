@@ -46,6 +46,11 @@ public sealed class NodeEmitterFacade(Action<IAstNode, EmitContext> dispatch)
             CurrentType = ctx.CurrentType,
             CurrentNamespacePrefix = ctx.CurrentNamespacePrefix
         };
+        nested.UsingPrefixes = ctx.UsingPrefixes;
+        nested.Scope = ctx.Scope;
+        nested.CurrentMember = ctx.CurrentMember;
+        nested.SelfName = ctx.SelfName;
+        nested.IsObjectEventContext = ctx.IsObjectEventContext;
 
         dispatch(node, nested);
         var rendered = writer.GetOutput().TrimEnd();

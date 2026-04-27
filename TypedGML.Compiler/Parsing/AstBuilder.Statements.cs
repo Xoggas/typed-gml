@@ -24,10 +24,16 @@ public sealed partial class AstBuilder
     public override IAstNode VisitForStmt(TypedGMLParser.ForStmtContext context) =>
         new ForStatementNode(Node(context.forInit()), Node(context.expression()), context.forUpdate() is null ? [] : Nodes<IAstNode>(context.forUpdate().expression()), Node(context.block()), Location(context));
 
-    public override IAstNode VisitForInit(TypedGMLParser.ForInitContext context) =>
-        context.typeRef() is null
-            ? Node(context.expression())
-            : new VarDeclarationStatementNode(Text(context.nameId()), Text(context.typeRef()), Node(context.expression()), false, Location(context));
+    public override IAstNode VisitForInit(TypedGMLParser.ForInitContext context)
+    {
+        if (context.VAR() is not null)
+            return new VarDeclarationStatementNode(Text(context.nameId()), null, Node(context.expression()), true, Location(context));
+        if (context.typeRef() is not null)
+            return new VarDeclarationStatementNode(Text(context.nameId()), Text(context.typeRef()), Node(context.expression()), false, Location(context));
+        if (context.expression() is not null)
+            return Node(context.expression());
+        return null!;
+    }
 
     public override IAstNode VisitRepeatStmt(TypedGMLParser.RepeatStmtContext context) =>
         new RepeatStatementNode(Node(context.expression()), Node(context.block()), Location(context));

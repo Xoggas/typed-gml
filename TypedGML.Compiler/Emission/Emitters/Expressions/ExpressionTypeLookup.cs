@@ -1,0 +1,95 @@
+using TypedGML.Compiler.Ast;
+using TypedGML.Compiler.Ast.Expressions;
+using TypedGML.Compiler.Symbols;
+
+namespace TypedGML.Compiler.Emission.Emitters.Expressions;
+
+internal static class ExpressionTypeLookup
+{
+    public static string? Resolve(IAstNode? node, EmitContext ctx) => node switch
+    {
+        null => null,
+        LiteralExpressionNode literal => literal.Kind switch
+        {
+            LiteralKind.Number => "number",
+            LiteralKind.String => "string",
+            LiteralKind.Bool => "bool",
+            LiteralKind.Null => "null",
+            _ => null
+        },
+        IdentifierExpressionNode identifier => ResolveIdentifier(identifier, ctx),
+        ObjectCreationExpressionNode creation => creation.TypeRef,
+        MemberAccessExpressionNode access => ResolveMember(access, ctx)?.ReturnType,
+        InvocationExpressionNode invocation => ResolveInvocation(invocation, ctx),
+        BinaryExpressionNode binary => ResolveBinary(binary, ctx),
+        UnaryExpressionNode unary => unary.Op == "not" ? "bool" : Resolve(unary.Operand, ctx),
+        TernaryExpressionNode ternary => Resolve(ternary.ThenExpr, ctx) == Resolve(ternary.ElseExpr, ctx)
+            ? Resolve(ternary.ThenExpr, ctx)
+            : null,
+        NullCoalescingExpressionNode coalescing => Resolve(coalescing.Left, ctx) ?? Resolve(coalescing.Right, ctx),
+        DefaultExpressionNode defaultValue => defaultValue.TypeName,
+        TypeofExpressionNode or NameofExpressionNode => "string",
+        _ => null
+    };
+
+    private static string? ResolveIdentifier(IdentifierExpressionNode identifier, EmitContext ctx)
+    {
+        if (identifier.Name == "this")
+            return ctx.CurrentType?.QualifiedName;
+
+        if (ctx.Scope.TryResolve(identifier.Name, out var typeRef))
+            return typeRef;
+
+        if (ctx.CurrentType is not null && TryResolveCurrentMember(identifier.Name, ctx, out _, out var member))
+            return member.ReturnType;
+
+        return ExpressionSymbolHelper.TryResolveType(ctx, identifier.Name, out var type)
+            ? type.QualifiedName
+            : null;
+    }
+
+    private static string? ResolveInvocation(InvocationExpressionNode invocation, EmitContext ctx)
+    {
+        if (invocation.Target is IdentifierExpressionNode identifier &&
+            TryResolveCurrentMember(identifier.Name, ctx, out _, out var member))
+            return member.ReturnType;
+
+        return ResolveMember(invocation.Target, ctx)?.ReturnType;
+    }
+
+    private static string? ResolveBinary(BinaryExpressionNode binary, EmitContext ctx) => binary.Op switch
+    {
+        "==" or "!=" or "<" or ">" or "<=" or ">=" or "and" or "or" => "bool",
+        _ => Resolve(binary.Left, ctx) ?? Resolve(binary.Right, ctx)
+    };
+
+    private static MemberSymbol? ResolveMember(IAstNode target, EmitContext ctx)
+    {
+        if (target is MemberAccessExpressionNode access &&
+            ExpressionSymbolHelper.TryResolveTargetType(access.Target, ctx, out var owner))
+            return owner.Members.FirstOrDefault(m => m.Name == access.MemberName);
+
+        return null;
+    }
+
+    private static bool TryResolveCurrentMember(
+        string name,
+        EmitContext ctx,
+        out TypeSymbol owner,
+        out MemberSymbol member)
+    {
+        for (var current = ctx.CurrentType; current is not null; current = current.Base)
+        {
+            member = current.Members.FirstOrDefault(m => m.Name == name)!;
+            if (member is null)
+                continue;
+
+            owner = current;
+            return true;
+        }
+
+        owner = null!;
+        member = null!;
+        return false;
+    }
+}

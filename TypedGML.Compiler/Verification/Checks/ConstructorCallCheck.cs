@@ -45,7 +45,7 @@ public sealed class ConstructorCallCheck : ISemanticCheck
         if (type.IsAbstract)
             Report(DiagnosticCode.AbstractClassInstantiation, $"Abstract type '{type.QualifiedName}' cannot be instantiated.", creation.Location, ctx);
 
-        var positionalArgs = type.ObjectAssetName is null ? creation.PositionalArgs : creation.PositionalArgs.Skip(3).ToList();
+        var positionalArgs = creation.PositionalArgs;
         if (type.ObjectAssetName is not null && creation.PositionalArgs.Count < 3)
             Report(DiagnosticCode.InvalidObjectConstructorArgumentCount, "@Object construction requires x, y, and layer arguments.", creation.Location, ctx);
 

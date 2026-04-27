@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Declarations;
+using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Diagnostics;
 using TypedGML.Compiler.Symbols;
@@ -14,12 +15,20 @@ public sealed class Emitter(
     SymbolTable symbolTable,
     DiagnosticBag diagnostics)
 {
+    private IReadOnlyDictionary<string, IAstNode> _typeDeclarations = new Dictionary<string, IAstNode>(StringComparer.Ordinal);
+
     public void Emit(IReadOnlyList<FileNode> files)
     {
         AssertNoOverlap();
+        _typeDeclarations = TypeDeclarationMapBuilder.Build(files);
         foreach (var file in files)
+        {
+            var ctx = NewContext();
+            ctx.UsingPrefixes = file.TopLevelDeclarations.OfType<UsingDirectiveNode>()
+                .Select(u => u.QualifiedName).ToList();
             foreach (var node in file.TopLevelDeclarations)
-                EmitNode(node, NewContext(), persist: true);
+                EmitNode(node, ctx, persist: true);
+        }
     }
 
     internal void Dispatch(IAstNode node, EmitContext ctx)
@@ -69,11 +78,13 @@ public sealed class Emitter(
     {
         if (node is NamespaceDeclarationNode ns)
         {
-            var previousNamespace = ctx.CurrentNamespacePrefix;
-            ctx.CurrentNamespacePrefix = Combine(previousNamespace, ns.Name);
+            var nsPrefix = Combine(ctx.CurrentNamespacePrefix, ns.Name);
             foreach (var child in ns.Body)
-                EmitNode(child, ctx, persist);
-            ctx.CurrentNamespacePrefix = previousNamespace;
+            {
+                var childCtx = ctx.WithWriter(new GmlWriter());
+                childCtx.CurrentNamespacePrefix = nsPrefix;
+                EmitNode(child, childCtx, persist);
+            }
             return;
         }
 
@@ -127,5 +138,8 @@ public sealed class Emitter(
         string.IsNullOrEmpty(currentNamespace) ? name : $"{currentNamespace}.{name}";
 
     private EmitContext NewContext() =>
-        new(symbolTable, new GmlWriter(), fileOrganizer, new DecoratorAnnotations(null, null, null, null, null), diagnostics, Dispatch);
+        new(symbolTable, new GmlWriter(), fileOrganizer, new DecoratorAnnotations(null, null, null, null, null), diagnostics, Dispatch)
+        {
+            TypeDeclarations = _typeDeclarations
+        };
 }

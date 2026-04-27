@@ -15,13 +15,15 @@ public static class BuiltinTypeRegistry
         {
             Name = "ToString",
             Kind = MemberKind.Method,
-            ReturnType = "string"
+            ReturnType = "string",
+            Modifiers = new HashSet<string>(StringComparer.Ordinal) { "virtual" }
         });
         objectType.Members.Add(new MemberSymbol
         {
             Name = "GetType",
             Kind = MemberKind.Method,
-            ReturnType = "string"
+            ReturnType = "string",
+            Modifiers = new HashSet<string>(StringComparer.Ordinal) { "virtual" }
         });
 
         table.Register("object", objectType);

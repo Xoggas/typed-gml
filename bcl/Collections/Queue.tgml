@@ -1,4 +1,4 @@
-﻿namespace TypedGML.Collections;
+namespace TypedGML.Collections;
 using TypedGML.Core;
 
 public class Queue<T> : ICollection<T>
@@ -29,7 +29,7 @@ public class Queue<T> : ICollection<T>
     @NativeCall("ds_queue_destroy")
     private void __destroy(number queue) { }
 
-    public Queue()
+    public constructor()
     {
         _queue = __create();
     }

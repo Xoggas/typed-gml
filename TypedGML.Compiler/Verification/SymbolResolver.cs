@@ -8,7 +8,7 @@ internal static class SymbolResolver
         ctx.Symbols.TryResolve(
             TypeReferenceHelper.RootName(typeRef),
             TypeReferenceHelper.CurrentNamespace(ctx.CurrentType),
-            [],
+            ctx.UsingPrefixes,
             out symbol);
 
     public static MemberSymbol? FindMember(TypeSymbol? type, string name, out TypeSymbol? owner)

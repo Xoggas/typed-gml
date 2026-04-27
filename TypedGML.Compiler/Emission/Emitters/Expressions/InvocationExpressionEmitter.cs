@@ -10,6 +10,12 @@ public sealed class InvocationExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (InvocationExpressionNode)node;
+        if (MethodInvocationHelper.TryRender(expression, ctx, out var methodTarget, out var methodArgs))
+        {
+            ctx.Writer.Write($"{methodTarget}({methodArgs})");
+            return;
+        }
+
         var target = ExpressionCallHelper.RenderTarget(expression.Target, ctx);
         var args = ExpressionCallHelper.JoinArguments(expression.Target, expression.PositionalArgs, expression.NamedArgs, ctx);
         if (ExpressionSymbolHelper.IsDelegateTarget(expression.Target, ctx))

@@ -1,4 +1,4 @@
-﻿namespace TypedGML.Collections;
+namespace TypedGML.Collections;
 using TypedGML.Core;
 
 public class List<T> : IList<T>
@@ -6,9 +6,9 @@ public class List<T> : IList<T>
     private T[] _items;
     private number _size;
 
-    public List()
+    public constructor()
     {
-        _items = [];
+        _items = default(T[]);
         _size = 0;
     }
 
@@ -88,7 +88,7 @@ public class List<T> : IList<T>
 
     public void Clear()
     {
-        _items = [];
+        _items = default(T[]);
         _size = 0;
     }
 

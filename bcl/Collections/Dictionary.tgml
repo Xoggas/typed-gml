@@ -1,4 +1,4 @@
-﻿namespace TypedGML.Collections;
+namespace TypedGML.Collections;
 using TypedGML.Core;
 using TypedGML.Utils;
 
@@ -7,7 +7,7 @@ public struct KeyValuePair<TKey, TValue>
     public TKey Key;
     public TValue Value;
 
-    public KeyValuePair(TKey key, TValue value)
+    public constructor(TKey key, TValue value)
     {
         Key = key;
         Value = value;
@@ -48,7 +48,7 @@ public class Dictionary<TKey, TValue> : IDictionary<TKey, TValue>
     @NativeCall("ds_map_values_to_array")
     private TValue[] __values(number map) { return default(TValue[]); }
 
-    public Dictionary()
+    public constructor()
     {
         _map = __create();
     }
@@ -95,17 +95,6 @@ public class Dictionary<TKey, TValue> : IDictionary<TKey, TValue>
         return __values(_map);
     }
 
-    public KeyValuePair<TKey, TValue>[] Entries()
-    {
-        var keys = Keys();
-        var count = ArrayUtils.Length(keys);
-        var result = [];
-        for (var i = 0; i < count; i += 1)
-        {
-            result[i] = new KeyValuePair<TKey, TValue>(keys[i], this[keys[i]]);
-        }
-        return result;
-    }
 
     public override string ToString()
     {

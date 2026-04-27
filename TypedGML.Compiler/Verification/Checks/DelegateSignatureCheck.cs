@@ -23,6 +23,9 @@ public sealed class DelegateSignatureCheck : ISemanticCheck
             return;
 
         var targetType = ExpressionTypeResolver.Resolve(assignment.Target, ctx);
+        if (IsNonDelegateType(targetType, ctx))
+            return;
+
         if (!DelegateTypeHelper.TrySignature(targetType, ctx, out var returnType, out var parameterTypes) &&
             !IsEvent(assignment.Target, ctx))
         {
@@ -53,6 +56,15 @@ public sealed class DelegateSignatureCheck : ISemanticCheck
         for (var i = 0; i < Math.Min(invocation.PositionalArgs.Count, parameterTypes.Count); i++)
             if (!TypeReferenceHelper.IsAssignable(parameterTypes[i], ExpressionTypeResolver.Resolve(invocation.PositionalArgs[i], ctx), ctx))
                 Report("Delegate invocation argument type mismatch.", invocation.Location, ctx);
+    }
+
+    private static bool IsNonDelegateType(string? targetType, VerificationContext ctx)
+    {
+        if (string.IsNullOrEmpty(targetType))
+            return true;
+        if (targetType is "number" or "string" or "bool" or "object" or "void")
+            return true;
+        return SymbolResolver.TryResolveType(targetType, ctx, out var symbol) && symbol.Kind != TypeKind.Delegate;
     }
 
     private static bool IsEvent(IAstNode target, VerificationContext ctx)

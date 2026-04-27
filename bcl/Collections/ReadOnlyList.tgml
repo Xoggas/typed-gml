@@ -1,11 +1,11 @@
-﻿namespace TypedGML.Collections;
+namespace TypedGML.Collections;
 using TypedGML.Core;
 
 public class ReadOnlyList<T> : IReadOnlyList<T>
 {
     private List<T> _inner;
 
-    public ReadOnlyList(List<T> source)
+    public constructor(List<T> source)
     {
         _inner = source;
     }

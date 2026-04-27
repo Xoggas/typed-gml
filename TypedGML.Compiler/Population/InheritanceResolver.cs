@@ -14,36 +14,42 @@ public sealed class InheritanceResolver(SymbolTable symbolTable, DiagnosticBag d
     public void Populate(IReadOnlyList<FileNode> files)
     {
         foreach (var file in files)
-            ResolveNodes(file.TopLevelDeclarations, string.Empty);
+        {
+            var prefixes = file.TopLevelDeclarations
+                .OfType<UsingDirectiveNode>()
+                .Select(u => u.QualifiedName)
+                .ToList();
+            ResolveNodes(file.TopLevelDeclarations, string.Empty, prefixes);
+        }
 
         DetectCycles();
     }
 
-    private void ResolveNodes(IEnumerable<IAstNode> nodes, string currentNamespace)
+    private void ResolveNodes(IEnumerable<IAstNode> nodes, string currentNamespace, IReadOnlyList<string> usingPrefixes)
     {
         foreach (var node in nodes)
         {
             switch (node)
             {
                 case NamespaceDeclarationNode ns:
-                    ResolveNodes(ns.Body, Combine(currentNamespace, ns.Name));
+                    ResolveNodes(ns.Body, Combine(currentNamespace, ns.Name), usingPrefixes);
                     break;
                 case ClassDeclarationNode type:
-                    ResolveType(type.BaseTypes, Combine(currentNamespace, type.Name), type.Location, false);
-                    ResolveNodes(type.Members, currentNamespace);
+                    ResolveType(type.BaseTypes, Combine(currentNamespace, type.Name), type.Location, false, currentNamespace, usingPrefixes);
+                    ResolveNodes(type.Members, currentNamespace, usingPrefixes);
                     break;
                 case StructDeclarationNode type:
-                    ResolveType(type.BaseTypes, Combine(currentNamespace, type.Name), type.Location, true);
-                    ResolveNodes(type.Members, currentNamespace);
+                    ResolveType(type.BaseTypes, Combine(currentNamespace, type.Name), type.Location, true, currentNamespace, usingPrefixes);
+                    ResolveNodes(type.Members, currentNamespace, usingPrefixes);
                     break;
                 case InterfaceDeclarationNode type:
-                    ResolveInterfaces(type.BaseTypes, Combine(currentNamespace, type.Name));
+                    ResolveInterfaces(type.BaseTypes, Combine(currentNamespace, type.Name), currentNamespace, usingPrefixes);
                     break;
             }
         }
     }
 
-    private void ResolveType(IReadOnlyList<string> baseTypes, string qualifiedName, Diagnostics.SourceLocation location, bool isStruct)
+    private void ResolveType(IReadOnlyList<string> baseTypes, string qualifiedName, Diagnostics.SourceLocation location, bool isStruct, string currentNamespace, IReadOnlyList<string> usingPrefixes)
     {
         if (!symbolTable.TryResolve(qualifiedName, null, [], out var typeSymbol))
             return;
@@ -55,7 +61,7 @@ public sealed class InheritanceResolver(SymbolTable symbolTable, DiagnosticBag d
         typeSymbol.Interfaces.Clear();
         for (var i = 0; i < baseTypes.Count; i++)
         {
-            if (!symbolTable.TryResolve(baseTypes[i], null, [], out var resolved))
+            if (!symbolTable.TryResolve(baseTypes[i], currentNamespace, usingPrefixes, out var resolved))
                 continue;
 
             if (isStruct)
@@ -77,14 +83,14 @@ public sealed class InheritanceResolver(SymbolTable symbolTable, DiagnosticBag d
         }
     }
 
-    private void ResolveInterfaces(IReadOnlyList<string> baseTypes, string qualifiedName)
+    private void ResolveInterfaces(IReadOnlyList<string> baseTypes, string qualifiedName, string currentNamespace, IReadOnlyList<string> usingPrefixes)
     {
         if (!symbolTable.TryResolve(qualifiedName, null, [], out var typeSymbol))
             return;
 
         typeSymbol.Interfaces.Clear();
         foreach (var baseType in baseTypes)
-            if (symbolTable.TryResolve(baseType, null, [], out var resolved))
+            if (symbolTable.TryResolve(baseType, currentNamespace, usingPrefixes, out var resolved))
                 typeSymbol.Interfaces.Add(resolved);
     }
 

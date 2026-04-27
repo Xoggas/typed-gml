@@ -133,7 +133,7 @@ Rules:
 - Static methods emit as `global.ClassName_Method = function(...) { };` inside `ClassName_static_ctor`.
 - Static fields emit as `global.ClassName_Field = value;` inside `ClassName_static_ctor`.
 - Static properties emit getter/setter lambdas: `global.ClassName_get_Prop = function() { ... };`.
-- `gml_pragma("global", "ClassName_static_ctor")` is always emitted immediately after the static ctor function, in the same output file.
+- `gml_pragma("global", "ClassName_static_ctor()")` is always emitted immediately after the static ctor function, in the same output file.
 - The `global` keyword does not exist in TypedGML — use `static` instead.
 - `ds_map_create()` / `ds_map_add()` / `ds_map_destroy()` are used for `Dictionary<K,V>` literals and BCL methods.
 - Dictionary brace literals `{"key": value}` emit as an IIFE wrapping `ds_map_create` + `ds_map_add` calls — see `TypedGML_Specification.md §3.2`.

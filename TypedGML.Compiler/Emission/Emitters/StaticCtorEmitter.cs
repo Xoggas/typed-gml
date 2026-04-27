@@ -25,7 +25,7 @@ public sealed class StaticCtorEmitter
         if (staticConstructor is not null)
             EmitBody(staticConstructor.Body, ctx);
         ctx.Writer.EndBlock();
-        ctx.Writer.WriteLine($"gml_pragma(\"global\", \"{NamingConvention.StaticCtorFunctionName(type)}\");");
+        ctx.Writer.WriteLine($"gml_pragma(\"global\", \"{NamingConvention.StaticCtorFunctionName(type)}()\");");
     }
 
     private static void EmitMethod(TypeSymbol type, MethodDeclarationNode method, EmitContext ctx)

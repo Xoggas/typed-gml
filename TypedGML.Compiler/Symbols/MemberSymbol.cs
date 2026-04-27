@@ -14,5 +14,11 @@ public sealed class MemberSymbol
 
     public object? ConstValue { get; set; }
 
+    public string? NativeEventName { get; set; }
+
+    public string? NativePropertyName { get; set; }
+
+    public string? AssetName { get; set; }
+
     public List<MemberSymbol> Overloads { get; } = [];
 }

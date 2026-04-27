@@ -54,6 +54,7 @@ try
         new EventAccessCheck(),
         new LambdaCheck(),
         new DecoratorPlacementCheck(),
+        new NativeEventNameCheck(),
         new ObjectDecoratorCheck(),
         new GameObjectDecoratorCheck(),
         new ConstExpressionCheck(),
@@ -83,6 +84,7 @@ try
     var nodeEmitters = new INodeEmitter[]
     {
         new ClassEmitter(staticCtorEmitter), new StructEmitter(staticCtorEmitter), new EnumEmitter(), new DelegateEmitter(),
+        new FunctionEmitter(),
         new ConstructorEmitter(), new MethodEmitter(), new PropertyEmitter(),
         new IndexerEmitter(), new OperatorEmitter(), new FieldEmitter(), new EventEmitter(),
         new BlockStatementEmitter(), new IfStatementEmitter(), new WhileStatementEmitter(),

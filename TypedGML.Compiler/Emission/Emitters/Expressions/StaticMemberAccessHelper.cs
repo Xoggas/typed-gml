@@ -8,7 +8,15 @@ internal static class StaticMemberAccessHelper
 {
     public static bool TryRenderRead(IAstNode node, EmitContext ctx, out string rendered)
     {
-        if (!TryResolve(node, ctx, out var owner, out var member) || !member.Modifiers.Contains("static", StringComparer.Ordinal))
+        if (!TryResolve(node, ctx, out var owner, out var member))
+        {
+            rendered = string.Empty;
+            return false;
+        }
+
+        var isStatic = member.Modifiers.Contains("static", StringComparer.Ordinal);
+        var isConst = member.Modifiers.Contains("const", StringComparer.Ordinal);
+        if (!isStatic && !isConst)
         {
             rendered = string.Empty;
             return false;
@@ -17,6 +25,7 @@ internal static class StaticMemberAccessHelper
         rendered = member.Kind switch
         {
             MemberKind.Method => NamingConvention.StaticMemberName(owner, member),
+            MemberKind.Field when isConst => NamingConvention.ConstMacro(owner, member),
             MemberKind.Field => NamingConvention.StaticMemberName(owner, member),
             MemberKind.Property => $"{NamingConvention.StaticGetterName(owner, member)}()",
             _ => string.Empty
@@ -60,6 +69,12 @@ internal static class StaticMemberAccessHelper
         {
             case MemberAccessExpressionNode access when TryResolveType(access.Target, ctx, out var type):
                 return TryResolveMember(type, access.MemberName, out owner, out member);
+            case IdentifierExpressionNode identifier when ctx.CurrentType is not null:
+                if (TryResolveMember(ctx.CurrentType, identifier.Name, out owner, out member))
+                    return true;
+                owner = null!;
+                member = null!;
+                return false;
             default:
                 owner = null!;
                 member = null!;
@@ -82,7 +97,7 @@ internal static class StaticMemberAccessHelper
     private static bool TryResolveBclAlias(string name, EmitContext ctx, out TypeSymbol type)
     {
         foreach (var alias in Aliases(name))
-            if (ctx.Symbols.TryResolve(alias, ctx.CurrentNamespacePrefix, [], out type))
+            if (ctx.Symbols.TryResolve(alias, ctx.CurrentNamespacePrefix, ctx.UsingPrefixes, out type))
                 return true;
 
         type = null!;

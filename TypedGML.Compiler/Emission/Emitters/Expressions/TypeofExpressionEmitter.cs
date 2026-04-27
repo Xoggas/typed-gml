@@ -16,7 +16,7 @@ public sealed class TypeofExpressionEmitter : INodeEmitter
             return;
         }
 
-        var name = ExpressionSymbolHelper.TryResolveType(ctx, expression.TypeName, out var type) ? type.QualifiedName : expression.TypeName;
+        var name = ExpressionSymbolHelper.TryResolveType(ctx, expression.TypeName, out var type) ? NamingConvention.TypeName(type) : expression.TypeName;
         ctx.Writer.Write($"\"{ExpressionFormatHelper.Escape(name)}\"");
     }
 }

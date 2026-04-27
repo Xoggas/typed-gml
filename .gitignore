@@ -136,3 +136,5 @@ _NCrunch*
 /.vs
 /.dotnet
 /TypedGML.Transpiler/Generated
+/tests
+/tmp

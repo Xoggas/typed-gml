@@ -1,6 +1,7 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
+using TypedGML.Compiler.Ast.Statements;
 
 namespace TypedGML.Compiler.Emission.Emitters;
 
@@ -16,10 +17,27 @@ public sealed class ConstructorEmitter : INodeEmitter
 
         var parameters = string.Join(", ", constructor.Parameters.Select(p => p.Name));
         ctx.Writer.Write($"function {NamingConvention.ConstructorName(ctx.CurrentType)}({parameters})");
-        ctx.Writer.BeginBlock();
-        EmitChain(ctx, constructor);
-        ctx.Dispatch(constructor.Body, ctx);
-        ctx.Writer.EndBlock();
+        WithConstructorContext(ctx, constructor.Parameters, () =>
+        {
+            ctx.Writer.BeginBlock();
+            ctx.Writer.WriteLine("var self = {};");
+            EmitFieldInitializers(ctx);
+            EmitChain(ctx, constructor);
+            EmitBodyStatements(constructor.Body, ctx);
+            ctx.Writer.WriteLine("return self;");
+            ctx.Writer.EndBlock();
+        });
+    }
+
+    private static void EmitBodyStatements(IAstNode body, EmitContext ctx)
+    {
+        if (body is BlockStatementNode block)
+        {
+            foreach (var stmt in block.Statements)
+                ctx.Dispatch(stmt, ctx);
+            return;
+        }
+        ctx.Dispatch(body, ctx);
     }
 
     private static void EmitChain(EmitContext ctx, ConstructorDeclarationNode constructor)
@@ -40,4 +58,38 @@ public sealed class ConstructorEmitter : INodeEmitter
         IdentifierExpressionNode identifier => identifier.Name,
         _ => "undefined"
     };
+
+    private static void EmitFieldInitializers(EmitContext ctx)
+    {
+        foreach (var field in Fields(ctx.CurrentType))
+            ctx.Writer.WriteLine($"self.{field.Name} = undefined;");
+    }
+
+    private static IEnumerable<Symbols.MemberSymbol> Fields(Symbols.TypeSymbol? type)
+    {
+        for (var current = type; current is not null; current = current.Base)
+            foreach (var field in current.Members.Where(m =>
+                         m.Kind == Symbols.MemberKind.Field &&
+                         !m.Modifiers.Contains("static", StringComparer.Ordinal) &&
+                         !m.Modifiers.Contains("const", StringComparer.Ordinal)))
+                yield return field;
+    }
+
+    private static void WithConstructorContext(EmitContext ctx, IReadOnlyList<ParameterNode> parameters, Action action)
+    {
+        var previousSelf = ctx.SelfName;
+        ctx.SelfName = "self";
+        ctx.Scope.Push();
+        foreach (var parameter in parameters)
+            ctx.Scope.Declare(parameter.Name, parameter.TypeRef);
+        try
+        {
+            action();
+        }
+        finally
+        {
+            ctx.Scope.Pop();
+            ctx.SelfName = previousSelf;
+        }
+    }
 }

@@ -26,13 +26,13 @@ public sealed partial class AstBuilder
         new EnumDeclarationNode(context.ID().GetText(), Decorators(context.decorator()), Nodes<EnumMemberNode>(context.enumMember()), Doc(context), Location(context));
 
     public override IAstNode VisitEnumMember(TypedGMLParser.EnumMemberContext context) =>
-        new EnumMemberNode(Text(context.nameId()), Decorators(context.decorator()), Node(context.intLiteral()), Doc(context), Location(context));
+        new EnumMemberNode(Text(context.nameId()), Decorators(context.decorator()), MaybeNode(context.intLiteral()), Doc(context), Location(context));
 
     public override IAstNode VisitDelegateDecl(TypedGMLParser.DelegateDeclContext context) =>
         new DelegateDeclarationNode(context.ID().GetText(), Parts(context.accessMod()), GenericParams(context.typeParams()), Text(context.typeRef()), Parameters(context.paramList()), Decorators(context.decorator()), Doc(context), Location(context));
 
     public override IAstNode VisitFunctionDecl(TypedGMLParser.FunctionDeclContext context) =>
-        new FunctionDeclarationNode(Text(context.nameId()), Parts(context.accessMod()).Concat(Parts(context.methodModifiers())).ToList(), GenericParams(context.typeParams()), Text(context.typeRef()), Parameters(context.paramList()), Decorators(context.decorator()), Node(context.block()), Doc(context), Location(context));
+        new FunctionDeclarationNode(Text(context.nameId()), Parts(context.methodModifiers()), GenericParams(context.typeParams()), Text(context.typeRef()), Parameters(context.paramList()), Decorators(context.decorator()), Node(context.block()), Doc(context), Location(context));
 
     public override IAstNode VisitTypeParam(TypedGMLParser.TypeParamContext context) =>
         new GenericParamNode(context.ID().GetText(), Text(context.typeRef()), Location(context));

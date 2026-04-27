@@ -10,6 +10,12 @@ public sealed class AssignmentExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (AssignmentExpressionNode)node;
+        if (InstanceMemberAccessHelper.TryRenderAssignment(expression, ctx, out var instanceAssignment))
+        {
+            ctx.Writer.Write(instanceAssignment);
+            return;
+        }
+
         if (StaticMemberAccessHelper.TryRenderAssignment(expression, ctx, out var staticAssignment))
         {
             ctx.Writer.Write(staticAssignment);

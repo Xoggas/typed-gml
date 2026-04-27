@@ -1,5 +1,6 @@
 using TypedGML.Compiler.Diagnostics;
 using TypedGML.Compiler.Symbols;
+using TypedGML.Compiler.Ast;
 
 namespace TypedGML.Compiler.Emission;
 
@@ -29,6 +30,18 @@ public sealed class EmitContext(
 
     public DiagnosticBag Diagnostics { get; } = diagnostics;
 
+    public IReadOnlyList<string> UsingPrefixes { get; set; } = [];
+
+    public IReadOnlyDictionary<string, IAstNode> TypeDeclarations { get; set; } = new Dictionary<string, IAstNode>(StringComparer.Ordinal);
+
+    public ScopeStack Scope { get; set; } = new();
+
+    public MemberSymbol? CurrentMember { get; set; }
+
+    public string? SelfName { get; set; }
+
+    public bool IsObjectEventContext { get; set; }
+
     internal Action<TypedGML.Compiler.Ast.IAstNode, EmitContext> Dispatch { get; } = dispatch;
 
     internal EmitContext WithWriter(GmlWriter newWriter) =>
@@ -36,5 +49,11 @@ public sealed class EmitContext(
         {
             CurrentType = CurrentType,
             CurrentNamespacePrefix = CurrentNamespacePrefix,
+            UsingPrefixes = UsingPrefixes,
+            TypeDeclarations = TypeDeclarations,
+            Scope = Scope,
+            CurrentMember = CurrentMember,
+            SelfName = SelfName,
+            IsObjectEventContext = IsObjectEventContext,
         };
 }

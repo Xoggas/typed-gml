@@ -22,9 +22,11 @@ public sealed partial class AstBuilder
     public override IAstNode VisitDefaultOfExpr(TypedGMLParser.DefaultOfExprContext c) => new DefaultExpressionNode(Text(c.typeRef()), Location(c));
     public override IAstNode VisitStringExpr(TypedGMLParser.StringExprContext c) => new LiteralExpressionNode(Unquote(c.stringLiteral().GetText()), LiteralKind.String, Location(c));
     public override IAstNode VisitMethodCallExpr(TypedGMLParser.MethodCallExprContext c) { var a = Args(c.argList()); return new InvocationExpressionNode(new MemberAccessExpressionNode(Node(c.expression()), Text(c.nameId()), Location(c.nameId().Start)), a.PositionalArgs, a.NamedArgs, Location(c)); }
+    public override IAstNode VisitNullConditionalAccessExpr(TypedGMLParser.NullConditionalAccessExprContext c) => new NullConditionalExpressionNode(Node(c.expression()), Text(c.nameId()), Location(c));
     public override IAstNode VisitUnaryExpr(TypedGMLParser.UnaryExprContext c) => new UnaryExpressionNode(c.GetChild(0).GetText(), Node(c.expression()), Location(c));
     public override IAstNode VisitBaseCallExpr(TypedGMLParser.BaseCallExprContext c) => new BaseCallExpressionNode(Text(c.nameId()), Args(c.argList()).PositionalArgs, Location(c));
     public override IAstNode VisitTernaryExpr(TypedGMLParser.TernaryExprContext c) => new TernaryExpressionNode(Node(c.expression(0)), Node(c.expression(1)), Node(c.expression(2)), Location(c));
+    public override IAstNode VisitNullCoalesceExpr(TypedGMLParser.NullCoalesceExprContext c) => new NullCoalescingExpressionNode(Node(c.expression(0)), Node(c.expression(1)), Location(c));
     public override IAstNode VisitDictInitExpr(TypedGMLParser.DictInitExprContext c) => new DictionaryLiteralExpressionNode(Nodes<DictionaryEntryNode>(c.dictionaryEntry()), Location(c));
     public override IAstNode VisitBitwiseOr(TypedGMLParser.BitwiseOrContext c) => new BinaryExpressionNode(Node(c.expression(0)), c.GetChild(1).GetText(), Node(c.expression(1)), Location(c));
     public override IAstNode VisitAssignExpr(TypedGMLParser.AssignExprContext c) => new AssignmentExpressionNode(Node(c.expression(0)), c.GetChild(1).GetText(), Node(c.expression(1)), Location(c));
@@ -47,10 +49,19 @@ public sealed partial class AstBuilder
     public override IAstNode VisitAsExpr(TypedGMLParser.AsExprContext c) => new CastExpressionNode(Node(c.expression()), Text(c.typeRef()), CastKind.As, Location(c));
     public override IAstNode VisitLeftShiftExpr(TypedGMLParser.LeftShiftExprContext c) => new BinaryExpressionNode(Node(c.expression(0)), c.GetChild(1).GetText(), Node(c.expression(1)), Location(c));
     public override IAstNode VisitIdExpr(TypedGMLParser.IdExprContext c) => new IdentifierExpressionNode(c.ID().GetText(), Location(c));
-    public override IAstNode VisitLambdaExpr(TypedGMLParser.LambdaExprContext c) => new LambdaExpressionNode(c.paramList() is null ? [new ParameterNode(Text(c.nameId()), string.Empty, null, [], Location(c.nameId().Start))] : Parameters(c.paramList()), c.expression() is null ? Node(c.block()!) : Node(c.expression()), Location(c));
+    public override IAstNode VisitLambdaExpr(TypedGMLParser.LambdaExprContext c) =>
+        new LambdaExpressionNode(
+            c.paramList() is not null
+                ? Parameters(c.paramList())
+                : c.nameId() is not null
+                    ? [new ParameterNode(Text(c.nameId()), string.Empty, null, [], Location(c.nameId().Start))]
+                    : [],
+            c.expression() is null ? Node(c.block()!) : Node(c.expression()),
+            Location(c));
     public override IAstNode VisitDictionaryEntry(TypedGMLParser.DictionaryEntryContext c) => new DictionaryEntryNode(Node(c.expression(0)), Node(c.expression(1)), Location(c));
     public override IAstNode VisitIntLiteral(TypedGMLParser.IntLiteralContext c) => new LiteralExpressionNode(c.GetText(), LiteralKind.Number, Location(c));
     public override IAstNode VisitRealLiteral(TypedGMLParser.RealLiteralContext c) => new LiteralExpressionNode(c.GetText(), LiteralKind.Number, Location(c));
     public override IAstNode VisitStringLiteral(TypedGMLParser.StringLiteralContext c) => new LiteralExpressionNode(Unquote(c.GetText()), LiteralKind.String, Location(c));
+    public override IAstNode VisitThisExpr(TypedGMLParser.ThisExprContext c) => new ThisExpressionNode(Location(c));
     public override IAstNode VisitBoolLiteral(TypedGMLParser.BoolLiteralContext c) => new LiteralExpressionNode(c.GetText() == "true", LiteralKind.Bool, Location(c));
 }

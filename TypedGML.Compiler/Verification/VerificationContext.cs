@@ -1,3 +1,4 @@
+using TypedGML.Compiler.Ast.Declarations;
 using TypedGML.Compiler.Diagnostics;
 using TypedGML.Compiler.Symbols;
 
@@ -20,4 +21,6 @@ public sealed class VerificationContext(SymbolTable symbols, ScopeStack scope, D
     public bool IsInSwitch { get; set; }
 
     public DiagnosticBag Diagnostics { get; } = diagnostics;
+
+    public IReadOnlyList<string> UsingPrefixes { get; set; } = [];
 }

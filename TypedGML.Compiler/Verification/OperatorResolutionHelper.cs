@@ -51,7 +51,7 @@ internal static class OperatorResolutionHelper
     private static bool TryResolveOperatorOwner(string typeRef, VerificationContext ctx, out TypeSymbol type)
     {
         var alias = PrimitiveAlias(TypeReferenceHelper.RootName(typeRef));
-        if (alias is not null && ctx.Symbols.TryResolve(alias, TypeReferenceHelper.CurrentNamespace(ctx.CurrentType), [], out type))
+        if (alias is not null && ctx.Symbols.TryResolve(alias, TypeReferenceHelper.CurrentNamespace(ctx.CurrentType), ctx.UsingPrefixes, out type))
             return true;
 
         return SymbolResolver.TryResolveType(typeRef, ctx, out type);

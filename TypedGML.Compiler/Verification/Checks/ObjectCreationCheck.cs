@@ -21,7 +21,7 @@ public sealed class ObjectCreationCheck : ISemanticCheck
         if (type.IsAbstract)
             Report($"Abstract type '{type.QualifiedName}' cannot be instantiated.", DiagnosticCode.AbstractClassInstantiation, creation.Location, ctx);
 
-        var args = type.ObjectAssetName is null ? creation.PositionalArgs : creation.PositionalArgs.Skip(3).ToList();
+        var args = creation.PositionalArgs;
         if (type.Members.Any(member => member.Kind == MemberKind.Constructor) &&
             !type.Members.Where(member => member.Kind == MemberKind.Constructor).Any(member => Matches(member, args, ctx)))
             Report($"Type '{type.QualifiedName}' does not have a matching constructor.", DiagnosticCode.NoMatchingMethodOverload, creation.Location, ctx);

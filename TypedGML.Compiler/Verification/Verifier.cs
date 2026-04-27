@@ -25,7 +25,10 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
         {
             case FileNode file:
                 RunChecks(file, ctx);
+                var previousPrefixes = ctx.UsingPrefixes;
+                ctx.UsingPrefixes = file.TopLevelDeclarations.OfType<UsingDirectiveNode>().Select(u => u.QualifiedName).ToList();
                 WalkMany(file.TopLevelDeclarations, ctx, currentNamespace);
+                ctx.UsingPrefixes = previousPrefixes;
                 break;
             case NamespaceDeclarationNode ns:
                 RunChecks(ns, ctx);

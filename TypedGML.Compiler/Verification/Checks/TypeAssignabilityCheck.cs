@@ -40,6 +40,16 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
     private static void CheckAssignment(AssignmentExpressionNode assignment, VerificationContext ctx)
     {
         var targetType = ExpressionTypeResolver.Resolve(assignment.Target, ctx);
+        if (assignment.Value is DictionaryLiteralExpressionNode)
+        {
+            if (TypeReferenceHelper.RootName(targetType) != "Dictionary")
+            {
+                Report(DiagnosticCode.InvalidDictionaryLiteralTarget, "Dictionary literals are only valid when the target type is Dictionary<K,V>.", assignment.Location, ctx);
+                return;
+            }
+
+            return;
+        }
         var valueType = ExpressionTypeResolver.Resolve(assignment.Value, ctx);
         if (!TypeReferenceHelper.IsAssignable(targetType, valueType, ctx))
             Report(DiagnosticCode.TypeMismatch, $"Cannot assign '{valueType ?? "unknown"}' to '{targetType ?? "unknown"}'.", assignment.Location, ctx);
@@ -56,6 +66,17 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
 
         if (declaration.IsVar && string.IsNullOrWhiteSpace(initializerType))
             Report(DiagnosticCode.AmbiguousVarInference, $"Cannot determine a unique type for '{declaration.Name}'.", declaration.Location, ctx);
+
+        if (declaration.Initializer is DictionaryLiteralExpressionNode)
+        {
+            if (TypeReferenceHelper.RootName(declaration.TypeRef) != "Dictionary")
+            {
+                Report(DiagnosticCode.InvalidDictionaryLiteralTarget, "Dictionary literals are only valid when the target type is Dictionary<K,V>.", declaration.Location, ctx);
+                return;
+            }
+
+            return;
+        }
 
         if (!declaration.IsVar && !TypeReferenceHelper.IsAssignable(declaration.TypeRef, initializerType, ctx))
             Report(DiagnosticCode.TypeMismatch, $"Cannot assign '{initializerType ?? "unknown"}' to '{declaration.TypeRef ?? "unknown"}'.", declaration.Location, ctx);
@@ -75,6 +96,10 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
 
         if (expectedType != "void" && @return.Value is not null)
         {
+            if (@return.Value is DictionaryLiteralExpressionNode &&
+                TypeReferenceHelper.RootName(expectedType) == "Dictionary")
+                return;
+
             var valueType = ExpressionTypeResolver.Resolve(@return.Value, ctx);
             if (!TypeReferenceHelper.IsAssignable(expectedType, valueType, ctx))
                 Report(DiagnosticCode.TypeMismatch, $"Cannot return '{valueType ?? "unknown"}' from a member returning '{expectedType}'.", @return.Location, ctx);

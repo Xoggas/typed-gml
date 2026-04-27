@@ -1,6 +1,7 @@
 using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
 using TypedGML.Compiler.Ast;
+using TypedGML.Compiler.Ast.Declarations;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Diagnostics;
@@ -28,22 +29,32 @@ public sealed partial class AstBuilder(DiagnosticBag diagnostics) : TypedGMLBase
         parser.RemoveErrorListeners();
         parser.AddErrorListener(listener);
         var program = parser.program();
-        var declarations = program.usingDecl().Cast<IParseTree>()
-            .Concat(program.namespaceDecl())
-            .Concat(program.topLevelDecl())
-            .Select(Node)
-            .ToList();
+
+        var usings = program.usingDecl().Select(MaybeNode).Where(n => n is not null).Cast<IAstNode>().ToList();
+        var fileScopedNs = program.namespaceDecl().FirstOrDefault(ns => ns.SEMI() is not null);
+        var topLevelNodes = program.topLevelDecl().Select(MaybeNode).Where(n => n is not null).Cast<IAstNode>().ToList();
+
+        if (fileScopedNs is not null)
+        {
+            var nsNode = (NamespaceDeclarationNode)Node(fileScopedNs);
+            var wrappedNs = nsNode with { Body = topLevelNodes };
+            return new FileNode(filePath, usings.Append(wrappedNs).ToList(), Location(program));
+        }
+
+        var blockNs = program.namespaceDecl().Select(MaybeNode).Where(n => n is not null).Cast<IAstNode>().ToList();
+        var declarations = usings.Concat(blockNs).Concat(topLevelNodes).ToList();
         return new FileNode(filePath, declarations, Location(program));
     }
 
     public override IAstNode VisitTopLevelDecl(TypedGMLParser.TopLevelDeclContext context) =>
-        context.typeDecl() is null ? Node(context.functionDecl()!) : Node(context.typeDecl());
+        context.typeDecl() is not null ? Node(context.typeDecl()) :
+        context.functionDecl() is not null ? Node(context.functionDecl()!) : null!;
 
     public override IAstNode VisitTypeDecl(TypedGMLParser.TypeDeclContext context) =>
         Node(context.GetChild(0));
 
     public override IAstNode VisitMemberDecl(TypedGMLParser.MemberDeclContext context) =>
-        Node(context.GetChild(0));
+        context.GetChild(0) is { } child ? (MaybeNode(child) ?? null!) : null!;
 
     public override IAstNode VisitInterfaceMemberDecl(TypedGMLParser.InterfaceMemberDeclContext context) =>
         Node(context.GetChild(0));
@@ -56,7 +67,7 @@ public sealed partial class AstBuilder(DiagnosticBag diagnostics) : TypedGMLBase
     private SourceLocation Location(ParserRuleContext context) => Location(context.Start);
     private SourceLocation Location(IToken token) => new(_filePath, token.Line, token.Column);
     private string Text(IParseTree? node) => node?.GetText() ?? string.Empty;
-    private IReadOnlyList<T> Nodes<T>(IEnumerable<IParseTree> nodes) where T : class, IAstNode => nodes.Select(n => (T)Node(n)).ToList();
+    private IReadOnlyList<T> Nodes<T>(IEnumerable<IParseTree> nodes) where T : class, IAstNode => nodes.Select(MaybeNode).Where(n => n is T).Cast<T>().ToList();
     private IReadOnlyList<string> Texts(IEnumerable<IParseTree> nodes) => nodes.Select(Text).ToList();
     private IReadOnlyList<string> Parts(params IParseTree?[] nodes)
     {

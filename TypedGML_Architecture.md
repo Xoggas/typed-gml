@@ -953,7 +953,7 @@ sealed class GmlWriter
 
 ### 8.4 Static Member Emission
 
-All `static` members emit as `global.*` entries inside a generated `ClassName_static_ctor` function. The function is registered via `gml_pragma("global", "ClassName_static_ctor")`.
+All `static` members emit as `global.*` entries inside a generated `ClassName_static_ctor` function. The function is registered via `gml_pragma("global", "ClassName_static_ctor()")`.
 
 `NamingConvention` gains these methods:
 

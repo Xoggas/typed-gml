@@ -39,9 +39,11 @@ internal static class ExpressionTypeResolver
             ? Resolve(ternary.ThenExpr, ctx)
             : null,
         NullCoalescingExpressionNode coalescing => TypeReferenceHelper.UnwrapNullable(Resolve(coalescing.Left, ctx)),
+        NullConditionalExpressionNode conditional => ResolveNullConditional(conditional, ctx),
         IndexerAccessExpressionNode indexer => ResolveIndexer(indexer, ctx),
         BaseAccessExpressionNode access => ResolveBaseMember(access.MemberName, ctx),
         BaseCallExpressionNode call => ResolveBaseMember(call.MemberName, ctx),
+        ThisExpressionNode => ctx.CurrentType?.QualifiedName,
         _ => null
     };
 
@@ -101,6 +103,14 @@ internal static class ExpressionTypeResolver
             return null;
 
         return resolved.Members.FirstOrDefault(m => m.Kind == MemberKind.Indexer)?.ReturnType;
+    }
+
+    private static string? ResolveNullConditional(NullConditionalExpressionNode conditional, VerificationContext ctx)
+    {
+        if (!SymbolResolver.TryResolveType(Resolve(conditional.Target, ctx), ctx, out var targetType))
+            return null;
+
+        return SymbolResolver.FindMember(targetType, conditional.MemberName, out _)?.ReturnType;
     }
 
     private static string? ResolveBaseMember(string memberName, VerificationContext ctx) =>

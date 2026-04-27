@@ -28,12 +28,20 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
         foreach (var member in declaration.Members.OfType<FieldDeclarationNode>())
             ctx.Dispatch(member, ctx);
 
+        if (ctx.CurrentType?.IsAbstract == true)
+        {
+            staticCtorEmitter.EmitStaticCtor(ctx.CurrentType, declaration.Members, ctx);
+            return;
+        }
+
         var constructors = declaration.Members.OfType<ConstructorDeclarationNode>().ToList();
-        if (constructors.Count == 0 && ctx.CurrentType is not null)
+        if (constructors.Count == 0 && ctx.CurrentType is not null && !ctx.CurrentType.IsAbstract)
             EmitDefaultConstructor(ctx);
         foreach (var constructor in constructors)
             ctx.Dispatch(constructor, ctx);
         foreach (var member in declaration.Members.Where(m => m is not FieldDeclarationNode and not ConstructorDeclarationNode))
+            ctx.Dispatch(member, ctx);
+        foreach (var member in InheritedConcreteMembers(declaration, ctx))
             ctx.Dispatch(member, ctx);
         if (ctx.CurrentType is not null)
             staticCtorEmitter.EmitStaticCtor(ctx.CurrentType, declaration.Members, ctx);
@@ -47,9 +55,9 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
             EmitObjectConstructor(ctx, constructor);
         foreach (var method in declaration.Members.OfType<MethodDeclarationNode>().Where(m => !m.Modifiers.Contains("static", StringComparer.Ordinal)))
         {
-            var eventName = DecoratorArg(method.Decorators, "NativeEvent");
+            var eventName = ResolveEventName(method, ctx.CurrentType);
             if (eventName is not null)
-                EmitEventMethod(method, eventName, ctx);
+                EmitEventMethod(declaration, method, eventName, ctx);
             else
                 ctx.Dispatch(method, ctx);
         }
@@ -59,14 +67,23 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
             staticCtorEmitter.EmitStaticCtor(ctx.CurrentType, declaration.Members, ctx);
     }
 
-    private static void EmitEventMethod(MethodDeclarationNode method, string eventName, EmitContext ctx)
+    private static void EmitEventMethod(ClassDeclarationNode declaration, MethodDeclarationNode method, string eventName, EmitContext ctx)
     {
-        if (method.Body is not BlockStatementNode { Statements.Count: > 0 } || ctx.CurrentType is null)
+        if (method.Body is not BlockStatementNode { Statements.Count: > 0 } block || ctx.CurrentType is null)
             return;
 
         var resolvedEvent = GmlEventMap.Resolve(eventName);
         var eventWriter = new GmlWriter();
-        ctx.Dispatch(method, ctx.WithWriter(eventWriter));
+        var eventCtx = ctx.WithWriter(eventWriter);
+        eventCtx.IsObjectEventContext = true;
+        eventCtx.SelfName = null;
+        eventCtx.Scope.Push();
+        if (string.Equals(resolvedEvent, "Create_0", StringComparison.Ordinal))
+            foreach (var field in declaration.Members.OfType<FieldDeclarationNode>().Where(f => f.Initializer is not null && !f.Modifiers.Contains("static", StringComparer.Ordinal) && !f.Modifiers.Contains("const", StringComparer.Ordinal)))
+                eventWriter.WriteLine($"{field.Name} = {eventCtx.Emitter.Render(field.Initializer!, eventCtx)};");
+        foreach (var statement in block.Statements)
+            eventCtx.Dispatch(statement, eventCtx);
+        eventCtx.Scope.Pop();
         var path = ctx.Files.GetEventPath(ctx.CurrentType, resolvedEvent);
         EmitterPersistence.PersistToPath(path, eventWriter.GetOutput());
     }
@@ -75,6 +92,8 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
     {
         ctx.Writer.Write($"function {NamingConvention.ConstructorName(ctx.CurrentType!)}()");
         ctx.Writer.BeginBlock();
+        ctx.Writer.WriteLine("var self = {};");
+        ctx.Writer.WriteLine("return self;");
         ctx.Writer.EndBlock();
     }
 
@@ -108,4 +127,48 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
         decorators.FirstOrDefault(d => d.Name == name)?.Args.FirstOrDefault() is LiteralExpressionNode literal
             ? literal.Value?.ToString()
             : null;
+
+    private static string? ResolveEventName(MethodDeclarationNode method, TypeSymbol? type)
+    {
+        var own = DecoratorArg(method.Decorators, "NativeEvent");
+        if (own is not null)
+            return own;
+
+        for (var current = type?.Base; current is not null; current = current.Base)
+        {
+            var member = current.Members.FirstOrDefault(m =>
+                m.Kind == MemberKind.Method &&
+                m.Name == method.Name &&
+                m.Parameters.Select(p => p.TypeRef).SequenceEqual(method.Parameters.Select(p => p.TypeRef), StringComparer.Ordinal));
+            if (!string.IsNullOrEmpty(member?.NativeEventName))
+                return member.NativeEventName;
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<IAstNode> InheritedConcreteMembers(ClassDeclarationNode declaration, EmitContext ctx)
+    {
+        var declared = new HashSet<string>(declaration.Members.OfType<MethodDeclarationNode>().Select(Signature), StringComparer.Ordinal);
+        foreach (var current in BaseDeclarations(ctx.CurrentType, ctx))
+            foreach (var method in current.Members.OfType<MethodDeclarationNode>())
+            {
+                var signature = Signature(method);
+                if (method.Modifiers.Contains("abstract", StringComparer.Ordinal) ||
+                    method.Modifiers.Contains("static", StringComparer.Ordinal) ||
+                    !declared.Add(signature))
+                    continue;
+                yield return method;
+            }
+    }
+
+    private static IEnumerable<ClassDeclarationNode> BaseDeclarations(TypeSymbol? type, EmitContext ctx)
+    {
+        for (var current = type?.Base; current is not null; current = current.Base)
+            if (ctx.TypeDeclarations.TryGetValue(current.QualifiedName, out var declaration) && declaration is ClassDeclarationNode @class)
+                yield return @class;
+    }
+
+    private static string Signature(MethodDeclarationNode method) =>
+        $"{method.Name}({string.Join(",", method.Parameters.Select(p => p.TypeRef))})";
 }

@@ -11,6 +11,7 @@ public sealed class DictionaryLiteralExpressionEmitter : INodeEmitter
     {
         var expression = (DictionaryLiteralExpressionNode)node;
         var ctorName = ResolveDictionaryCtorName(ctx);
+        var addName = ResolveDictionaryAddName(ctx);
 
         if (expression.Entries.Count == 0)
         {
@@ -19,7 +20,7 @@ public sealed class DictionaryLiteralExpressionEmitter : INodeEmitter
         }
 
         var adds = string.Join(" ", expression.Entries.Select(entry =>
-            $"__d.Add({ctx.Emitter.Render(entry.Key, ctx)}, {ctx.Emitter.Render(entry.Value, ctx)});"));
+            $"{addName}(__d, {ctx.Emitter.Render(entry.Key, ctx)}, {ctx.Emitter.Render(entry.Value, ctx)});"));
         ctx.Writer.Write($"(function() {{ var __d = {ctorName}(); {adds} return __d; }})()");
     }
 
@@ -27,4 +28,9 @@ public sealed class DictionaryLiteralExpressionEmitter : INodeEmitter
         ctx.Symbols.TryResolve("Dictionary", ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
             ? NamingConvention.ConstructorName(dictType)
             : "Dictionary_create";
+
+    private static string ResolveDictionaryAddName(EmitContext ctx) =>
+        ctx.Symbols.TryResolve("Dictionary", ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
+            ? NamingConvention.MethodName(dictType, dictType.Members.First(m => m.Kind == Symbols.MemberKind.Method && m.Name == "Add"))
+            : "Dictionary_Add";
 }
