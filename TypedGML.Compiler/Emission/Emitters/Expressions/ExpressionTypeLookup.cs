@@ -57,11 +57,21 @@ internal static class ExpressionTypeLookup
         return ResolveMember(invocation.Target, ctx)?.ReturnType;
     }
 
-    private static string? ResolveBinary(BinaryExpressionNode binary, EmitContext ctx) => binary.Op switch
+    private static string? ResolveBinary(BinaryExpressionNode binary, EmitContext ctx)
     {
-        "==" or "!=" or "<" or ">" or "<=" or ">=" or "and" or "or" => "bool",
-        _ => Resolve(binary.Left, ctx) ?? Resolve(binary.Right, ctx)
-    };
+        if (binary.Op == "+")
+        {
+            var left = Resolve(binary.Left, ctx);
+            var right = Resolve(binary.Right, ctx);
+            return left == "string" || right == "string" ? "string" : left ?? right;
+        }
+
+        return binary.Op switch
+        {
+            "==" or "!=" or "<" or ">" or "<=" or ">=" or "and" or "or" => "bool",
+            _ => Resolve(binary.Left, ctx) ?? Resolve(binary.Right, ctx)
+        };
+    }
 
     private static MemberSymbol? ResolveMember(IAstNode target, EmitContext ctx)
     {

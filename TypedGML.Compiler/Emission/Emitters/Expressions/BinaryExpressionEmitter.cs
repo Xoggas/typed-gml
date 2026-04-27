@@ -10,23 +10,45 @@ public sealed class BinaryExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (BinaryExpressionNode)node;
+        if (IsStringConcat(expression, ctx))
+        {
+            var depth = CountStringConcatNodes(expression, ctx);
+            ctx.Writer.Write($"{new string('(', depth)}{RenderStringConcat(expression, ctx)}{new string(')', depth)}");
+            return;
+        }
+
         var left = ctx.Emitter.Render(expression.Left, ctx);
         var right = ctx.Emitter.Render(expression.Right, ctx);
-        var leftType = ExpressionTypeLookup.Resolve(expression.Left, ctx);
-        var rightType = ExpressionTypeLookup.Resolve(expression.Right, ctx);
-        if (expression.Op == "+" && leftType == "string" && rightType == "number")
-        {
-            ctx.Writer.Write($"({left} + string({right}))");
-            return;
-        }
-
-        if (expression.Op == "+" && leftType == "number" && rightType == "string")
-        {
-            ctx.Writer.Write($"(string({left}) + {right})");
-            return;
-        }
-
         ctx.Writer.Write(
             $"({left} {ExpressionFormatHelper.BinaryOperator(expression.Op)} {right})");
+    }
+
+    private static bool IsStringConcat(BinaryExpressionNode expression, EmitContext ctx)
+    {
+        if (expression.Op != "+")
+            return false;
+
+        return ExpressionTypeLookup.Resolve(expression.Left, ctx) == "string" ||
+            ExpressionTypeLookup.Resolve(expression.Right, ctx) == "string";
+    }
+
+    private static string RenderStringConcat(BinaryExpressionNode expression, EmitContext ctx) =>
+        $"{RenderStringConcatPart(expression.Left, ctx)} + {RenderStringConcatPart(expression.Right, ctx)}";
+
+    private static string RenderStringConcatPart(IAstNode node, EmitContext ctx)
+    {
+        if (node is BinaryExpressionNode binary && IsStringConcat(binary, ctx))
+            return RenderStringConcat(binary, ctx);
+
+        var rendered = ctx.Emitter.Render(node, ctx);
+        return ExpressionTypeLookup.Resolve(node, ctx) == "number" ? $"string({rendered})" : rendered;
+    }
+
+    private static int CountStringConcatNodes(IAstNode node, EmitContext ctx)
+    {
+        if (node is not BinaryExpressionNode binary || !IsStringConcat(binary, ctx))
+            return 0;
+
+        return 1 + CountStringConcatNodes(binary.Left, ctx) + CountStringConcatNodes(binary.Right, ctx);
     }
 }

@@ -96,6 +96,22 @@ public sealed class MiscEmissionTests
             GmlAssert.IsFormattedCorrectly(gml);
     }
 
+    [Fact]
+    public void Test_BclHashSetToString_StringConcatChain()
+    {
+        var result = Compile("""
+            using TypedGML.Collections;
+            public class MiscHost {
+                public void Run() {
+                    var set = new HashSet<number>();
+                }
+            }
+            """);
+        var gml = result.GetFile("TypedGML_Collections_HashSet.gml")!;
+        GmlAssert.ContainsPattern(gml, """(("HashSet[" + string(TypedGML_Collections_HashSet_get_Count(self)) + "]"))""");
+        GmlAssert.NotContainsPattern(gml, """(("HashSet[" + string(TypedGML_Collections_HashSet_get_Count(self))) + "]")""");
+    }
+
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);
 
     private static CompileResult CompileInMethod(string statement) =>
