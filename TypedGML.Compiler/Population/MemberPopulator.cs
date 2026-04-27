@@ -42,6 +42,9 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
                 case EnumDeclarationNode type:
                     PopulateEnumMembers(type.Members, Combine(currentNamespace, type.Name));
                     break;
+                case DelegateDeclarationNode type:
+                    PopulateDelegate(type, Combine(currentNamespace, type.Name));
+                    break;
             }
         }
     }
@@ -68,7 +71,7 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
                 },
                 MethodDeclarationNode method => new MemberSymbol { Name = method.Name, Kind = MemberKind.Method, ReturnType = method.TypeRef, Parameters = Parameters(method.Parameters), Modifiers = method.Modifiers.ToHashSet(StringComparer.Ordinal), NativeEventName = DecoratorArg(method.Decorators, "NativeEvent") },
                 ConstructorDeclarationNode ctor => new MemberSymbol { Name = ".ctor", Kind = MemberKind.Constructor, ReturnType = "void", Parameters = Parameters(ctor.Parameters), Modifiers = ctor.Modifiers.ToHashSet(StringComparer.Ordinal) },
-                StaticConstructorDeclarationNode ctor => new MemberSymbol { Name = ".cctor", Kind = MemberKind.StaticConstructor, ReturnType = "void", Parameters = [], Modifiers = new HashSet<string>(StringComparer.Ordinal) { "static" } },
+                StaticConstructorDeclarationNode ctor => new MemberSymbol { Name = ".cctor", Kind = MemberKind.StaticConstructor, ReturnType = "void", Parameters = Parameters(ctor.Parameters), Modifiers = new HashSet<string>(StringComparer.Ordinal) { "static" } },
                 IndexerDeclarationNode indexer => new MemberSymbol { Name = "this", Kind = MemberKind.Indexer, ReturnType = indexer.TypeRef, Parameters = [Parameter(indexer.Parameter)], Modifiers = indexer.Modifiers.ToHashSet(StringComparer.Ordinal) },
                 OperatorDeclarationNode op => new MemberSymbol { Name = op.OperatorSymbol, Kind = MemberKind.Operator, ReturnType = op.ReturnType, Parameters = Parameters(op.Parameters), Modifiers = op.Modifiers.ToHashSet(StringComparer.Ordinal) },
                 ConversionOperatorNode op => new MemberSymbol { Name = op.ConversionKind.ToString(), Kind = MemberKind.ConversionOperator, ReturnType = op.TargetType, Parameters = [Parameter(op.Parameter)], Modifiers = op.Modifiers.ToHashSet(StringComparer.Ordinal) },
@@ -116,6 +119,21 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
                 Parameters = [],
                 Modifiers = new HashSet<string>(StringComparer.Ordinal) { "const" }
             });
+    }
+
+    private void PopulateDelegate(DelegateDeclarationNode declaration, string qualifiedTypeName)
+    {
+        if (!symbolTable.TryResolve(qualifiedTypeName, null, [], out var typeSymbol))
+            return;
+
+        typeSymbol.Members.Add(new MemberSymbol
+        {
+            Name = "Invoke",
+            Kind = MemberKind.Method,
+            ReturnType = declaration.ReturnType,
+            Parameters = Parameters(declaration.Parameters),
+            Modifiers = declaration.Modifiers.ToHashSet(StringComparer.Ordinal)
+        });
     }
 
     private static string Combine(string currentNamespace, string name) =>

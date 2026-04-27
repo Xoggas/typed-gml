@@ -26,9 +26,10 @@ try
     if (diagnostics.HasErrors) return PrintAndExit(diagnostics);
 
     var symbolTable = new SymbolTable(diagnostics);
+    var namespacePopulator = new NamespacePopulator(symbolTable, diagnostics);
     var populator = new Populator(
-        new NamespacePopulator(symbolTable, diagnostics),
-        new TypePopulator(symbolTable, diagnostics),
+        namespacePopulator,
+        new TypePopulator(symbolTable, diagnostics, namespacePopulator),
         new MemberPopulator(symbolTable, diagnostics),
         new InheritanceResolver(symbolTable, diagnostics),
         new GenericParameterBinder(symbolTable, diagnostics));

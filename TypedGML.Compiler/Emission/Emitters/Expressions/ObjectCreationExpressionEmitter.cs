@@ -16,6 +16,12 @@ public sealed class ObjectCreationExpressionEmitter : INodeEmitter
             return;
         }
 
+        if (type.GenericParameters.Count > 0 && expression.TypeArgs.Count > 0)
+        {
+            EmitGenericCreation(expression, type, ctx);
+            return;
+        }
+
         if (type.ObjectAssetName is null)
         {
             ctx.Writer.Write($"{NamingConvention.ConstructorName(type)}({ExpressionCallHelper.JoinConstructorArguments(type, expression.PositionalArgs, expression.NamedArgs, ctx)})");
@@ -32,5 +38,13 @@ public sealed class ObjectCreationExpressionEmitter : INodeEmitter
         }
 
         ctx.Writer.Write($"{NamingConvention.ConstructorName(type)}({string.Join(", ", expression.PositionalArgs.Select(a => ctx.Emitter.Render(a, ctx)).Concat(expression.NamedArgs.Select(a => ctx.Emitter.Render(a.Value, ctx))) )})");
+    }
+
+    private static void EmitGenericCreation(ObjectCreationExpressionNode expression, Symbols.TypeSymbol type, EmitContext ctx)
+    {
+        var args = ExpressionCallHelper.JoinConstructorArguments(type, expression.PositionalArgs, expression.NamedArgs, ctx);
+        var invocation = $"{NamingConvention.ConstructorName(type)}({args})";
+        var genericArgs = GenericArgsRenderer.Render(type, expression.TypeArgs, ctx);
+        ctx.Writer.Write($"(function() {{ var __inst = {invocation}; __inst.__genericArgs = {genericArgs}; return __inst; }})()");
     }
 }

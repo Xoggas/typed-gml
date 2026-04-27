@@ -14,6 +14,9 @@ internal static class InvocationResolver
         if (invocation.Target is MemberAccessExpressionNode access)
             return ResolveMemberAccess(access, ctx, out delegateInvocation);
 
+        if (invocation.Target is NullConditionalExpressionNode conditional)
+            return ResolveNullConditional(conditional, ctx, out delegateInvocation);
+
         if (invocation.Target is IdentifierExpressionNode identifier)
             return ResolveIdentifier(identifier, ctx, out delegateInvocation);
 
@@ -38,6 +41,18 @@ internal static class InvocationResolver
         var member = SymbolResolver.FindMember(targetType, access.MemberName, out _);
         delegateInvocation = IsDelegateType(member?.ReturnType, ctx);
         return [];
+    }
+
+    private static IReadOnlyList<MemberSymbol> ResolveNullConditional(
+        NullConditionalExpressionNode conditional,
+        VerificationContext ctx,
+        out bool delegateInvocation)
+    {
+        delegateInvocation = false;
+        if (!SymbolResolver.TryResolveType(ExpressionTypeResolver.Resolve(conditional.Target, ctx), ctx, out var targetType))
+            return [];
+
+        return MemberSignatureHelper.Members(targetType, conditional.MemberName, MemberKind.Method).ToList();
     }
 
     private static IReadOnlyList<MemberSymbol> ResolveIdentifier(

@@ -30,10 +30,10 @@ public sealed partial class AstBuilder
                 : new MethodDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.methodModifiers()), GenericParams(context.typeParams()), Parameters(context.paramList()), Decorators(context.decorator()), MaybeNode(context.block()), Doc(context), Location(context));
 
     public override IAstNode VisitConstructorDecl(TypedGMLParser.ConstructorDeclContext context) =>
-        new ConstructorDeclarationNode(Parts(context.accessMod()), Parameters(context.paramList()), Decorators(context.decorator()), context.BASE() is not null ? ConstructorChainTarget.Base : context.THIS() is not null ? ConstructorChainTarget.This : ConstructorChainTarget.None, Args(context.argList()).PositionalArgs.Concat<IAstNode>(Args(context.argList()).NamedArgs).ToList(), Node(context.block()), Doc(context), Location(context));
+        new ConstructorDeclarationNode(Parts(context.accessMod(), context.STATIC()), Parameters(context.paramList()), Decorators(context.decorator()), context.BASE() is not null ? ConstructorChainTarget.Base : context.THIS() is not null ? ConstructorChainTarget.This : ConstructorChainTarget.None, Args(context.argList()).PositionalArgs.Concat<IAstNode>(Args(context.argList()).NamedArgs).ToList(), Node(context.block()), Doc(context), Location(context));
 
     public override IAstNode VisitStaticConstructorDecl(TypedGMLParser.StaticConstructorDeclContext context) =>
-        new StaticConstructorDeclarationNode(Text(context.nameId()), Node(context.block()), Location(context));
+        new StaticConstructorDeclarationNode(Text(context.nameId()), Parameters(context.paramList()), Node(context.block()), Location(context));
 
     public override IAstNode VisitEventDecl(TypedGMLParser.EventDeclContext context) =>
         new EventDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.accessMod()), Decorators(context.decorator()), Doc(context), Location(context));
@@ -45,16 +45,16 @@ public sealed partial class AstBuilder
         new ParameterNode(Text(context.nameId()), Text(context.typeRef()), MaybeNode(context.expression()), Decorators(context.decorator()), Location(context));
 
     public override IAstNode VisitInterfaceMethodDecl(TypedGMLParser.InterfaceMethodDeclContext context) =>
-        new MethodDeclarationNode(Text(context.nameId()), Text(context.typeRef()), [], GenericParams(context.typeParams()), Parameters(context.paramList()), Decorators(context.decorator()), MaybeNode(context.block()), Doc(context), Location(context));
+        new MethodDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.STATIC()), GenericParams(context.typeParams()), Parameters(context.paramList()), Decorators(context.decorator()), MaybeNode(context.block()), Doc(context), Location(context));
 
     public override IAstNode VisitInterfacePropertyDecl(TypedGMLParser.InterfacePropertyDeclContext context) =>
-        new PropertyDeclarationNode(Text(context.nameId()), Text(context.typeRef()), [], Decorators(context.decorator()), Nodes<AccessorNode>(context.interfaceAccessorDecl()), Doc(context), Location(context));
+        new PropertyDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.STATIC()), Decorators(context.decorator()), Nodes<AccessorNode>(context.interfaceAccessorDecl()), Doc(context), Location(context));
 
     public override IAstNode VisitInterfaceIndexerDecl(TypedGMLParser.InterfaceIndexerDeclContext context) =>
-        new IndexerDeclarationNode(Text(context.typeRef()), [], (ParameterNode)Node(context.param()), Decorators(context.decorator()), Nodes<AccessorNode>(context.interfaceAccessorDecl()), Doc(context), Location(context));
+        new IndexerDeclarationNode(Text(context.typeRef()), Parts(context.STATIC()), (ParameterNode)Node(context.param()), Decorators(context.decorator()), Nodes<AccessorNode>(context.interfaceAccessorDecl()), Doc(context), Location(context));
 
     public override IAstNode VisitInterfaceEventDecl(TypedGMLParser.InterfaceEventDeclContext context) =>
-        new EventDeclarationNode(Text(context.nameId()), Text(context.typeRef()), [], Decorators(context.decorator()), Doc(context), Location(context));
+        new EventDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.STATIC()), Decorators(context.decorator()), Doc(context), Location(context));
 
     public override IAstNode VisitInterfaceAccessorDecl(TypedGMLParser.InterfaceAccessorDeclContext context) =>
         new AccessorNode(context.GET() is null ? AccessorKind.Set : AccessorKind.Get, null, null, Location(context));

@@ -22,10 +22,10 @@ internal static class GmlExpressionRenderer
         ArrayLiteralExpressionNode n => $"[{string.Join(", ", n.Elements.Select(e => Render(e, ctx)))}]",
         AssignmentExpressionNode n => $"{Render(n.Target, ctx)} {n.Op} {Render(n.Value, ctx)}",
         BaseAccessExpressionNode n => n.MemberName,
-        BaseCallExpressionNode n => $"{n.MemberName}({string.Join(", ", n.Args.Select(a => Render(a, ctx)))})",
+        BaseCallExpressionNode n => BaseCallInlineRenderer.Render(n, ctx),
         BinaryExpressionNode n => $"({Render(n.Left, ctx)} {n.Op} {Render(n.Right, ctx)})",
         CastExpressionNode n => Render(n.Expression, ctx),
-        DefaultExpressionNode => "undefined",
+        DefaultExpressionNode n => DefaultValueRenderer.Render(n, ctx),
         DictionaryLiteralExpressionNode n => RenderDictionary(n, ctx),
         IdentifierExpressionNode n => RenderIdentifier(n, ctx),
         IndexerAccessExpressionNode n => $"{Render(n.Target, ctx)}[{Render(n.Index, ctx)}]",
@@ -80,7 +80,7 @@ internal static class GmlExpressionRenderer
             return $"function({parameters}) {{ return {Render(node.Body, ctx)}; }}";
 
         var writer = new GmlWriter();
-        var nested = new EmitContext(ctx.Symbols, writer, ctx.Files, ctx.Decorators, ctx.Diagnostics, ctx.Dispatch)
+        var nested = new EmitContext(ctx.Symbols, writer, ctx.Files, ctx.Output, ctx.Decorators, ctx.Diagnostics, ctx.Dispatch)
         {
             CurrentType = ctx.CurrentType,
             CurrentNamespacePrefix = ctx.CurrentNamespacePrefix

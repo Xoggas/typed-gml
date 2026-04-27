@@ -40,6 +40,9 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
     private static void CheckAssignment(AssignmentExpressionNode assignment, VerificationContext ctx)
     {
         var targetType = ExpressionTypeResolver.Resolve(assignment.Target, ctx);
+        if (assignment.Op is "+=" or "-=" && DelegateAssignmentHelper.IsDelegateOrEventAssignment(assignment.Target, targetType, ctx))
+            return;
+
         if (assignment.Value is DictionaryLiteralExpressionNode)
         {
             if (TypeReferenceHelper.RootName(targetType) != "Dictionary")
@@ -61,7 +64,7 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
             return;
 
         var initializerType = ExpressionTypeResolver.Resolve(declaration.Initializer, ctx);
-        if (declaration.IsVar && declaration.Initializer is Ast.Expressions.LiteralExpressionNode { Kind: Ast.Expressions.LiteralKind.Null })
+        if (declaration.IsVar && declaration.Initializer is LiteralExpressionNode { Kind: LiteralKind.Null })
             Report(DiagnosticCode.AmbiguousVarInference, $"Cannot infer the type of '{declaration.Name}' from null.", declaration.Location, ctx);
 
         if (declaration.IsVar && string.IsNullOrWhiteSpace(initializerType))

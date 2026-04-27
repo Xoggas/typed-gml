@@ -1,14 +1,14 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Declarations;
-using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
-using TypedGML.Compiler.Ast.Statements;
 using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Emission.Emitters;
 
 public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmitter
 {
+    private readonly ClassEventEmitter _eventEmitter = new();
+
     public bool Matches(IAstNode node) => node is ClassDeclarationNode;
 
     public void Emit(IAstNode node, EmitContext ctx)
@@ -55,9 +55,9 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
             EmitObjectConstructor(ctx, constructor);
         foreach (var method in declaration.Members.OfType<MethodDeclarationNode>().Where(m => !m.Modifiers.Contains("static", StringComparer.Ordinal)))
         {
-            var eventName = ResolveEventName(method, ctx.CurrentType);
+            var eventName = _eventEmitter.ResolveEventName(method, ctx.CurrentType);
             if (eventName is not null)
-                EmitEventMethod(declaration, method, eventName, ctx);
+                _eventEmitter.Emit(declaration, method, eventName, ctx);
             else
                 ctx.Dispatch(method, ctx);
         }
@@ -65,27 +65,6 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
             ctx.Dispatch(member, ctx);
         if (ctx.CurrentType is not null)
             staticCtorEmitter.EmitStaticCtor(ctx.CurrentType, declaration.Members, ctx);
-    }
-
-    private static void EmitEventMethod(ClassDeclarationNode declaration, MethodDeclarationNode method, string eventName, EmitContext ctx)
-    {
-        if (method.Body is not BlockStatementNode { Statements.Count: > 0 } block || ctx.CurrentType is null)
-            return;
-
-        var resolvedEvent = GmlEventMap.Resolve(eventName);
-        var eventWriter = new GmlWriter();
-        var eventCtx = ctx.WithWriter(eventWriter);
-        eventCtx.IsObjectEventContext = true;
-        eventCtx.SelfName = null;
-        eventCtx.Scope.Push();
-        if (string.Equals(resolvedEvent, "Create_0", StringComparison.Ordinal))
-            foreach (var field in declaration.Members.OfType<FieldDeclarationNode>().Where(f => f.Initializer is not null && !f.Modifiers.Contains("static", StringComparer.Ordinal) && !f.Modifiers.Contains("const", StringComparer.Ordinal)))
-                eventWriter.WriteLine($"{field.Name} = {eventCtx.Emitter.Render(field.Initializer!, eventCtx)};");
-        foreach (var statement in block.Statements)
-            eventCtx.Dispatch(statement, eventCtx);
-        eventCtx.Scope.Pop();
-        var path = ctx.Files.GetEventPath(ctx.CurrentType, resolvedEvent);
-        EmitterPersistence.PersistToPath(path, eventWriter.GetOutput());
     }
 
     private static void EmitDefaultConstructor(EmitContext ctx)
@@ -122,30 +101,6 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
 
     private static TypeSymbol? ResolveType(EmitContext ctx, string name) =>
         ctx.Symbols.TryResolve(name, ctx.CurrentNamespacePrefix, [], out var symbol) ? symbol : null;
-
-    private static string? DecoratorArg(IReadOnlyList<DecoratorNode> decorators, string name) =>
-        decorators.FirstOrDefault(d => d.Name == name)?.Args.FirstOrDefault() is LiteralExpressionNode literal
-            ? literal.Value?.ToString()
-            : null;
-
-    private static string? ResolveEventName(MethodDeclarationNode method, TypeSymbol? type)
-    {
-        var own = DecoratorArg(method.Decorators, "NativeEvent");
-        if (own is not null)
-            return own;
-
-        for (var current = type?.Base; current is not null; current = current.Base)
-        {
-            var member = current.Members.FirstOrDefault(m =>
-                m.Kind == MemberKind.Method &&
-                m.Name == method.Name &&
-                m.Parameters.Select(p => p.TypeRef).SequenceEqual(method.Parameters.Select(p => p.TypeRef), StringComparer.Ordinal));
-            if (!string.IsNullOrEmpty(member?.NativeEventName))
-                return member.NativeEventName;
-        }
-
-        return null;
-    }
 
     private static IEnumerable<IAstNode> InheritedConcreteMembers(ClassDeclarationNode declaration, EmitContext ctx)
     {

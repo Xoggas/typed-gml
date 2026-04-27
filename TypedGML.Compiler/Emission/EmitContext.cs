@@ -8,6 +8,7 @@ public sealed class EmitContext(
     SymbolTable symbols,
     GmlWriter writer,
     FileOrganizer files,
+    IGmlOutputSink output,
     DecoratorAnnotations decorators,
     DiagnosticBag diagnostics,
     Action<TypedGML.Compiler.Ast.IAstNode, EmitContext> dispatch)
@@ -21,6 +22,8 @@ public sealed class EmitContext(
     public Type Naming { get; } = typeof(NamingConvention);
 
     public FileOrganizer Files { get; } = files;
+
+    public IGmlOutputSink Output { get; } = output;
 
     public TypeSymbol? CurrentType { get; set; }
 
@@ -45,7 +48,7 @@ public sealed class EmitContext(
     internal Action<TypedGML.Compiler.Ast.IAstNode, EmitContext> Dispatch { get; } = dispatch;
 
     internal EmitContext WithWriter(GmlWriter newWriter) =>
-        new(Symbols, newWriter, Files, Decorators, Diagnostics, Dispatch)
+        new(Symbols, newWriter, Files, Output, Decorators, Diagnostics, Dispatch)
         {
             CurrentType = CurrentType,
             CurrentNamespacePrefix = CurrentNamespacePrefix,

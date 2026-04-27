@@ -5,7 +5,10 @@ using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Population;
 
-public sealed class TypePopulator(SymbolTable symbolTable, DiagnosticBag diagnostics)
+public sealed class TypePopulator(
+    SymbolTable symbolTable,
+    DiagnosticBag diagnostics,
+    NamespacePopulator namespacePopulator)
 {
     internal SymbolTable SymbolTable => symbolTable;
 
@@ -70,6 +73,16 @@ public sealed class TypePopulator(SymbolTable symbolTable, DiagnosticBag diagnos
                     ? (decorator.Args[0] as Ast.Expressions.LiteralExpressionNode)?.Value?.ToString()
                     : null
         };
+
+        if (namespacePopulator.ContainsNamespace(symbol.QualifiedName))
+        {
+            diagnostics.Report(
+                DiagnosticCode.NamespaceTypeNameConflict,
+                DiagnosticSeverity.Error,
+                $"Type '{symbol.QualifiedName}' conflicts with an existing namespace.",
+                new SourceLocation(string.Empty, 0, 0));
+            return;
+        }
 
         symbol.GenericParameters.AddRange(genericParameters);
         symbolTable.Register(symbol.QualifiedName, symbol);

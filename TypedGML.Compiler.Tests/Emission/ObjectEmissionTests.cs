@@ -1,0 +1,70 @@
+using FluentAssertions;
+using TypedGML.Compiler.Tests.Helpers;
+
+namespace TypedGML.Compiler.Tests.Emission;
+
+public sealed class ObjectEmissionTests
+{
+    [Fact]
+    public void Test_ObjectCreateFunction()
+    {
+        var gml = Compile("""
+            using TypedGML.GameObjects;
+            @Object("OBJ_Foo")
+            public class Foo : GameObject {
+                public Foo(number x, number y, string layer) { }
+            }
+            """).GetFile("Foo.gml")!;
+        GmlAssert.HasFunction(gml, "Foo_create");
+        GmlAssert.ContainsPattern(gml, "return instance_create_layer(x, y, layer, OBJ_Foo);");
+    }
+
+    [Fact]
+    public void Test_ObjectCreateWithExtraParams()
+    {
+        var gml = Compile("""
+            using TypedGML.GameObjects;
+            @Object("OBJ_Player")
+            public class Player : GameObject {
+                public number Health;
+                public Player(number x, number y, string layer, number health) { Health = health; }
+            }
+            """).GetFile("Player.gml")!;
+        GmlAssert.ContainsPattern(gml, "with (__inst)");
+        GmlAssert.ContainsPattern(gml, "Health = health;");
+    }
+
+    [Fact]
+    public void Test_ObjectEventFile_OnlyOverridden()
+    {
+        var result = Compile("""
+            using TypedGML.GameObjects;
+            @Object("OBJ_Player")
+            public class Player : GameObject {
+                public override void OnCreate() { }
+                public override void OnStep() { }
+            }
+            """);
+        result.GetFile("OBJ_Player/Create_0.gml").Should().NotBeNull();
+        result.GetFile("OBJ_Player/Step_0.gml").Should().NotBeNull();
+        result.GetFile("OBJ_Player/Draw_0.gml").Should().BeNull();
+        result.GetFile("OBJ_Player/Alarm_0.gml").Should().BeNull();
+    }
+
+    [Fact]
+    public void Test_NativePropertyInEvent()
+    {
+        var gml = Compile("""
+            using TypedGML.GameObjects;
+            @Object("OBJ_Player")
+            public class Player : GameObject {
+                public override void OnStep() { X = X + 1; }
+            }
+            """).GetFile("OBJ_Player/Step_0.gml")!;
+        GmlAssert.ContainsPattern(gml, "x =");
+        GmlAssert.ContainsPattern(gml, "x + 1");
+        GmlAssert.NotContainsPattern(gml, "self.X");
+    }
+
+    private static CompileResult Compile(string source) => CompilerFixture.Compile(source);
+}

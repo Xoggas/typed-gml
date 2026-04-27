@@ -8,7 +8,6 @@ namespace TypedGML.Compiler.Population;
 public sealed class InheritanceResolver(SymbolTable symbolTable, DiagnosticBag diagnostics)
 {
     internal SymbolTable SymbolTable => symbolTable;
-
     internal DiagnosticBag Diagnostics => diagnostics;
 
     public void Populate(IReadOnlyList<FileNode> files)
@@ -61,7 +60,7 @@ public sealed class InheritanceResolver(SymbolTable symbolTable, DiagnosticBag d
         typeSymbol.Interfaces.Clear();
         for (var i = 0; i < baseTypes.Count; i++)
         {
-            if (!symbolTable.TryResolve(baseTypes[i], currentNamespace, usingPrefixes, out var resolved))
+            if (!TryResolve(baseTypes[i], location, currentNamespace, usingPrefixes, out var resolved))
                 continue;
 
             if (isStruct)
@@ -120,4 +119,32 @@ public sealed class InheritanceResolver(SymbolTable symbolTable, DiagnosticBag d
 
     private static string Combine(string currentNamespace, string name) =>
         string.IsNullOrEmpty(currentNamespace) ? name : $"{currentNamespace}.{name}";
+
+    private bool TryResolve(
+        string typeName,
+        Diagnostics.SourceLocation location,
+        string currentNamespace,
+        IReadOnlyList<string> usingPrefixes,
+        out TypeSymbol resolved)
+    {
+        if (symbolTable.TryResolve(typeName, currentNamespace, usingPrefixes, out resolved))
+            return true;
+
+        var rootName = RootName(typeName);
+        if (rootName != typeName && symbolTable.TryResolve(rootName, currentNamespace, usingPrefixes, out resolved))
+            return false;
+
+        diagnostics.Report(
+            DiagnosticCode.TypeMismatch,
+            DiagnosticSeverity.Error,
+            $"Type '{typeName}' could not be resolved.",
+            location);
+        return false;
+    }
+
+    private static string RootName(string typeName)
+    {
+        var stop = typeName.IndexOfAny(['<', '?', '[']);
+        return stop >= 0 ? typeName[..stop] : typeName;
+    }
 }

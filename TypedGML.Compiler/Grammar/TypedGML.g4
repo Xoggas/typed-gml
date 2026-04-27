@@ -219,14 +219,14 @@ overloadableOperator
 // public TypeName(var p: int) : base(p) { ... }
 constructorDecl
     : decorator*
-      accessMod (nameId | CONSTRUCTOR)
+      accessMod STATIC? (nameId | CONSTRUCTOR)
       LPAREN paramList? RPAREN
       (COLON (BASE | THIS) LPAREN argList? RPAREN)?
       block
     ;
 
 staticConstructorDecl
-    : STATIC nameId LPAREN RPAREN block
+    : STATIC nameId LPAREN paramList? RPAREN block
     ;
 
 eventDecl
@@ -245,6 +245,7 @@ interfaceMemberDecl
 
 interfaceMethodDecl
     : decorator*
+      STATIC?
       typeRef nameId typeParams?
       LPAREN paramList? RPAREN
       (block | SEMI)
@@ -253,19 +254,21 @@ interfaceMethodDecl
 // An interface property declaration (no access modifier).</summary>
 interfacePropertyDecl
     : decorator*
+      STATIC?
       typeRef nameId
       LBRACE interfaceAccessorDecl+ RBRACE
     ;
 
 interfaceIndexerDecl
     : decorator*
+      STATIC?
       typeRef THIS
       LBRACKET param RBRACKET
       LBRACE interfaceAccessorDecl+ RBRACE
     ;
 
 interfaceEventDecl
-    : decorator* EVENT typeRef nameId SEMI
+    : decorator* STATIC? EVENT typeRef nameId SEMI
     ;
 
 interfaceAccessorDecl

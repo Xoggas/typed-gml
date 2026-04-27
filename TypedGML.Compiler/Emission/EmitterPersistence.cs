@@ -1,4 +1,3 @@
-using System.IO;
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Declarations;
 using TypedGML.Compiler.Symbols;
@@ -18,13 +17,7 @@ internal static class EmitterPersistence
         if (string.IsNullOrWhiteSpace(path))
             return;
 
-        PersistToPath(path, ctx.Writer.GetOutput());
-    }
-
-    internal static void PersistToPath(string path, string content)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, Normalize(content));
+        ctx.Output.Write(path, ctx.Writer.GetOutput());
     }
 
     private static TypeSymbol? ResolveType(IAstNode node, EmitContext ctx, SymbolTable symbols) => node switch
@@ -40,24 +33,4 @@ internal static class EmitterPersistence
 
     private static TypeSymbol Fallback(string name, string? currentNamespace) =>
         new() { QualifiedName = string.IsNullOrEmpty(currentNamespace) ? name : $"{currentNamespace}.{name}" };
-
-    private static string Normalize(string content)
-    {
-        var lines = content.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-        var output = new List<string>(lines.Length);
-        foreach (var raw in lines)
-        {
-            var line = raw.TrimEnd();
-            if (line.StartsWith("function ", StringComparison.Ordinal) &&
-                output.Count > 0 &&
-                !string.IsNullOrEmpty(output[^1]))
-                output.Add(string.Empty);
-            output.Add(line);
-        }
-
-        while (output.Count > 0 && string.IsNullOrEmpty(output[^1]))
-            output.RemoveAt(output.Count - 1);
-
-        return string.Join(Environment.NewLine, output);
-    }
 }

@@ -13,7 +13,8 @@ public sealed class Emitter(
     DecoratorProcessor decoratorProcessor,
     FileOrganizer fileOrganizer,
     SymbolTable symbolTable,
-    DiagnosticBag diagnostics)
+    DiagnosticBag diagnostics,
+    IGmlOutputSink? outputSink = null)
 {
     private IReadOnlyDictionary<string, IAstNode> _typeDeclarations = new Dictionary<string, IAstNode>(StringComparer.Ordinal);
 
@@ -138,7 +139,7 @@ public sealed class Emitter(
         string.IsNullOrEmpty(currentNamespace) ? name : $"{currentNamespace}.{name}";
 
     private EmitContext NewContext() =>
-        new(symbolTable, new GmlWriter(), fileOrganizer, new DecoratorAnnotations(null, null, null, null, null), diagnostics, Dispatch)
+        new(symbolTable, new GmlWriter(), fileOrganizer, outputSink ?? new FileGmlOutputSink(), new DecoratorAnnotations(null, null, null, null, null), diagnostics, Dispatch)
         {
             TypeDeclarations = _typeDeclarations
         };

@@ -10,6 +10,17 @@ public sealed class InvocationExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (InvocationExpressionNode)node;
+        if (expression.Target is NullConditionalExpressionNode conditional)
+        {
+            var conditionalTarget = ctx.Emitter.Render(conditional.Target, ctx);
+            var conditionalArgs = ExpressionCallHelper.JoinArguments(expression.Target, expression.PositionalArgs, expression.NamedArgs, ctx);
+            var invocation = string.IsNullOrEmpty(conditionalArgs)
+                ? $"{conditionalTarget}.{conditional.MemberName}()"
+                : $"{conditionalTarget}.{conditional.MemberName}({conditionalArgs})";
+            ctx.Writer.Write($"({conditionalTarget} != undefined ? {invocation} : undefined)");
+            return;
+        }
+
         if (MethodInvocationHelper.TryRender(expression, ctx, out var methodTarget, out var methodArgs))
         {
             ctx.Writer.Write($"{methodTarget}({methodArgs})");

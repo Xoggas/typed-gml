@@ -11,9 +11,7 @@ internal static class ExpressionSymbolHelper
 
     public static bool IsDelegateTarget(IAstNode target, EmitContext ctx) =>
         TryResolveDelegateMember(target, ctx, out _) ||
-        target is IdentifierExpressionNode identifier &&
-        TryResolveType(ctx, identifier.Name, out var type) &&
-        type.Kind == TypeKind.Delegate;
+        TryResolveTargetType(target, ctx, out var type) && type.Kind == TypeKind.Delegate;
 
     public static bool TryResolveDelegateMember(IAstNode target, EmitContext ctx, out MemberSymbol member)
     {
