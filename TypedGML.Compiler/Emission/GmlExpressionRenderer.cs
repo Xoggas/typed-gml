@@ -80,16 +80,7 @@ internal static class GmlExpressionRenderer
             return $"function({parameters}) {{ return {Render(node.Body, ctx)}; }}";
 
         var writer = new GmlWriter();
-        var nested = new EmitContext(ctx.Symbols, writer, ctx.Files, ctx.Output, ctx.Decorators, ctx.Diagnostics, ctx.Dispatch)
-        {
-            CurrentType = ctx.CurrentType,
-            CurrentNamespacePrefix = ctx.CurrentNamespacePrefix
-        };
-        nested.UsingPrefixes = ctx.UsingPrefixes;
-        nested.Scope = ctx.Scope;
-        nested.CurrentMember = ctx.CurrentMember;
-        nested.SelfName = ctx.SelfName;
-        nested.IsObjectEventContext = ctx.IsObjectEventContext;
+        var nested = ctx.WithWriter(writer);
         writer.Write($"function({parameters})");
         nested.Emitter.Emit(node.Body, nested);
         return writer.GetOutput().TrimEnd();
@@ -101,7 +92,9 @@ internal static class GmlExpressionRenderer
             : $"{typeRef.Replace(".", "_", StringComparison.Ordinal)}_create";
 
     private static string RenderIdentifier(IdentifierExpressionNode node, EmitContext ctx) =>
-        Emitters.Expressions.StaticMemberAccessHelper.TryRenderRead(node, ctx, out var rendered)
+        ctx.TryGetSubstitution(node.Name, out var substitution)
+            ? ctx.RenderSubstitution(node.Name, substitution)
+            : Emitters.Expressions.StaticMemberAccessHelper.TryRenderRead(node, ctx, out var rendered)
             ? rendered
             : Emitters.Expressions.InstanceMemberAccessHelper.TryRenderRead(node, ctx, out var instanceRendered)
                 ? instanceRendered

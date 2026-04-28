@@ -13,6 +13,9 @@ public static class NamingConvention
     public static string ConstructorName(TypeSymbol type) =>
         $"{TypeName(type)}_create";
 
+    public static string ConstructorName(TypeSymbol type, MemberSymbol constructor) =>
+        $"{TypeName(type)}_create{OverloadSuffix(constructor)}";
+
     public static string PropertyGetter(TypeSymbol type, MemberSymbol prop) =>
         $"{TypeName(type)}_get_{prop.Name}";
 

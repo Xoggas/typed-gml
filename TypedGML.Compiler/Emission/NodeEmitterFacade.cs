@@ -41,16 +41,7 @@ public sealed class NodeEmitterFacade(Action<IAstNode, EmitContext> dispatch)
     private string DispatchOrFallback(IAstNode node, EmitContext ctx)
     {
         var writer = new GmlWriter();
-        var nested = new EmitContext(ctx.Symbols, writer, ctx.Files, ctx.Output, ctx.Decorators, ctx.Diagnostics, dispatch)
-        {
-            CurrentType = ctx.CurrentType,
-            CurrentNamespacePrefix = ctx.CurrentNamespacePrefix
-        };
-        nested.UsingPrefixes = ctx.UsingPrefixes;
-        nested.Scope = ctx.Scope;
-        nested.CurrentMember = ctx.CurrentMember;
-        nested.SelfName = ctx.SelfName;
-        nested.IsObjectEventContext = ctx.IsObjectEventContext;
+        var nested = ctx.WithWriter(writer);
 
         dispatch(node, nested);
         var rendered = writer.GetOutput().TrimEnd();

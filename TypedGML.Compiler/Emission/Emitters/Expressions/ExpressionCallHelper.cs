@@ -58,7 +58,8 @@ internal static class ExpressionCallHelper
         IReadOnlyList<MemberSymbol>? candidates,
         EmitContext ctx)
     {
-        var candidate = PickCandidate(positionalArgs, namedArgs, candidates);
+        var candidate = EmissionOverloadResolver.Pick(candidates, positionalArgs, namedArgs, ctx) ??
+            PickCandidate(positionalArgs, namedArgs, candidates);
         if (candidate is null)
             return positionalArgs.Select(a => ctx.Emitter.Render(a, ctx)).Concat(namedArgs.Select(a => ctx.Emitter.Render(a.Value, ctx))).ToList();
 

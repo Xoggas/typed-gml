@@ -74,7 +74,7 @@ public sealed class MiscEmissionTests
                     var value = new Container<number>();
                 }
             }
-            """).GetFile("MiscHost.gml")!, "__inst.__genericArgs = { T: \"number\" }");
+            """).GetFile("MiscHost.gml")!, "value.__genericArgs = { T: \"number\" };");
 
     [Fact]
     public void Test_GmlFormatting_FourSpaceIndent()

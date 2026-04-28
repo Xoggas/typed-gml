@@ -1,6 +1,7 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Diagnostics;
+using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Verification.Checks;
 
@@ -23,21 +24,36 @@ public sealed class MemberAccessCheck : ISemanticCheck
 
     private static void CheckMemberAccess(MemberAccessExpressionNode access, VerificationContext ctx)
     {
+        if (QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var qualifiedType, out var qualifiedMember))
+        {
+            CheckMember(qualifiedType, qualifiedMember, access.Location, ctx);
+            return;
+        }
+
+        if (QualifiedTypeAccessResolver.TryResolveType(access, ctx, out _) ||
+            QualifiedTypeAccessResolver.IsNamespacePrefix(access, ctx))
+            return;
+
         if (!SymbolResolver.TryResolveType(ExpressionTypeResolver.Resolve(access.Target, ctx), ctx, out var targetType))
             return;
 
-        var member = SymbolResolver.FindMember(targetType, access.MemberName, out var owner);
+        CheckMember(targetType, access.MemberName, access.Location, ctx);
+    }
+
+    private static void CheckMember(TypeSymbol targetType, string memberName, SourceLocation location, VerificationContext ctx)
+    {
+        var member = SymbolResolver.FindMember(targetType, memberName, out var owner);
         if (member is null || owner is null)
         {
-            Report(DiagnosticCode.TypeMismatch, $"Type '{targetType.QualifiedName}' does not contain member '{access.MemberName}'.", access.Location, ctx);
+            Report(DiagnosticCode.TypeMismatch, $"Type '{targetType.QualifiedName}' does not contain member '{memberName}'.", location, ctx);
             return;
         }
 
         if (member.Modifiers.Contains("private", StringComparer.Ordinal) && ctx.CurrentType != owner)
-            Report(DiagnosticCode.AccessViolation, $"Member '{access.MemberName}' is private to '{owner.QualifiedName}'.", access.Location, ctx);
+            Report(DiagnosticCode.AccessViolation, $"Member '{memberName}' is private to '{owner.QualifiedName}'.", location, ctx);
 
         if (member.Modifiers.Contains("protected", StringComparer.Ordinal) && !SymbolResolver.IsWithinInheritance(ctx.CurrentType, owner))
-            Report(DiagnosticCode.AccessViolation, $"Member '{access.MemberName}' is protected on '{owner.QualifiedName}'.", access.Location, ctx);
+            Report(DiagnosticCode.AccessViolation, $"Member '{memberName}' is protected on '{owner.QualifiedName}'.", location, ctx);
     }
 
     private static void CheckIdentifier(IdentifierExpressionNode identifier, VerificationContext ctx)
@@ -65,6 +81,9 @@ public sealed class MemberAccessCheck : ISemanticCheck
         }
 
         if (SymbolResolver.TryResolveType(identifier.Name, ctx, out _))
+            return;
+
+        if (QualifiedTypeAccessResolver.IsNamespacePrefix(identifier, ctx))
             return;
 
         Report(DiagnosticCode.TypeMismatch, $"Identifier '{identifier.Name}' is not declared in the current scope.", identifier.Location, ctx);

@@ -47,6 +47,44 @@ public sealed class EmitContext(
 
     internal Action<TypedGML.Compiler.Ast.IAstNode, EmitContext> Dispatch { get; } = dispatch;
 
+    internal List<IReadOnlyDictionary<string, IAstNode>> SubstitutionFrames { get; set; } = [];
+
+    public TypeSymbol? BaseCallLookupType { get; set; }
+
+    public void PushSubstitution(Dictionary<string, IAstNode> substitutions) =>
+        SubstitutionFrames.Add(substitutions);
+
+    public void PopSubstitution() =>
+        SubstitutionFrames.RemoveAt(SubstitutionFrames.Count - 1);
+
+    public bool TryGetSubstitution(string name, out IAstNode substitution)
+    {
+        for (var i = SubstitutionFrames.Count - 1; i >= 0; i--)
+            if (SubstitutionFrames[i].TryGetValue(name, out substitution!))
+                return true;
+
+        substitution = null!;
+        return false;
+    }
+
+    public string RenderSubstitution(string name, IAstNode substitution)
+    {
+        var index = FindSubstitutionFrame(name);
+        if (index < 0)
+            return Emitter.Render(substitution, this);
+
+        var frame = SubstitutionFrames[index];
+        SubstitutionFrames.RemoveAt(index);
+        try
+        {
+            return Emitter.Render(substitution, this);
+        }
+        finally
+        {
+            SubstitutionFrames.Insert(index, frame);
+        }
+    }
+
     internal EmitContext WithWriter(GmlWriter newWriter) =>
         new(Symbols, newWriter, Files, Output, Decorators, Diagnostics, Dispatch)
         {
@@ -58,5 +96,16 @@ public sealed class EmitContext(
             CurrentMember = CurrentMember,
             SelfName = SelfName,
             IsObjectEventContext = IsObjectEventContext,
+            SubstitutionFrames = SubstitutionFrames,
+            BaseCallLookupType = BaseCallLookupType,
         };
+
+    private int FindSubstitutionFrame(string name)
+    {
+        for (var i = SubstitutionFrames.Count - 1; i >= 0; i--)
+            if (SubstitutionFrames[i].ContainsKey(name))
+                return i;
+
+        return -1;
+    }
 }

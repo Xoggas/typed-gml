@@ -69,12 +69,12 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
                     NativePropertyName = DecoratorArg(property.Decorators, "NativeProperty"),
                     AssetName = DecoratorArg(property.Decorators, "Asset")
                 },
-                MethodDeclarationNode method => new MemberSymbol { Name = method.Name, Kind = MemberKind.Method, ReturnType = method.TypeRef, Parameters = Parameters(method.Parameters), Modifiers = method.Modifiers.ToHashSet(StringComparer.Ordinal), NativeEventName = DecoratorArg(method.Decorators, "NativeEvent") },
+                MethodDeclarationNode method => new MemberSymbol { Name = method.Name, Kind = MemberKind.Method, ReturnType = method.TypeRef, Parameters = Parameters(method.Parameters), GenericParameters = method.GenericParams, Modifiers = method.Modifiers.ToHashSet(StringComparer.Ordinal), NativeEventName = DecoratorArg(method.Decorators, "NativeEvent"), NativeCallName = DecoratorArg(method.Decorators, "NativeCall") },
                 ConstructorDeclarationNode ctor => new MemberSymbol { Name = ".ctor", Kind = MemberKind.Constructor, ReturnType = "void", Parameters = Parameters(ctor.Parameters), Modifiers = ctor.Modifiers.ToHashSet(StringComparer.Ordinal) },
                 StaticConstructorDeclarationNode ctor => new MemberSymbol { Name = ".cctor", Kind = MemberKind.StaticConstructor, ReturnType = "void", Parameters = Parameters(ctor.Parameters), Modifiers = new HashSet<string>(StringComparer.Ordinal) { "static" } },
                 IndexerDeclarationNode indexer => new MemberSymbol { Name = "this", Kind = MemberKind.Indexer, ReturnType = indexer.TypeRef, Parameters = [Parameter(indexer.Parameter)], Modifiers = indexer.Modifiers.ToHashSet(StringComparer.Ordinal) },
-                OperatorDeclarationNode op => new MemberSymbol { Name = op.OperatorSymbol, Kind = MemberKind.Operator, ReturnType = op.ReturnType, Parameters = Parameters(op.Parameters), Modifiers = op.Modifiers.ToHashSet(StringComparer.Ordinal) },
-                ConversionOperatorNode op => new MemberSymbol { Name = op.ConversionKind.ToString(), Kind = MemberKind.ConversionOperator, ReturnType = op.TargetType, Parameters = [Parameter(op.Parameter)], Modifiers = op.Modifiers.ToHashSet(StringComparer.Ordinal) },
+                OperatorDeclarationNode op => new MemberSymbol { Name = op.OperatorSymbol, Kind = MemberKind.Operator, ReturnType = op.ReturnType, Parameters = Parameters(op.Parameters), Modifiers = op.Modifiers.ToHashSet(StringComparer.Ordinal), NativeCallName = DecoratorArg(op.Decorators, "NativeCall") },
+                ConversionOperatorNode op => new MemberSymbol { Name = op.ConversionKind.ToString(), Kind = MemberKind.ConversionOperator, ReturnType = op.TargetType, Parameters = [Parameter(op.Parameter)], Modifiers = op.Modifiers.ToHashSet(StringComparer.Ordinal), NativeCallName = DecoratorArg(op.Decorators, "NativeCall") },
                 EventDeclarationNode evt => new MemberSymbol { Name = evt.Name, Kind = MemberKind.Event, ReturnType = evt.TypeRef, Parameters = [], Modifiers = evt.Modifiers.ToHashSet(StringComparer.Ordinal) },
                 _ => null
             };
@@ -83,11 +83,17 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
                 typeSymbol.Members.Add(symbol);
         }
 
-        foreach (var group in typeSymbol.Members.Where(m => m.Kind == MemberKind.Method).GroupBy(m => m.Name, StringComparer.Ordinal))
+        PopulateOverloads(typeSymbol, MemberKind.Method);
+        PopulateOverloads(typeSymbol, MemberKind.Constructor);
+    }
+
+    private static void PopulateOverloads(TypeSymbol typeSymbol, MemberKind kind)
+    {
+        foreach (var group in typeSymbol.Members.Where(m => m.Kind == kind).GroupBy(m => m.Name, StringComparer.Ordinal))
         {
-            var methods = group.ToList();
-            foreach (var method in methods)
-                method.Overloads.AddRange(methods.Where(other => !ReferenceEquals(other, method)));
+            var members = group.ToList();
+            foreach (var member in members)
+                member.Overloads.AddRange(members.Where(other => !ReferenceEquals(other, member)));
         }
     }
 

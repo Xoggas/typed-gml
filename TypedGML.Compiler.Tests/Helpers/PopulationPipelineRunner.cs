@@ -11,6 +11,12 @@ internal sealed class PopulationPipelineRunner
 {
     public CompileResult Compile(string tgmlSource)
     {
+        var (result, _) = PopulateWithSymbols(tgmlSource);
+        return result;
+    }
+
+    public (CompileResult Result, SymbolTable Symbols) PopulateWithSymbols(string tgmlSource)
+    {
         var tempDirectory = Path.Combine(Path.GetTempPath(), "TypedGML.Compiler.Tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDirectory);
         var sourcePath = Path.Combine(tempDirectory, "Test.tgml");
@@ -26,14 +32,14 @@ internal sealed class PopulationPipelineRunner
         }
     }
 
-    private static CompileResult Populate(string sourcePath)
+    private static (CompileResult Result, SymbolTable Symbols) Populate(string sourcePath)
     {
         var diagnostics = new DiagnosticBag();
         var files = BuildAst(sourcePath, diagnostics);
-        if (diagnostics.HasErrors)
-            return new CompileResult(diagnostics.Errors, diagnostics.Warnings, new Dictionary<string, string>());
-
         var symbols = new SymbolTable(diagnostics);
+        if (diagnostics.HasErrors)
+            return (new CompileResult(diagnostics.Errors, diagnostics.Warnings, new Dictionary<string, string>()), symbols);
+
         var namespacePopulator = new NamespacePopulator(symbols, diagnostics);
         var populator = new Populator(
             namespacePopulator,
@@ -42,7 +48,7 @@ internal sealed class PopulationPipelineRunner
             new InheritanceResolver(symbols, diagnostics),
             new GenericParameterBinder(symbols, diagnostics));
         populator.Populate(files);
-        return new CompileResult(diagnostics.Errors, diagnostics.Warnings, new Dictionary<string, string>());
+        return (new CompileResult(diagnostics.Errors, diagnostics.Warnings, new Dictionary<string, string>()), symbols);
     }
 
     private static IReadOnlyList<FileNode> BuildAst(string sourcePath, DiagnosticBag diagnostics)

@@ -69,6 +69,12 @@ internal static class ExpressionTypeResolver
 
     private static string? ResolveMemberAccess(MemberAccessExpressionNode access, VerificationContext ctx)
     {
+        if (QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var owner, out var memberName))
+            return SymbolResolver.FindMember(owner, memberName, out _)?.ReturnType;
+
+        if (QualifiedTypeAccessResolver.TryResolveType(access, ctx, out var type))
+            return type.QualifiedName;
+
         if (!SymbolResolver.TryResolveType(Resolve(access.Target, ctx), ctx, out var targetType))
             return null;
 

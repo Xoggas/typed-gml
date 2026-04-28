@@ -28,7 +28,7 @@ public sealed class Emitter(
             ctx.UsingPrefixes = file.TopLevelDeclarations.OfType<UsingDirectiveNode>()
                 .Select(u => u.QualifiedName).ToList();
             foreach (var node in file.TopLevelDeclarations)
-                EmitNode(node, ctx, persist: true);
+                EmitNode(node, ctx.WithWriter(new GmlWriter()), persist: true);
         }
     }
 

@@ -22,15 +22,19 @@ public sealed class ObjectCreationCheck : ISemanticCheck
             Report($"Abstract type '{type.QualifiedName}' cannot be instantiated.", DiagnosticCode.AbstractClassInstantiation, creation.Location, ctx);
 
         var args = creation.PositionalArgs;
+        var substitutions = GenericTypeSubstitution.Map(type, creation.TypeArgs);
         if (type.Members.Any(member => member.Kind == MemberKind.Constructor) &&
-            !type.Members.Where(member => member.Kind == MemberKind.Constructor).Any(member => Matches(member, args, ctx)))
+            !type.Members.Where(member => member.Kind == MemberKind.Constructor).Any(member => Matches(member, args, substitutions, ctx)))
             Report($"Type '{type.QualifiedName}' does not have a matching constructor.", DiagnosticCode.NoMatchingMethodOverload, creation.Location, ctx);
     }
 
-    private static bool Matches(MemberSymbol ctor, IReadOnlyList<IAstNode> args, VerificationContext ctx) =>
+    private static bool Matches(MemberSymbol ctor, IReadOnlyList<IAstNode> args, IReadOnlyDictionary<string, string> substitutions, VerificationContext ctx) =>
         args.Count <= ctor.Parameters.Count &&
         args.Count >= MemberSignatureHelper.RequiredParameters(ctor) &&
-        args.Select((arg, i) => TypeReferenceHelper.IsAssignable(ctor.Parameters[i].TypeRef, ExpressionTypeResolver.Resolve(arg, ctx), ctx)).All(x => x);
+        args.Select((arg, i) => TypeReferenceHelper.IsAssignable(Substitute(ctor.Parameters[i].TypeRef, substitutions), ExpressionTypeResolver.Resolve(arg, ctx), ctx)).All(x => x);
+
+    private static string Substitute(string typeRef, IReadOnlyDictionary<string, string> substitutions) =>
+        GenericTypeSubstitution.Substitute(typeRef, substitutions);
 
     private static void Report(string message, DiagnosticCode code, SourceLocation location, VerificationContext ctx) =>
         ctx.Diagnostics.Report(code, DiagnosticSeverity.Error, message, location);

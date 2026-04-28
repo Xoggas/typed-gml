@@ -27,8 +27,8 @@ public sealed class SymbolTable(DiagnosticBag diagnostics)
         IReadOnlyList<string> usingPrefixes,
         out TypeSymbol symbol)
     {
-        if (_types.TryGetValue(name, out symbol!))
-            return true;
+        if (name.Contains('.', StringComparison.Ordinal))
+            return _types.TryGetValue(name, out symbol!);
 
         if (!string.IsNullOrEmpty(currentNs) && _types.TryGetValue($"{currentNs}.{name}", out symbol!))
             return true;
@@ -36,6 +36,9 @@ public sealed class SymbolTable(DiagnosticBag diagnostics)
         foreach (var prefix in usingPrefixes)
             if (_types.TryGetValue($"{prefix}.{name}", out symbol!))
                 return true;
+
+        if (_types.TryGetValue(name, out symbol!))
+            return true;
 
         symbol = null!;
         return false;

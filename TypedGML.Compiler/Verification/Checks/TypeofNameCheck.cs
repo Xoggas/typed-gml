@@ -12,7 +12,7 @@ public sealed class TypeofNameCheck : ISemanticCheck
     {
         if (node is TypeofExpressionNode typeOf)
         {
-            if (!SymbolResolver.TryResolveType(typeOf.TypeName, ctx, out _))
+            if (!IsGenericParameter(typeOf.TypeName, ctx) && !SymbolResolver.TryResolveType(typeOf.TypeName, ctx, out _))
                 Report($"Unknown type '{typeOf.TypeName}'.", typeOf.Location, ctx);
             return;
         }
@@ -54,6 +54,10 @@ public sealed class TypeofNameCheck : ISemanticCheck
             return;
         }
     }
+
+    private static bool IsGenericParameter(string name, VerificationContext ctx) =>
+        ctx.CurrentMember?.GenericParameters.Any(parameter => parameter.Name == name) == true ||
+        ctx.CurrentType?.GenericParameters.Any(parameter => parameter.Name == name) == true;
 
     private static void Report(string message, SourceLocation location, VerificationContext ctx) =>
         ctx.Diagnostics.Report(DiagnosticCode.TypeMismatch, DiagnosticSeverity.Error, message, location);

@@ -28,6 +28,9 @@ internal static class ExpressionSymbolHelper
 
     public static bool TryResolveTargetType(IAstNode target, EmitContext ctx, out TypeSymbol type)
     {
+        if (QualifiedTypeAccessResolver.TryResolveType(target, ctx, out type))
+            return true;
+
         if (target is IdentifierExpressionNode identifier)
         {
             if (identifier.Name == "this" && ctx.CurrentType is not null) { type = ctx.CurrentType; return true; }

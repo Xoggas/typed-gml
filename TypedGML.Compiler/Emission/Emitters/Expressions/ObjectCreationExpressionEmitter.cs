@@ -1,5 +1,6 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
+using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 
@@ -24,7 +25,7 @@ public sealed class ObjectCreationExpressionEmitter : INodeEmitter
 
         if (type.ObjectAssetName is null)
         {
-            ctx.Writer.Write($"{NamingConvention.ConstructorName(type)}({ExpressionCallHelper.JoinConstructorArguments(type, expression.PositionalArgs, expression.NamedArgs, ctx)})");
+            ctx.Writer.Write($"{ConstructorName(type, expression, ctx)}({ExpressionCallHelper.JoinConstructorArguments(type, expression.PositionalArgs, expression.NamedArgs, ctx)})");
             return;
         }
 
@@ -37,14 +38,32 @@ public sealed class ObjectCreationExpressionEmitter : INodeEmitter
             return;
         }
 
-        ctx.Writer.Write($"{NamingConvention.ConstructorName(type)}({string.Join(", ", expression.PositionalArgs.Select(a => ctx.Emitter.Render(a, ctx)).Concat(expression.NamedArgs.Select(a => ctx.Emitter.Render(a.Value, ctx))) )})");
+        ctx.Writer.Write($"{ConstructorName(type, expression, ctx)}({string.Join(", ", expression.PositionalArgs.Select(a => ctx.Emitter.Render(a, ctx)).Concat(expression.NamedArgs.Select(a => ctx.Emitter.Render(a.Value, ctx))) )})");
     }
 
-    private static void EmitGenericCreation(ObjectCreationExpressionNode expression, Symbols.TypeSymbol type, EmitContext ctx)
+    private static void EmitGenericCreation(ObjectCreationExpressionNode expression, TypeSymbol type, EmitContext ctx)
     {
         var args = ExpressionCallHelper.JoinConstructorArguments(type, expression.PositionalArgs, expression.NamedArgs, ctx);
-        var invocation = $"{NamingConvention.ConstructorName(type)}({args})";
+        var invocation = $"{ConstructorName(type, expression, ctx)}({args})";
         var genericArgs = GenericArgsRenderer.Render(type, expression.TypeArgs, ctx);
         ctx.Writer.Write($"(function() {{ var __inst = {invocation}; __inst.__genericArgs = {genericArgs}; return __inst; }})()");
     }
+
+    private static string ConstructorName(TypeSymbol type, ObjectCreationExpressionNode expression, EmitContext ctx)
+    {
+        var constructor = EmissionOverloadResolver.Pick(
+            type.Members.Where(member => member.Kind == MemberKind.Constructor).ToList(),
+            expression.PositionalArgs,
+            expression.NamedArgs,
+            ctx,
+            Substitutions(type, expression.TypeArgs));
+
+        return constructor is null
+            ? NamingConvention.ConstructorName(type)
+            : NamingConvention.ConstructorName(type, constructor);
+    }
+
+    private static IReadOnlyDictionary<string, string> Substitutions(TypeSymbol type, IReadOnlyList<string> typeArgs) =>
+        type.GenericParameters.Zip(typeArgs)
+            .ToDictionary(pair => pair.First.Name, pair => pair.Second, StringComparer.Ordinal);
 }

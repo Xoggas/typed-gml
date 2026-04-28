@@ -12,7 +12,7 @@ internal static class MethodInvocationHelper
         out string target,
         out string args)
     {
-        if (TryResolveMethod(expression.Target, ctx, out var owner, out var member, out var receiver))
+        if (TryResolveMethod(expression, ctx, out var owner, out var member, out var receiver))
         {
             target = member.Modifiers.Contains("static", StringComparer.Ordinal)
                 ? NamingConvention.StaticMemberName(owner, member)
@@ -30,20 +30,33 @@ internal static class MethodInvocationHelper
     }
 
     private static bool TryResolveMethod(
-        IAstNode target,
+        InvocationExpressionNode expression,
         EmitContext ctx,
         out TypeSymbol owner,
         out MemberSymbol member,
         out string receiver)
     {
-        switch (target)
+        switch (expression.Target)
         {
             case IdentifierExpressionNode identifier:
                 receiver = ctx.SelfName ?? "self";
-                return TryResolveCurrentMethod(identifier.Name, ctx, out owner, out member);
+                return TryResolveCurrentMethod(identifier.Name, expression, ctx, out owner, out member);
+            case MemberAccessExpressionNode access when QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var qualifiedType, out var qualifiedMember):
+                owner = qualifiedType;
+                member = EmissionOverloadResolver.Pick(
+                    qualifiedType.Members.Where(m => m.Kind == MemberKind.Method && m.Name == qualifiedMember).ToList(),
+                    expression.PositionalArgs,
+                    expression.NamedArgs,
+                    ctx)!;
+                receiver = string.Empty;
+                return member is not null;
             case MemberAccessExpressionNode access when ExpressionSymbolHelper.TryResolveTargetType(access.Target, ctx, out var type):
                 owner = type;
-                member = type.Members.FirstOrDefault(m => m.Kind == MemberKind.Method && m.Name == access.MemberName)!;
+                member = EmissionOverloadResolver.Pick(
+                    type.Members.Where(m => m.Kind == MemberKind.Method && m.Name == access.MemberName).ToList(),
+                    expression.PositionalArgs,
+                    expression.NamedArgs,
+                    ctx)!;
                 receiver = ctx.Emitter.Render(access.Target, ctx);
                 return member is not null;
             default:
@@ -54,11 +67,20 @@ internal static class MethodInvocationHelper
         }
     }
 
-    private static bool TryResolveCurrentMethod(string name, EmitContext ctx, out TypeSymbol owner, out MemberSymbol member)
+    private static bool TryResolveCurrentMethod(
+        string name,
+        InvocationExpressionNode expression,
+        EmitContext ctx,
+        out TypeSymbol owner,
+        out MemberSymbol member)
     {
         for (var current = ctx.CurrentType; current is not null; current = current.Base)
         {
-            member = current.Members.FirstOrDefault(m => m.Kind == MemberKind.Method && m.Name == name)!;
+            member = EmissionOverloadResolver.Pick(
+                current.Members.Where(m => m.Kind == MemberKind.Method && m.Name == name).ToList(),
+                expression.PositionalArgs,
+                expression.NamedArgs,
+                ctx)!;
             if (member is null)
                 continue;
 

@@ -31,6 +31,9 @@ internal static class InvocationResolver
         out bool delegateInvocation)
     {
         delegateInvocation = false;
+        if (QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var owner, out var memberName))
+            return MemberSignatureHelper.Members(owner, memberName, MemberKind.Method).ToList();
+
         if (!SymbolResolver.TryResolveType(ExpressionTypeResolver.Resolve(access.Target, ctx), ctx, out var targetType))
             return [];
 

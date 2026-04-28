@@ -27,7 +27,7 @@ public sealed class OverrideSignatureCheck : ISemanticCheck
 
         var ancestors = MemberSignatureHelper.Members(ctx.CurrentType?.Base, method.Name, MemberKind.Method).ToList();
         var exact = ancestors.FirstOrDefault(candidate => MemberSignatureHelper.SignatureExact(candidate, method));
-        if (exact is null || !HasAny(exact.Modifiers, "virtual", "abstract"))
+        if (exact is null || !HasAny(exact.Modifiers, "virtual", "abstract", "override"))
             Report(DiagnosticCode.MissingOverrideTarget, $"Method '{method.Name}' does not override a compatible virtual or abstract member.", method.Location, ctx);
         else if (exact.Modifiers.Contains("sealed", StringComparer.Ordinal))
             Report(DiagnosticCode.TypeMismatch, $"Method '{method.Name}' cannot override a sealed member.", method.Location, ctx);
@@ -43,7 +43,7 @@ public sealed class OverrideSignatureCheck : ISemanticCheck
 
         var exact = MemberSignatureHelper.Members(ctx.CurrentType?.Base, property.Name, MemberKind.Property)
             .FirstOrDefault(candidate => MemberSignatureHelper.SignatureExact(candidate, property));
-        if (exact is null || !HasAny(exact.Modifiers, "virtual", "abstract"))
+        if (exact is null || !HasAny(exact.Modifiers, "virtual", "abstract", "override"))
             Report(DiagnosticCode.MissingOverrideTarget, $"Property '{property.Name}' does not override a compatible virtual or abstract member.", property.Location, ctx);
         else if (exact.Modifiers.Contains("sealed", StringComparer.Ordinal))
             Report(DiagnosticCode.TypeMismatch, $"Property '{property.Name}' cannot override a sealed member.", property.Location, ctx);

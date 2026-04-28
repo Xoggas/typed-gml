@@ -1,0 +1,48 @@
+using FluentAssertions;
+using TypedGML.Compiler.Tests.Helpers;
+
+namespace TypedGML.Compiler.Tests.Emission;
+
+public sealed class GenericEmissionTests
+{
+    [Fact]
+    public void Test_GenericConstructorSubstitutesTypeArguments()
+    {
+        var result = Compile("""
+            public class Box<T> {
+                public T Value;
+                public Box(T value) {
+                    Value = value;
+                }
+            }
+            public class Host {
+                public void Run() {
+                    var b = new Box<number>(42);
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var gml = result.GetFile("Host.gml")!;
+        GmlAssert.ContainsPattern(gml, "var b = Box_create(42);");
+        GmlAssert.ContainsPattern(gml, "b.__genericArgs = { T: \"number\" };");
+    }
+
+    [Fact]
+    public void Test_TypeofGenericTypeParameterReadsGenericArgs()
+    {
+        var result = Compile("""
+            public class Box<T> {
+                public string TypeName() {
+                    return typeof(T);
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var gml = result.GetFile("Box.gml")!;
+        GmlAssert.ContainsPattern(gml, "return self.__genericArgs.T;");
+    }
+
+    private static CompileResult Compile(string source) => CompilerFixture.Compile(source);
+}

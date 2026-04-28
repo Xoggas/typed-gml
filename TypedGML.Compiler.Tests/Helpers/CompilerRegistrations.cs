@@ -14,6 +14,7 @@ internal static class CompilerRegistrations
         new TypeAssignabilityCheck(),
         new NullabilityCheck(),
         new MemberAccessCheck(),
+        new BaseCallCheck(),
         new MethodCallCheck(),
         new ConstructorCallCheck(),
         new OperatorCheck(),

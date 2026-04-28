@@ -1,3 +1,5 @@
+using TypedGML.Compiler.Ast.Members;
+
 namespace TypedGML.Compiler.Symbols;
 
 public sealed class MemberSymbol
@@ -10,6 +12,8 @@ public sealed class MemberSymbol
 
     public IReadOnlyList<ParameterSymbol> Parameters { get; set; } = [];
 
+    public IReadOnlyList<GenericParamNode> GenericParameters { get; set; } = [];
+
     public IReadOnlySet<string> Modifiers { get; set; } = new HashSet<string>();
 
     public object? ConstValue { get; set; }
@@ -19,6 +23,8 @@ public sealed class MemberSymbol
     public string? NativePropertyName { get; set; }
 
     public string? AssetName { get; set; }
+
+    public string? NativeCallName { get; set; }
 
     public List<MemberSymbol> Overloads { get; } = [];
 }

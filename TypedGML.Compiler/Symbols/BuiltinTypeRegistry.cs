@@ -4,9 +4,9 @@ public static class BuiltinTypeRegistry
 {
     public static void RegisterInto(SymbolTable table)
     {
-        table.Register("number", new TypeSymbol { QualifiedName = "number", Kind = TypeKind.Primitive });
-        table.Register("string", new TypeSymbol { QualifiedName = "string", Kind = TypeKind.Primitive });
-        table.Register("bool", new TypeSymbol { QualifiedName = "bool", Kind = TypeKind.Primitive });
+        table.Register("number", new TypeSymbol { QualifiedName = "number", Kind = TypeKind.Primitive, BclTypeName = "Number" });
+        table.Register("string", new TypeSymbol { QualifiedName = "string", Kind = TypeKind.Primitive, BclTypeName = "String" });
+        table.Register("bool", new TypeSymbol { QualifiedName = "bool", Kind = TypeKind.Primitive, BclTypeName = "Bool" });
         table.Register("void", new TypeSymbol { QualifiedName = "void", Kind = TypeKind.Primitive });
         table.Register("null", new TypeSymbol { QualifiedName = "null", Kind = TypeKind.Primitive });
 

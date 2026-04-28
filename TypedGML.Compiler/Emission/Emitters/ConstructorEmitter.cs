@@ -1,7 +1,7 @@
 using TypedGML.Compiler.Ast;
-using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Ast.Statements;
+using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Emission.Emitters;
 
@@ -16,13 +16,17 @@ public sealed class ConstructorEmitter : INodeEmitter
             return;
 
         var parameters = string.Join(", ", constructor.Parameters.Select(p => p.Name));
-        ctx.Writer.Write($"function {NamingConvention.ConstructorName(ctx.CurrentType)}({parameters})");
+        var symbol = ResolveSymbol(ctx.CurrentType, constructor);
+        var functionName = symbol is null
+            ? NamingConvention.ConstructorName(ctx.CurrentType)
+            : NamingConvention.ConstructorName(ctx.CurrentType, symbol);
+        ctx.Writer.Write($"function {functionName}({parameters})");
         WithConstructorContext(ctx, constructor.Parameters, () =>
         {
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine("var self = {};");
-            EmitFieldInitializers(ctx);
-            EmitChain(ctx, constructor);
+            ConstructorChainInliner.Emit(constructor, ctx);
+            ConstructorFieldInitializerEmitter.Emit(ctx.CurrentType, constructor.Body, ctx);
             EmitBodyStatements(constructor.Body, ctx);
             ctx.Writer.WriteLine("return self;");
             ctx.Writer.EndBlock();
@@ -40,40 +44,10 @@ public sealed class ConstructorEmitter : INodeEmitter
         ctx.Dispatch(body, ctx);
     }
 
-    private static void EmitChain(EmitContext ctx, ConstructorDeclarationNode constructor)
-    {
-        var args = string.Join(", ", constructor.ChainArgs.Select(FormatArgument));
-        if (constructor.ChainTarget == ConstructorChainTarget.Base && ctx.CurrentType?.Base is not null)
-            ctx.Writer.WriteLine($"{NamingConvention.ConstructorName(ctx.CurrentType.Base)}({args});");
-        if (constructor.ChainTarget == ConstructorChainTarget.This && ctx.CurrentType is not null)
-            ctx.Writer.WriteLine($"{NamingConvention.ConstructorName(ctx.CurrentType)}({args});");
-    }
-
-    private static string FormatArgument(IAstNode node) => node switch
-    {
-        LiteralExpressionNode literal when literal.Kind == LiteralKind.String =>
-            $"\"{literal.Value?.ToString()?.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"",
-        LiteralExpressionNode literal when literal.Kind == LiteralKind.Null => "undefined",
-        LiteralExpressionNode literal => literal.Value?.ToString() ?? "undefined",
-        IdentifierExpressionNode identifier => identifier.Name,
-        _ => "undefined"
-    };
-
-    private static void EmitFieldInitializers(EmitContext ctx)
-    {
-        foreach (var field in Fields(ctx.CurrentType))
-            ctx.Writer.WriteLine($"self.{field.Name} = undefined;");
-    }
-
-    private static IEnumerable<Symbols.MemberSymbol> Fields(Symbols.TypeSymbol? type)
-    {
-        for (var current = type; current is not null; current = current.Base)
-            foreach (var field in current.Members.Where(m =>
-                         m.Kind == Symbols.MemberKind.Field &&
-                         !m.Modifiers.Contains("static", StringComparer.Ordinal) &&
-                         !m.Modifiers.Contains("const", StringComparer.Ordinal)))
-                yield return field;
-    }
+    private static MemberSymbol? ResolveSymbol(TypeSymbol type, ConstructorDeclarationNode constructor) =>
+        type.Members.FirstOrDefault(member =>
+            member.Kind == MemberKind.Constructor &&
+            member.Parameters.Select(p => p.TypeRef).SequenceEqual(constructor.Parameters.Select(p => p.TypeRef), StringComparer.Ordinal));
 
     private static void WithConstructorContext(EmitContext ctx, IReadOnlyList<ParameterNode> parameters, Action action)
     {

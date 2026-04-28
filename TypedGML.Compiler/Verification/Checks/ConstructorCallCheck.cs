@@ -57,17 +57,21 @@ public sealed class ConstructorCallCheck : ISemanticCheck
             return;
         }
 
-        if (!constructors.Any(member => Matches(member, positionalArgs, ctx)))
+        var substitutions = GenericTypeSubstitution.Map(type, creation.TypeArgs);
+        if (!constructors.Any(member => Matches(member, positionalArgs, substitutions, ctx)))
             Report(DiagnosticCode.NoMatchingMethodOverload, $"Type '{type.QualifiedName}' does not have a matching constructor.", creation.Location, ctx);
     }
 
-    private static bool Matches(MemberSymbol constructor, IReadOnlyList<IAstNode> args, VerificationContext ctx)
+    private static bool Matches(MemberSymbol constructor, IReadOnlyList<IAstNode> args, VerificationContext ctx) =>
+        Matches(constructor, args, new Dictionary<string, string>(StringComparer.Ordinal), ctx);
+
+    private static bool Matches(MemberSymbol constructor, IReadOnlyList<IAstNode> args, IReadOnlyDictionary<string, string> substitutions, VerificationContext ctx)
     {
         if (args.Count > constructor.Parameters.Count || args.Count < MemberSignatureHelper.RequiredParameters(constructor))
             return false;
 
         for (var i = 0; i < args.Count; i++)
-            if (!TypeReferenceHelper.IsAssignable(constructor.Parameters[i].TypeRef, ExpressionTypeResolver.Resolve(args[i], ctx), ctx))
+            if (!TypeReferenceHelper.IsAssignable(GenericTypeSubstitution.Substitute(constructor.Parameters[i].TypeRef, substitutions), ExpressionTypeResolver.Resolve(args[i], ctx), ctx))
                 return false;
 
         return true;

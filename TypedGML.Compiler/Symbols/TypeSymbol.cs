@@ -21,4 +21,6 @@ public sealed class TypeSymbol
     public bool IsSealed { get; set; }
 
     public string? ObjectAssetName { get; set; }
+
+    public string? BclTypeName { get; set; }
 }

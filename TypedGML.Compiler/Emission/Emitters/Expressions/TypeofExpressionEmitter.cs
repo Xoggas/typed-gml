@@ -10,9 +10,16 @@ public sealed class TypeofExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (TypeofExpressionNode)node;
-        if (ctx.CurrentType?.GenericParameters.Any(p => p.Name == expression.TypeName) == true)
+        if (ctx.CurrentMember?.GenericParameters.Any(p => p.Name == expression.TypeName) == true)
         {
             ctx.Writer.Write($"__genericArgs.{expression.TypeName}");
+            return;
+        }
+
+        if (ctx.CurrentType?.GenericParameters.Any(p => p.Name == expression.TypeName) == true)
+        {
+            var target = string.IsNullOrEmpty(ctx.SelfName) ? "__genericArgs" : $"{ctx.SelfName}.__genericArgs";
+            ctx.Writer.Write($"{target}.{expression.TypeName}");
             return;
         }
 

@@ -50,18 +50,21 @@ internal static class OperatorResolutionHelper
 
     private static bool TryResolveOperatorOwner(string typeRef, VerificationContext ctx, out TypeSymbol type)
     {
-        foreach (var alias in PrimitiveAliases(TypeReferenceHelper.RootName(typeRef)))
-            if (ctx.Symbols.TryResolve(alias, TypeReferenceHelper.CurrentNamespace(ctx.CurrentType), ctx.UsingPrefixes, out type))
-                return true;
+        if (!SymbolResolver.TryResolveType(typeRef, ctx, out type))
+            return false;
 
-        return SymbolResolver.TryResolveType(typeRef, ctx, out type);
+        if (type.BclTypeName is null)
+            return true;
+
+        return TryResolveBclType(type.BclTypeName, ctx, out type);
     }
 
-    private static IReadOnlyList<string> PrimitiveAliases(string typeRef) => typeRef switch
+    private static bool TryResolveBclType(string bclTypeName, VerificationContext ctx, out TypeSymbol type)
     {
-        "number" => ["Number", "TypedGML.Core.Number"],
-        "string" => ["String", "TypedGML.Core.String"],
-        "bool" => ["Bool", "TypedGML.Core.Bool"],
-        _ => []
-    };
+        if (!bclTypeName.Contains('.', StringComparison.Ordinal) &&
+            ctx.Symbols.TryResolve($"TypedGML.Core.{bclTypeName}", null, [], out type))
+            return true;
+
+        return ctx.Symbols.TryResolve(bclTypeName, null, [], out type);
+    }
 }

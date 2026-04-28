@@ -30,8 +30,44 @@ public sealed class ObjectEmissionTests
                 public Player(number x, number y, string layer, number health) { Health = health; }
             }
             """).GetFile("Player.gml")!;
-        GmlAssert.ContainsPattern(gml, "with (__inst)");
+        GmlAssert.ContainsPattern(gml, "with (__inst) {");
         GmlAssert.ContainsPattern(gml, "Health = health;");
+        GmlAssert.NotContainsPattern(Normalize(gml), "with (__inst)\n    {");
+    }
+
+    [Fact]
+    public void Test_ObjectCreateWithOneExtraParamAssignsInsideFlatWithBlock()
+    {
+        var gml = Compile("""
+            using TypedGML.GameObjects;
+            @Object("OBJ_Enemy")
+            public class Enemy : GameObject {
+                public number Hp;
+                public Enemy(number x, number y, string layer, number hp) { }
+            }
+            """).GetFile("Enemy.gml")!;
+
+        var normalized = Normalize(gml);
+        GmlAssert.ContainsPattern(normalized, "with (__inst) {\n        Hp = hp;\n    }");
+        GmlAssert.NotContainsPattern(normalized, "with (__inst)\n    {");
+    }
+
+    [Fact]
+    public void Test_ObjectCreateWithTwoExtraParamsAssignsInsideFlatWithBlock()
+    {
+        var gml = Compile("""
+            using TypedGML.GameObjects;
+            @Object("OBJ_Enemy")
+            public class Enemy : GameObject {
+                public number Hp;
+                public number Speed;
+                public Enemy(number x, number y, string layer, number hp, number speed) { }
+            }
+            """).GetFile("Enemy.gml")!;
+
+        var normalized = Normalize(gml);
+        GmlAssert.ContainsPattern(normalized, "with (__inst) {\n        Hp = hp;\n        Speed = speed;\n    }");
+        GmlAssert.NotContainsPattern(normalized, "with (__inst)\n    {");
     }
 
     [Fact]
@@ -67,4 +103,7 @@ public sealed class ObjectEmissionTests
     }
 
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);
+
+    private static string Normalize(string text) =>
+        text.Replace("\r\n", "\n", StringComparison.Ordinal);
 }
