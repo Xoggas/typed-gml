@@ -53,6 +53,10 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
 
             return;
         }
+
+        if (assignment.Value is LambdaExpressionNode && DelegateTypeHelper.TrySignature(targetType, ctx, out _, out _))
+            return;
+
         var valueType = ExpressionTypeResolver.Resolve(assignment.Value, ctx);
         if (IsEmptyArrayForArrayTarget(assignment.Value, targetType))
             return;
@@ -64,6 +68,11 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
     private static void CheckDeclaration(VarDeclarationStatementNode declaration, VerificationContext ctx)
     {
         if (declaration.Initializer is null)
+            return;
+
+        if (!declaration.IsVar &&
+            declaration.Initializer is LambdaExpressionNode &&
+            DelegateTypeHelper.TrySignature(declaration.TypeRef, ctx, out _, out _))
             return;
 
         var initializerType = ExpressionTypeResolver.Resolve(declaration.Initializer, ctx);
@@ -95,7 +104,7 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
 
     private static void CheckReturn(ReturnStatementNode @return, VerificationContext ctx)
     {
-        var expectedType = ctx.CurrentMember?.ReturnType;
+        var expectedType = ctx.CurrentReturnType;
         if (string.IsNullOrWhiteSpace(expectedType))
             return;
 
@@ -125,22 +134,9 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
         if (string.IsNullOrWhiteSpace(returnType) || returnType == "void" || body is null)
             return;
 
-        if (!ReturnsOnAllPaths(body))
+        if (!ReturnPathHelper.ReturnsOnAllPaths(body))
             Report(DiagnosticCode.MissingReturnInNonVoidMethod, $"Not all code paths return a value of type '{returnType}'.", location, ctx);
     }
-
-    private static bool ReturnsOnAllPaths(IAstNode node) => node switch
-    {
-        ReturnStatementNode => true,
-        BlockStatementNode block => block.Statements.Any(ReturnsOnAllPaths),
-        IfStatementNode @if => ReturnsOnAllPaths(@if.ThenBlock) &&
-                               @if.ElseIfClauses.All(clause => ReturnsOnAllPaths(clause.ThenBlock)) &&
-                               @if.ElseBlock is not null &&
-                               ReturnsOnAllPaths(@if.ElseBlock),
-        SwitchStatementNode @switch => @switch.Sections.Count > 0 &&
-                                       @switch.Sections.All(section => section.Statements.LastOrDefault() is { } last && ReturnsOnAllPaths(last)),
-        _ => false
-    };
 
     private static bool IsEmptyArrayForArrayTarget(IAstNode? value, string? targetType) => value is ArrayLiteralExpressionNode { Elements.Count: 0 } && targetType?.EndsWith("[]", StringComparison.Ordinal) == true;
 

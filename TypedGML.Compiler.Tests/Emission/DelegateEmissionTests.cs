@@ -18,6 +18,36 @@ public sealed class DelegateEmissionTests
         GmlAssert.ContainsPattern(CompileInMethod("Callback myDel; myDel(arg1, arg2);", "number arg1, number arg2").GetFile("DelegateHost.gml")!, "__tgml_invoke_delegate(myDel, arg1, arg2);");
 
     [Fact]
+    public void Test_ActionLambdaInitializer()
+    {
+        var result = CompilerFixture.Compile("public class LambdaHost { public void Run() { Action<number> fn = (number x) => x * 2; } }");
+
+        result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
+        GmlAssert.ContainsPattern(result.GetFile("LambdaHost.gml")!, "var fn = function(x) { return (x * 2); };");
+    }
+
+    [Fact]
+    public void Test_FuncBlockLambdaInitializer()
+    {
+        var result = CompilerFixture.Compile("""
+            public class LambdaHost {
+                public void Run() {
+                    Func<number, number> fn = (number x) => {
+                        number y = x + 1;
+                        return y;
+                    };
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
+        var gml = result.GetFile("LambdaHost.gml")!;
+        GmlAssert.ContainsPattern(gml, "var fn = function(x)");
+        GmlAssert.ContainsPattern(gml, "var y = (x + 1);");
+        GmlAssert.ContainsPattern(gml, "return y;");
+    }
+
+    [Fact]
     public void Test_DelegateLocalLifecycle()
     {
         var result = CompilerFixture.Compile("""

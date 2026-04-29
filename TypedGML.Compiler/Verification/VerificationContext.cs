@@ -6,6 +6,9 @@ namespace TypedGML.Compiler.Verification;
 
 public sealed class VerificationContext(SymbolTable symbols, ScopeStack scope, DiagnosticBag diagnostics)
 {
+    private readonly List<string> _returnTypeStack = [];
+    private readonly List<string> _expectedTypeStack = [];
+
     public SymbolTable Symbols { get; } = symbols;
 
     public ScopeStack Scope { get; } = scope;
@@ -23,4 +26,20 @@ public sealed class VerificationContext(SymbolTable symbols, ScopeStack scope, D
     public DiagnosticBag Diagnostics { get; } = diagnostics;
 
     public IReadOnlyList<string> UsingPrefixes { get; set; } = [];
+
+    public string? CurrentReturnType => _returnTypeStack.Count == 0 ? CurrentMember?.ReturnType : _returnTypeStack[^1];
+
+    public string? CurrentExpectedType => _expectedTypeStack.Count == 0 ? null : _expectedTypeStack[^1];
+
+    public void PushReturnType(string? typeRef) =>
+        _returnTypeStack.Add(typeRef ?? string.Empty);
+
+    public void PopReturnType() =>
+        _returnTypeStack.RemoveAt(_returnTypeStack.Count - 1);
+
+    public void PushExpectedType(string? typeRef) =>
+        _expectedTypeStack.Add(typeRef ?? string.Empty);
+
+    public void PopExpectedType() =>
+        _expectedTypeStack.RemoveAt(_expectedTypeStack.Count - 1);
 }

@@ -13,14 +13,12 @@ public sealed class LambdaExpressionEmitter : INodeEmitter
         var expression = (LambdaExpressionNode)node;
         var parameters = string.Join(", ", expression.Parameters.Select(p => p.Name));
         ctx.Writer.Write($"function({parameters})");
-        if (expression.Body is BlockStatementNode)
+        if (expression.Body is not BlockStatementNode)
         {
-            ctx.Emitter.Emit(expression.Body, ctx);
+            ctx.Writer.Write($" {{ return {ctx.Emitter.Render(expression.Body, ctx)}; }}");
             return;
         }
 
-        ctx.Writer.BeginBlock();
-        ctx.Writer.WriteLine($"return {ctx.Emitter.Render(expression.Body, ctx)};");
-        ctx.Writer.EndBlock();
+        ctx.Emitter.Emit(expression.Body, ctx);
     }
 }

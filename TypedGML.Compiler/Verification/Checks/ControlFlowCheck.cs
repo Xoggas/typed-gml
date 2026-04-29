@@ -48,7 +48,7 @@ public sealed class ControlFlowCheck : ISemanticCheck
 
     private static void CheckSwitch(SwitchStatementNode @switch, VerificationContext ctx)
     {
-        if (ctx.CurrentMember?.ReturnType != "void" && @switch.Sections.All(section => section.Label is not null))
+        if (ctx.CurrentReturnType != "void" && @switch.Sections.All(section => section.Label is not null))
             ctx.Diagnostics.Report(DiagnosticCode.MissingReturnInNonVoidMethod, DiagnosticSeverity.Warning, "Non-void switch should include a default section or be exhaustive.", @switch.Location);
 
         foreach (var section in @switch.Sections.Where(section => section.Statements.Count > 0))
