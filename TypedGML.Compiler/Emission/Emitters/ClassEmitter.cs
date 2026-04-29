@@ -67,13 +67,7 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
     }
 
     private static void EmitDefaultConstructor(EmitContext ctx)
-    {
-        ctx.Writer.Write($"function {NamingConvention.ConstructorName(ctx.CurrentType!)}()");
-        ctx.Writer.BeginBlock();
-        ctx.Writer.WriteLine("var self = {};");
-        ctx.Writer.WriteLine("return self;");
-        ctx.Writer.EndBlock();
-    }
+        => ConstructorEmitter.EmitImplicit(ctx.CurrentType!, ctx);
 
     private static TypeSymbol? ResolveType(EmitContext ctx, string name) =>
         ctx.Symbols.TryResolve(name, ctx.CurrentNamespacePrefix, [], out var symbol) ? symbol : null;

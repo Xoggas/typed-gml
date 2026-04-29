@@ -9,6 +9,19 @@ public sealed class ConstructorEmitter : INodeEmitter
 {
     public bool Matches(IAstNode node) => node is ConstructorDeclarationNode;
 
+    public static void EmitImplicit(TypeSymbol type, EmitContext ctx)
+    {
+        ctx.Writer.Write($"function {NamingConvention.ConstructorName(type)}()");
+        WithConstructorContext(ctx, [], () =>
+        {
+            ctx.Writer.BeginBlock();
+            ctx.Writer.WriteLine("var self = {};");
+            ConstructorFieldInitializerEmitter.Emit(type, null, ctx);
+            ctx.Writer.WriteLine("return self;");
+            ctx.Writer.EndBlock();
+        });
+    }
+
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var constructor = (ConstructorDeclarationNode)node;

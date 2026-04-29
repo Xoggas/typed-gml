@@ -14,6 +14,23 @@ public sealed class ClassEmissionTests
         GmlAssert.HasFunction(Compile("public class ConcreteClass { }").GetFile("ConcreteClass.gml")!, "ConcreteClass_create");
 
     [Fact]
+    public void Test_DefaultConstructorInitializesFields()
+    {
+        var result = Compile("""
+            public class A {
+                private string _value = "Hello, World!";
+                private number _count;
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var gml = result.GetFile("A.gml")!;
+
+        GmlAssert.ContainsPattern(gml, "self._value = \"Hello, World!\";");
+        GmlAssert.ContainsPattern(gml, "self._count = 0;");
+    }
+
+    [Fact]
     public void Test_OverrideInlined()
     {
         var gml = Compile("""
