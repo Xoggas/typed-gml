@@ -12,6 +12,9 @@ public sealed class ControlFlowTests
     [Fact] public void Test_ContinueInsideFor_Valid() => AssertValid(CompileInMethod("for (var i = 0; true; i += 1) { continue; }"));
     [Fact] public void Test_MissingReturnInNonVoidMethod_TGML0034() => AssertHasError(Compile("public class ControlFlowHost { public number Foo() { } }"), DiagnosticCode.MissingReturnInNonVoidMethod);
     [Fact] public void Test_ReturnInAllPaths_Valid() => AssertValid(Compile("public class ControlFlowHost { public number Foo(bool cond) { if (cond) { return 1; } else { return 2; } } }"));
+    [Fact] public void Test_ThrowSatisfiesNonVoidReturn_Valid() => AssertValid(Compile("using TypedGML.Core; public class ControlFlowHost { public number Foo() { throw new Exception(\"err\"); } }"));
+    [Fact] public void Test_ThrowElseBranchSatisfiesNonVoidReturn_Valid() => AssertValid(Compile("using TypedGML.Core; public class ControlFlowHost { public number Foo(bool x) { if (x) { return 1; } else { throw new Exception(\"err\"); } } }"));
+    [Fact] public void Test_StatementAfterThrow_UnreachableWarning() => AssertHasWarning(Compile("using TypedGML.Core; public class ControlFlowHost { public number Foo() { throw new Exception(\"err\"); return 0; } }"), DiagnosticCode.TypeMismatch);
     [Fact] public void Test_ReturnValueInVoidMethod_TGML0034() => AssertHasError(Compile("public class ControlFlowHost { public void Foo() { return 1; } }"), DiagnosticCode.InvalidReturnUsage);
     [Fact] public void Test_SwitchCaseNonConstant_TGML0018() => AssertHasError(CompileInMethod("var label = 1; switch (label) { case label: break; default: break; }"), DiagnosticCode.NonConstantSwitchCaseLabel);
     [Fact] public void Test_SwitchCaseConstant_Valid() => AssertValid(Compile("public class ControlFlowHost { public const number One = 1; public void Run(number value) { switch (value) { case One: break; case 2: break; default: break; } } }"));
@@ -55,4 +58,11 @@ public sealed class ControlFlowTests
 
     private static void AssertHasError(CompileResult result, DiagnosticCode code) =>
         result.HasError(code).Should().BeTrue(string.Join(Environment.NewLine, result.Errors.Select(error => $"{error.Code}: {error.Message}")));
+
+    private static void AssertHasWarning(CompileResult result, DiagnosticCode code)
+    {
+        AssertValid(result);
+        result.Warnings.Any(warning => warning.Code == code && warning.Message.Contains("unreachable", StringComparison.OrdinalIgnoreCase))
+            .Should().BeTrue(string.Join(Environment.NewLine, result.Warnings.Select(warning => $"{warning.Code}: {warning.Message}")));
+    }
 }

@@ -8,6 +8,7 @@ internal static class ReturnPathHelper
     public static bool ReturnsOnAllPaths(IAstNode node) => node switch
     {
         ReturnStatementNode => true,
+        ThrowStatementNode => true,
         BlockStatementNode block => block.Statements.Any(ReturnsOnAllPaths),
         IfStatementNode @if => ReturnsOnAllPaths(@if.ThenBlock) &&
                                @if.ElseIfClauses.All(clause => ReturnsOnAllPaths(clause.ThenBlock)) &&
