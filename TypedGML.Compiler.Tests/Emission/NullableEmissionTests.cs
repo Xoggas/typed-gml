@@ -1,3 +1,4 @@
+using FluentAssertions;
 using TypedGML.Compiler.Tests.Helpers;
 
 namespace TypedGML.Compiler.Tests.Emission;
@@ -34,7 +35,28 @@ public sealed class NullableEmissionTests
                     obj?.Method();
                 }
             }
-            """).GetFile("NullableHost.gml")!, "(obj != undefined ? obj.Method() : undefined)");
+            """).GetFile("NullableHost.gml")!, "(obj != undefined ? Target_Method(obj) : undefined)");
+
+    [Fact]
+    public void Test_NullConditionalMethodCallInfersNullableReturn()
+    {
+        var result = Compile("""
+            public struct MyStruct {
+                public number GetValue() {
+                    return 1;
+                }
+            }
+            public class NullableHost {
+                public void Run() {
+                    MyStruct? s = null;
+                    var x = s?.GetValue();
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(e => $"{e.Code}: {e.Message}")));
+        GmlAssert.ContainsPattern(result.GetFile("NullableHost.gml")!, "var x = (s != undefined ? MyStruct_GetValue(s) : undefined);");
+    }
 
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);
 

@@ -46,6 +46,8 @@ internal static class ExpressionCallHelper
                 ctx.CurrentType?.Members.Where(m => m.Kind == MemberKind.Method && m.Name == identifier.Name).ToList(),
             MemberAccessExpressionNode access when ExpressionSymbolHelper.TryResolveTargetType(access.Target, ctx, out var type) =>
                 type.Members.Where(m => m.Kind == MemberKind.Method && m.Name == access.MemberName).ToList(),
+            NullConditionalExpressionNode conditional when ExpressionSymbolHelper.TryResolveTargetType(conditional.Target, ctx, out var type) =>
+                type.Members.Where(m => m.Kind == MemberKind.Method && m.Name == conditional.MemberName).ToList(),
             _ => null
         };
 

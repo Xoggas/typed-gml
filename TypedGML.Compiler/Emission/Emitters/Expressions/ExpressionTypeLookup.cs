@@ -27,6 +27,7 @@ internal static class ExpressionTypeLookup
             ? Resolve(ternary.ThenExpr, ctx)
             : null,
         NullCoalescingExpressionNode coalescing => Resolve(coalescing.Left, ctx) ?? Resolve(coalescing.Right, ctx),
+        NullConditionalExpressionNode conditional => Nullable(ResolveNullConditionalAccess(conditional, ctx)?.ReturnType),
         DefaultExpressionNode defaultValue => defaultValue.TypeName,
         TypeofExpressionNode or NameofExpressionNode => "string",
         _ => null
@@ -50,6 +51,9 @@ internal static class ExpressionTypeLookup
 
     private static string? ResolveInvocation(InvocationExpressionNode invocation, EmitContext ctx)
     {
+        if (invocation.Target is NullConditionalExpressionNode conditional)
+            return Nullable(ResolveNullConditionalInvocation(conditional, invocation, ctx)?.ReturnType);
+
         if (invocation.Target is IdentifierExpressionNode identifier &&
             TryResolveCurrentMember(identifier.Name, ctx, out _, out var member))
             return member.ReturnType;
@@ -81,6 +85,28 @@ internal static class ExpressionTypeLookup
 
         return null;
     }
+
+    private static MemberSymbol? ResolveNullConditionalAccess(NullConditionalExpressionNode conditional, EmitContext ctx) =>
+        ExpressionSymbolHelper.TryResolveTargetType(conditional.Target, ctx, out var owner)
+            ? owner.Members.FirstOrDefault(m => m.Name == conditional.MemberName)
+            : null;
+
+    private static MemberSymbol? ResolveNullConditionalInvocation(
+        NullConditionalExpressionNode conditional,
+        InvocationExpressionNode invocation,
+        EmitContext ctx) =>
+        ExpressionSymbolHelper.TryResolveTargetType(conditional.Target, ctx, out var owner)
+            ? EmissionOverloadResolver.Pick(
+                owner.Members.Where(m => m.Kind == MemberKind.Method && m.Name == conditional.MemberName).ToList(),
+                invocation.PositionalArgs,
+                invocation.NamedArgs,
+                ctx)
+            : null;
+
+    private static string? Nullable(string? typeRef) =>
+        string.IsNullOrWhiteSpace(typeRef) || typeRef == "void"
+            ? typeRef
+            : typeRef.EndsWith("?", StringComparison.Ordinal) ? typeRef : $"{typeRef}?";
 
     private static bool TryResolveCurrentMember(
         string name,

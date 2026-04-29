@@ -83,6 +83,9 @@ internal static class ExpressionTypeResolver
 
     private static string? ResolveInvocation(InvocationExpressionNode invocation, VerificationContext ctx)
     {
+        if (invocation.Target is NullConditionalExpressionNode conditional)
+            return NullConditionalTypeResolver.ResolveInvocation(conditional, invocation, ctx);
+
         if (invocation.Target is MemberAccessExpressionNode access)
             return ResolveMemberAccess(access, ctx);
 
@@ -113,10 +116,7 @@ internal static class ExpressionTypeResolver
 
     private static string? ResolveNullConditional(NullConditionalExpressionNode conditional, VerificationContext ctx)
     {
-        if (!SymbolResolver.TryResolveType(Resolve(conditional.Target, ctx), ctx, out var targetType))
-            return null;
-
-        return SymbolResolver.FindMember(targetType, conditional.MemberName, out _)?.ReturnType;
+        return NullConditionalTypeResolver.ResolveAccess(conditional, ctx);
     }
 
     private static string? ResolveBaseMember(string memberName, VerificationContext ctx) =>

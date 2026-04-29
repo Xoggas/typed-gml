@@ -31,6 +31,9 @@ public sealed class NullabilityCheck : ISemanticCheck
 
     private static void CheckInvocation(InvocationExpressionNode invocation, VerificationContext ctx)
     {
+        if (invocation.Target is NullConditionalExpressionNode)
+            return;
+
         var targetType = ExpressionTypeResolver.Resolve(invocation.Target, ctx);
         if (TypeReferenceHelper.IsNullable(targetType))
             Report("Cannot invoke a nullable value without a null-safe operator.", invocation.Location, ctx);
