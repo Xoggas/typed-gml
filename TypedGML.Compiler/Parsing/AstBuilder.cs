@@ -68,6 +68,8 @@ public sealed partial class AstBuilder(DiagnosticBag diagnostics) : TypedGMLBase
     private SourceLocation Location(IToken token) => new(_filePath, token.Line, token.Column);
     private string Text(IParseTree? node) => node?.GetText() ?? string.Empty;
     private IReadOnlyList<T> Nodes<T>(IEnumerable<IParseTree> nodes) where T : class, IAstNode => nodes.Select(MaybeNode).Where(n => n is T).Cast<T>().ToList();
+    private IReadOnlyList<IAstNode> TypeMembers(IEnumerable<IParseTree> nodes, string typeName) =>
+        Nodes<IAstNode>(nodes).Select(node => node is StaticConstructorDeclarationNode ctor ? ctor with { TypeName = typeName } : node).ToList();
     private IReadOnlyList<string> Texts(IEnumerable<IParseTree> nodes) => nodes.Select(Text).ToList();
     private IReadOnlyList<string> Parts(params IParseTree?[] nodes)
     {

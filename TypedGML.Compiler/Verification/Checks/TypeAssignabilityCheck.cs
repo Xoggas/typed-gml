@@ -54,6 +54,9 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
             return;
         }
         var valueType = ExpressionTypeResolver.Resolve(assignment.Value, ctx);
+        if (IsEmptyArrayForArrayTarget(assignment.Value, targetType))
+            return;
+
         if (!TypeReferenceHelper.IsAssignable(targetType, valueType, ctx))
             Report(DiagnosticCode.TypeMismatch, $"Cannot assign '{valueType ?? "unknown"}' to '{targetType ?? "unknown"}'.", assignment.Location, ctx);
     }
@@ -82,7 +85,12 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
         }
 
         if (!declaration.IsVar && !TypeReferenceHelper.IsAssignable(declaration.TypeRef, initializerType, ctx))
+        {
+            if (IsEmptyArrayForArrayTarget(declaration.Initializer, declaration.TypeRef))
+                return;
+
             Report(DiagnosticCode.TypeMismatch, $"Cannot assign '{initializerType ?? "unknown"}' to '{declaration.TypeRef ?? "unknown"}'.", declaration.Location, ctx);
+        }
     }
 
     private static void CheckReturn(ReturnStatementNode @return, VerificationContext ctx)
@@ -104,6 +112,9 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
                 return;
 
             var valueType = ExpressionTypeResolver.Resolve(@return.Value, ctx);
+            if (IsEmptyArrayForArrayTarget(@return.Value, expectedType))
+                return;
+
             if (!TypeReferenceHelper.IsAssignable(expectedType, valueType, ctx))
                 Report(DiagnosticCode.TypeMismatch, $"Cannot return '{valueType ?? "unknown"}' from a member returning '{expectedType}'.", @return.Location, ctx);
         }
@@ -130,6 +141,8 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
                                        @switch.Sections.All(section => section.Statements.LastOrDefault() is { } last && ReturnsOnAllPaths(last)),
         _ => false
     };
+
+    private static bool IsEmptyArrayForArrayTarget(IAstNode? value, string? targetType) => value is ArrayLiteralExpressionNode { Elements.Count: 0 } && targetType?.EndsWith("[]", StringComparison.Ordinal) == true;
 
     private static void Report(DiagnosticCode code, string message, SourceLocation location, VerificationContext ctx) =>
         ctx.Diagnostics.Report(code, DiagnosticSeverity.Error, message, location);

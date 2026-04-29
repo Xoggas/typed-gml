@@ -20,9 +20,9 @@ public sealed class DelegateLambdaGenericTests
     [Fact] public void Test_MultipleObjectDecorators_TGML0024() => AssertHasError("using TypedGML.GameObjects; @Object(\"OBJ_First\") @Object(\"OBJ_Second\") public class MultiObject : GameObject { }", DiagnosticCode.MultipleObjectDecorators);
     [Fact] public void Test_ObjectClassWithoutGameObjectBase_TGML0046() => AssertHasError("@Object(\"OBJ_Bad\") public class BadObject { }", DiagnosticCode.ObjectDecoratorWithoutGameObject);
     [Fact] public void Test_GameObjectSubclassWithoutObject_TGML0045() => AssertHasError("using TypedGML.GameObjects; public class BareGameObject : GameObject { }", DiagnosticCode.GameObjectMissingObjectDecorator);
-    [Fact] public void Test_StaticCtorDuplicate_TGML0041() => AssertHasError("public class Config { static Config() { } static Config() { } }", DiagnosticCode.DuplicateStaticConstructor);
-    [Fact] public void Test_StaticCtorWithParams_TGML0043() => AssertHasError("public class Config { static Config(number value) { } }", DiagnosticCode.InvalidStaticConstructorUsage);
-    [Fact] public void Test_StaticCtorCrossClassRef_TGML0042() => AssertHasError("public class OtherConfig { public static number Value = 1; } public class Config { static Config() { var current = OtherConfig.Value; } }", DiagnosticCode.CrossTypeStaticReference);
+    [Fact] public void Test_StaticCtorDuplicate_TGML0041() => AssertHasError("public class Config { static constructor() { } static constructor() { } }", DiagnosticCode.DuplicateStaticConstructor);
+    [Fact] public void Test_StaticCtorWithParams_ParseError() => AssertHasError("public class Config { static constructor(number value) { } }", DiagnosticCode.ParseError);
+    [Fact] public void Test_StaticCtorCrossClassRef_TGML0042() => AssertHasError("public class OtherConfig { public static number Value = 1; } public class Config { static constructor() { var current = OtherConfig.Value; } }", DiagnosticCode.CrossTypeStaticReference);
     [Fact] public void Test_NativeEventUnknownName_TGML0037() => AssertHasError("public class Host { @NativeEvent(\"NotARealEvent\") public void Run() { } }", DiagnosticCode.UnknownNativeEventName);
 
     private static void AssertValid(string source)

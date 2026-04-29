@@ -11,7 +11,7 @@ public sealed class GenericEmissionTests
         var result = Compile("""
             public class Box<T> {
                 public T Value;
-                public Box(T value) {
+                public constructor(T value) {
                     Value = value;
                 }
             }

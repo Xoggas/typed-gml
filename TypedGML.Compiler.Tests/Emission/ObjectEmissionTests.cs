@@ -12,7 +12,7 @@ public sealed class ObjectEmissionTests
             using TypedGML.GameObjects;
             @Object("OBJ_Foo")
             public class Foo : GameObject {
-                public Foo(number x, number y, string layer) { }
+                public constructor(number x, number y, string layer) { }
             }
             """).GetFile("Foo.gml")!;
         GmlAssert.HasFunction(gml, "Foo_create");
@@ -27,7 +27,7 @@ public sealed class ObjectEmissionTests
             @Object("OBJ_Player")
             public class Player : GameObject {
                 public number Health;
-                public Player(number x, number y, string layer, number health) { Health = health; }
+                public constructor(number x, number y, string layer, number health) { Health = health; }
             }
             """).GetFile("Player.gml")!;
         GmlAssert.ContainsPattern(gml, "with (__inst) {");
@@ -43,7 +43,7 @@ public sealed class ObjectEmissionTests
             @Object("OBJ_Enemy")
             public class Enemy : GameObject {
                 public number Hp;
-                public Enemy(number x, number y, string layer, number hp) { }
+                public constructor(number x, number y, string layer, number hp) { }
             }
             """).GetFile("Enemy.gml")!;
 
@@ -61,7 +61,7 @@ public sealed class ObjectEmissionTests
             public class Enemy : GameObject {
                 public number Hp;
                 public number Speed;
-                public Enemy(number x, number y, string layer, number hp, number speed) { }
+                public constructor(number x, number y, string layer, number hp, number speed) { }
             }
             """).GetFile("Enemy.gml")!;
 

@@ -45,16 +45,16 @@ public sealed class ParserMemberTests
     [Fact]
     public void ConstructorFormsParseSuccessfully() =>
         AssertParses("""
-            public class ParentCtor { public ParentCtor(number value) { } }
+            public class ParentCtor { public constructor(number value) { } }
             public class ChildCtor : ParentCtor {
-                public ChildCtor() : base(1) { }
-                public ChildCtor(number value) : this() { }
+                public constructor() : base(1) { }
+                public constructor(number value) : this() { }
             }
             """);
 
     [Fact]
     public void StaticConstructorParsesSuccessfully() =>
-        AssertParses("public class StaticCtorHost { public static number Value; static StaticCtorHost() { Value = 1; } }");
+        AssertParses("public class StaticCtorHost { public static number Value; static constructor() { Value = 1; } }");
 
     [Fact]
     public void IndexerDeclarationParsesSuccessfully() =>

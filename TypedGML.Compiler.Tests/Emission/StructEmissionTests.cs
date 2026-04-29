@@ -12,7 +12,7 @@ public sealed class StructEmissionTests
             public struct Point {
                 public number X;
                 public number Y;
-                public Point(number x, number y) { X = x; Y = y; }
+                public constructor(number x, number y) { X = x; Y = y; }
             }
             """).GetFile("Point.gml")!;
         GmlAssert.HasFunction(gml, "Point_create");

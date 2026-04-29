@@ -18,14 +18,14 @@ public sealed class ClassMemberTests
     [Fact] public void Test_ProtectedMemberAccessedFromSubclass_Valid() => AssertValid("public class Base { protected number Value; } public class Child : Base { public number Read() { return Value; } }");
     [Fact] public void Test_ProtectedMemberAccessedExternally_TGML0008() => AssertHasError("public class Base { protected number Value; } public class Other { public void Run() { var owner = new Base(); var value = owner.Value; } }", DiagnosticCode.AccessViolation);
     [Fact] public void Test_ReadonlyFieldAssignedOutsideCtor_TGML0009() => AssertHasError("public class ReadonlyHost { public readonly number X; public void Run() { X = 1; } }", DiagnosticCode.ReadonlyFieldAssignmentOutsideConstructor);
-    [Fact] public void Test_ReadonlyFieldAssignedInCtor_Valid() => AssertValid("public class ReadonlyHost { public readonly number X; public ReadonlyHost() { X = 1; } }");
+    [Fact] public void Test_ReadonlyFieldAssignedInCtor_Valid() => AssertValid("public class ReadonlyHost { public readonly number X; public constructor() { X = 1; } }");
     [Fact] public void Test_ConstFieldNonConstantExpr_TGML0010() => AssertHasError("public class ConstHost { public static number SomeMethod() { return 1; } public const number X = SomeMethod(); }", DiagnosticCode.NonConstantConstField);
     [Fact] public void Test_ConstFieldLiteral_Valid() => AssertValid("public class ConstHost { public const number X = 42; }");
     [Fact] public void Test_StructInheritsClass_TGML0032() => AssertHasError("public class SomeClass { } public struct S : SomeClass { }", DiagnosticCode.InvalidStructInheritance);
     [Fact] public void Test_StructImplementsInterface_Valid() => AssertValid("public interface IRunner { void Run(); } public struct Runner : IRunner { public void Run() { } }");
     [Fact] public void Test_DuplicateMethodSameSignature_Error() => AssertHasError("public class OverloadHost { public void Run() { } public void Run() { } }", DiagnosticCode.TypeMismatch);
     [Fact] public void Test_OverloadedMethodDifferentParams_Valid() => AssertValid("public class OverloadHost { public void Run() { } public void Run(number x) { } }");
-    [Fact] public void Test_StaticOnConstructor_TGML0026() => AssertHasError("public class StaticCtorHost { public static StaticCtorHost() { } }", DiagnosticCode.InvalidStaticModifierTarget);
+    [Fact] public void Test_OldConstructorSyntax_ParseError() => AssertHasError("public class StaticCtorHost { public StaticCtorHost() { } }", DiagnosticCode.ParseError);
     [Fact] public void Test_StaticOnIndexer_TGML0026() => AssertHasError("public class IndexedHost { public static number this[number index] { get { return index; } } }", DiagnosticCode.InvalidStaticModifierTarget);
     [Fact] public void Test_StaticInsideInterface_TGML0027() => AssertHasError("public interface IStaticHost { static void Run(); }", DiagnosticCode.StaticMemberInInterface);
 

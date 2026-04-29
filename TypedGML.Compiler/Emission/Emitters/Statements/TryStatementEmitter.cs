@@ -1,5 +1,6 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Statements;
+using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Emission.Emitters.Statements;
 
@@ -16,7 +17,16 @@ public sealed class TryStatementEmitter : INodeEmitter
         foreach (var clause in statement.CatchClauses)
         {
             ctx.Writer.Write($"catch ({clause.VariableName})");
-            StatementEmitterHelper.EmitBody(clause.Body, ctx);
+            ctx.Scope.Push();
+            try
+            {
+                ctx.Scope.Declare(clause.VariableName, ResolveCatchType(clause, ctx));
+                StatementEmitterHelper.EmitBody(clause.Body, ctx);
+            }
+            finally
+            {
+                ctx.Scope.Pop();
+            }
         }
 
         if (statement.FinallyBlock is null)
@@ -25,4 +35,10 @@ public sealed class TryStatementEmitter : INodeEmitter
         ctx.Writer.Write("finally");
         StatementEmitterHelper.EmitBody(statement.FinallyBlock, ctx);
     }
+
+    private static string ResolveCatchType(CatchClauseNode clause, EmitContext ctx) =>
+        ExceptionNavigation.IsExceptionTypeRef(clause.ExceptionType) &&
+        ExceptionNavigation.TryResolveExceptionType(ctx.Symbols, ctx.CurrentNamespacePrefix, ctx.UsingPrefixes, out var type)
+            ? type.QualifiedName
+            : clause.ExceptionType;
 }

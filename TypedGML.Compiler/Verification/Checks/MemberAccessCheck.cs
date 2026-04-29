@@ -37,6 +37,10 @@ public sealed class MemberAccessCheck : ISemanticCheck
         if (!SymbolResolver.TryResolveType(ExpressionTypeResolver.Resolve(access.Target, ctx), ctx, out var targetType))
             return;
 
+        if (ExceptionNavigation.IsExceptionType(targetType) &&
+            ExceptionNavigation.TryGetNativeField(access.MemberName, out _))
+            return;
+
         CheckMember(targetType, access.MemberName, access.Location, ctx);
     }
 

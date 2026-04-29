@@ -444,12 +444,12 @@ public const number MaxCount = 100;
 ### 8.3 Constructors
 
 ```tgml
-public MyClass(number x, number y) : base(x) {
+public constructor(number x, number y) : base(x) {
     _x = x;
     _y = y;
 }
 
-public MyClass(number x) : this(x, 0) { }  // constructor chaining
+public constructor(number x) : this(x, 0) { }  // constructor chaining
 ```
 
 - `base(...)` calls the parent constructor.
@@ -465,7 +465,7 @@ public class Config {
     public static number Volume;
     public static string Language;
 
-    static Config() {
+    static constructor() {
         Volume = 1;
         Language = "en";
     }
@@ -603,7 +603,7 @@ public struct Point {
     public number X;
     public number Y;
 
-    public Point(number x, number y) {
+    public constructor(number x, number y) {
         X = x;
         Y = y;
     }
@@ -728,7 +728,7 @@ var fn2 = (number x, number y) => {
 ```tgml
 public class Container<T> {
     private T _value;
-    public Container(T value) { _value = value; }
+    public constructor(T value) { _value = value; }
     public T Get() { return _value; }
 }
 ```
@@ -1067,7 +1067,7 @@ All `@Object` classes must explicitly extend `TypedGML.GameObjects.GameObject`. 
 @Object("OBJ_Player")
 public class Player : GameObject {
     public number Health;
-    public Player(number x, number y, string layer, number health) { ... }
+    public constructor(number x, number y, string layer, number health) { ... }
 }
 
 // new Player(100, 200, "Instances", 50) emits:
@@ -1087,7 +1087,7 @@ Event methods overridden from `GameObject` are emitted into separate GML event f
 
 ### 19.8 Static Constructor Emission
 
-If a class has **any** static members (methods, fields, properties) or an explicit `static ClassName()` body, the compiler generates a single `ClassName_static_ctor` GML function containing:
+If a class has **any** static members (methods, fields, properties) or an explicit `static constructor()` body, the compiler generates a single `ClassName_static_ctor` GML function containing:
 
 1. All `global.ClassName_Method = function(...) { }` assignments for static methods.
 2. All `global.ClassName_Field = initializer` assignments for static fields (explicit initializer or `default(T)`).
@@ -1193,29 +1193,49 @@ All classes and structs implicitly extend `Object`. `GetType()` is NOT defined h
 
 ```tgml
 public struct Exception {
-    public string message;
-    public string stackTrace;
-    public Exception? innerException;
+    private string message;
+    private string longMessage;
+    private string script;
+    private string[] stacktrace;
 
-    public Exception(string message) {
+    public constructor(string message) {
         this.message = message;
-        this.stackTrace = "";
-        this.innerException = null;
+        this.longMessage = message;
+        this.script = "";
+        this.stacktrace = [];
     }
 
-    public Exception(string message, Exception inner) {
-        this.message = message;
-        this.stackTrace = "";
-        this.innerException = inner;
+    public string Message {
+        get { return message; }
+    }
+
+    public string LongMessage {
+        get { return longMessage; }
+    }
+
+    public string Script {
+        get { return script; }
+    }
+
+    public string[] Stacktrace {
+        get { return stacktrace; }
     }
 
     public override string ToString() {
-        return "Exception: " + message;
+        return message;
     }
 }
 ```
 
-Only `Exception` is throwable. GML 2.3+ native try/catch is used.
+`Exception` is a navigation class for GML native exception structs, whose fields are `message`, `longMessage`, `script`, and `stacktrace`. Only `Exception` is throwable/catchable.
+
+`throw new Exception("msg")` emits native GML string throwing:
+
+```gml
+throw "msg";
+```
+
+The compiler does not emit a struct literal or call `Exception_create()` for throws. When a runtime exception is caught, the catch variable is typed as `Exception`; `e.Message`, `e.LongMessage`, `e.Script`, and `e.Stacktrace` read the native fields (`e.message`, `e.longMessage`, `e.script`, `e.stacktrace`). Direct lowercase native field reads are also valid in catch/navigation contexts.
 
 ### 20.3 Number — `bcl/Number.tgml`
 
@@ -1343,7 +1363,7 @@ public class ArrayUtils {
 public class List<T> {
     private T[] _data;
 
-    public List() {
+    public constructor() {
         _data = [];
     }
 
@@ -1384,7 +1404,7 @@ public struct KeyValuePair<TKey, TValue> {
     public TKey Key;
     public TValue Value;
 
-    public KeyValuePair(TKey key, TValue value) {
+    public constructor(TKey key, TValue value) {
         Key = key;
         Value = value;
     }
@@ -1393,7 +1413,7 @@ public struct KeyValuePair<TKey, TValue> {
 public class Dictionary<TKey, TValue> {
     private number _map;   // ds_map handle
 
-    public Dictionary() {
+    public constructor() {
         _map = __ds_map_create();    // @NativeCall("ds_map_create")
     }
 
@@ -1484,7 +1504,7 @@ Stateful random number generator wrapping GML's random functions.
 
 ```tgml
 public class Random {
-    public Random() { }
+    public constructor() { }
 
     public number Next() { ... }                              // @NativeCall("random_get_seed") — random(1)
     public number NextRange(number min, number max) { ... }   // @NativeCall("random_range")
@@ -1582,16 +1602,20 @@ function __tgml_default(typeName) {
 
 ```tgml
 public struct Exception {
-    public string message;
-    public string stackTrace;
-    public Exception? innerException;
+    private string message;
+    private string longMessage;
+    private string script;
+    private string[] stacktrace;
 
-    public Exception(string message) { ... }
-    public Exception(string message, Exception inner) { ... }
+    public constructor(string message) { ... }
+    public string Message { get; }
+    public string LongMessage { get; }
+    public string Script { get; }
+    public string[] Stacktrace { get; }
 }
 ```
 
-Only `Exception` is throwable. Emits GML struct that native GML `try/catch` can catch.
+Only `Exception` is throwable/catchable. It navigates GML native exception structs; `throw new Exception("msg")` emits `throw "msg";`.
 
 ### 20.2 Collections
 

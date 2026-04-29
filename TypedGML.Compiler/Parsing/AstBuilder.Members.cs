@@ -1,5 +1,6 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Members;
+using TypedGML.Compiler.Ast.Statements;
 using TypedGML.Compiler.Visitor;
 
 namespace TypedGML.Compiler.Parsing;
@@ -30,10 +31,10 @@ public sealed partial class AstBuilder
                 : new MethodDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.methodModifiers()), GenericParams(context.typeParams()), Parameters(context.paramList()), Decorators(context.decorator()), MaybeNode(context.block()), Doc(context), Location(context));
 
     public override IAstNode VisitConstructorDecl(TypedGMLParser.ConstructorDeclContext context) =>
-        new ConstructorDeclarationNode(Parts(context.accessMod(), context.STATIC()), Parameters(context.paramList()), Decorators(context.decorator()), context.BASE() is not null ? ConstructorChainTarget.Base : context.THIS() is not null ? ConstructorChainTarget.This : ConstructorChainTarget.None, Args(context.argList()).PositionalArgs.Concat<IAstNode>(Args(context.argList()).NamedArgs).ToList(), Node(context.block()), Doc(context), Location(context));
+        new ConstructorDeclarationNode(Parts(context.accessMod()), Parameters(context.paramList()), Decorators(context.decorator()), context.BASE() is not null ? ConstructorChainTarget.Base : context.THIS() is not null ? ConstructorChainTarget.This : ConstructorChainTarget.None, Args(context.argList()).PositionalArgs.Concat<IAstNode>(Args(context.argList()).NamedArgs).ToList(), Node(context.block()), Doc(context), Location(context));
 
     public override IAstNode VisitStaticConstructorDecl(TypedGMLParser.StaticConstructorDeclContext context) =>
-        new StaticConstructorDeclarationNode(Text(context.nameId()), Parameters(context.paramList()), Node(context.block()), Location(context));
+        new StaticConstructorDeclarationNode(string.Empty, [], MaybeNode(context.block()) ?? new BlockStatementNode([], Location(context)), Location(context));
 
     public override IAstNode VisitEventDecl(TypedGMLParser.EventDeclContext context) =>
         new EventDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.accessMod()), Decorators(context.decorator()), Doc(context), Location(context));

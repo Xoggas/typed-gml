@@ -18,11 +18,25 @@ public sealed class ControlFlowTests
     [Fact] public void Test_DuplicateSwitchCase_TGML0020() => AssertHasError(CompileInMethod("switch (1) { case 1: break; case 1: break; default: break; }"), DiagnosticCode.DuplicateSwitchCaseLabel);
     [Fact] public void Test_ThrowNonException_TGML0017() => AssertHasError(Compile("public struct SomeOtherStruct { } public class ControlFlowHost { public void Run() { throw new SomeOtherStruct(); } }"), DiagnosticCode.InvalidThrowType);
     [Fact] public void Test_ThrowException_Valid() => AssertValid(Compile("using TypedGML.Core; public class ControlFlowHost { public void Run() { throw new Exception(\"msg\"); } }"));
+    [Fact] public void Test_CatchExceptionMembers_Valid() => AssertValid(Compile("public class ControlFlowHost { public void Run() { try { throw new Exception(\"msg\"); } catch (Exception e) { var a = e.Message; var b = e.message; } } }"));
     [Fact] public void Test_WithOnStruct_TGML0011() => AssertHasError(Compile("public struct SomeStruct { } public class ControlFlowHost { public void Run() { var someStruct = new SomeStruct(); with (someStruct) { } } }"), DiagnosticCode.WithTargetNotObjectType);
     [Fact] public void Test_IfConditionNumber_TGML0019() => AssertHasError(CompileInMethod("number n = 1; if (n) { }"), DiagnosticCode.ImplicitNumberBoolConversion);
     [Fact] public void Test_IfConditionBool_Valid() => AssertValid(CompileInMethod("if (true) { }"));
     [Fact] public void Test_ForConditionNumber_TGML0019() => AssertHasError(CompileInMethod("number i = 1; for (; i; i += 1) { }"), DiagnosticCode.ImplicitNumberBoolConversion);
+    [Fact] public void Test_ForConditionComparisonFromInitializer_Valid() => AssertValid(CompileInMethod("for (var i = 0; i < 5; i += 1) { var x = i; }"));
+    [Fact] public void Test_WhileConditionComparison_Valid() => AssertValid(CompileInMethod("var i = 0; while (i < 5) { i += 1; }"));
     [Fact] public void Test_RepeatNonNumber_TGML0022() => AssertHasError(CompileInMethod("repeat (true) { }"), DiagnosticCode.TypeMismatch);
+
+    [Fact]
+    public void Test_ForConditionComparison_Emits()
+    {
+        var result = CompileInMethod("for (var i = 0; i < 5; i += 1) { var x = i; }");
+
+        AssertValid(result);
+        var gml = result.GetFile("ControlFlowHost.gml")!;
+        gml.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Should().Contain("for (var i = 0; i < 5; i += 1) {\n        var x = i;\n    }");
+    }
 
     private static CompileResult CompileInMethod(string statement) =>
         Compile($$"""

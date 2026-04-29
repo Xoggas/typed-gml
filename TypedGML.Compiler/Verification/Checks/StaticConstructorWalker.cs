@@ -3,6 +3,7 @@ using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Statements;
 using TypedGML.Compiler.Diagnostics;
 using TypedGML.Compiler.Symbols;
+using TypedGML.Compiler.Verification;
 
 namespace TypedGML.Compiler.Verification.Checks;
 
@@ -32,7 +33,7 @@ internal static class StaticConstructorWalker
                 ctx.Scope.Declare(declaration.Name, declaration.TypeRef ?? ExpressionTypeResolver.Resolve(declaration.Initializer, ctx) ?? string.Empty);
                 return;
             case CatchClauseNode clause:
-                InScope(ctx, () => { ctx.Scope.Declare(clause.VariableName, clause.ExceptionType); Walk(clause.Body, ctx, checkInstanceMembers); });
+                CatchScopeHelper.Walk(clause, ctx, body => Walk(body, ctx, checkInstanceMembers));
                 return;
             case ForStatementNode loop:
                 InScope(ctx, () =>

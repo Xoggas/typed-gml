@@ -61,7 +61,7 @@ public sealed class ParserExpressionTests
             using TypedGML.Core;
             public struct ExpressionPoint { public number X; public constructor(number x) { X = x; } }
             @Object("OBJ_ExpressionObject")
-            public class ExpressionObject : GameObject { public ExpressionObject(number x, number y, string layer) { } }
+            public class ExpressionObject : GameObject { public constructor(number x, number y, string layer) { } }
             public class ExpressionCases {
                 public event Action Changed;
                 public void Run() {

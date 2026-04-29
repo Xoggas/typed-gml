@@ -2,16 +2,37 @@
 
 public struct Exception
 {
-    public string message;
-    public string stackTrace;
-    public Exception? innerException;
+    private string message;
+    private string longMessage;
+    private string script;
+    private string[] stacktrace;
 
     public constructor(string message)
     {
+        this.message = message;
+        this.longMessage = message;
+        this.script = "";
+        this.stacktrace = [];
     }
 
-    public constructor(string message, Exception inner)
-    {
+    public string Message {
+        get { return message; }
+    }
+
+    public string LongMessage {
+        get { return longMessage; }
+    }
+
+    public string Script {
+        get { return script; }
+    }
+
+    public string[] Stacktrace {
+        get { return stacktrace; }
+    }
+
+    public override string ToString() {
+        return message;
     }
 }
 

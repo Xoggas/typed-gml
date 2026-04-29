@@ -110,7 +110,7 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
             case WithStatementNode with: Walk(with.Target, ctx, currentNamespace); Walk(with.Body, ctx, currentNamespace); break;
             case ReturnStatementNode ret: WalkNullable(ret.Value, ctx, currentNamespace); break;
             case TryStatementNode @try: Walk(@try.TryBlock, ctx, currentNamespace); WalkMany(@try.CatchClauses, ctx, currentNamespace); WalkNullable(@try.FinallyBlock, ctx, currentNamespace); break;
-            case CatchClauseNode catchClause: ctx.Scope.Push(); ctx.Scope.Declare(catchClause.VariableName, catchClause.ExceptionType); Walk(catchClause.Body, ctx, currentNamespace); ctx.Scope.Pop(); break;
+            case CatchClauseNode catchClause: CatchScopeHelper.Walk(catchClause, ctx, body => Walk(body, ctx, currentNamespace)); break;
             case ThrowStatementNode thrown: Walk(thrown.Expression, ctx, currentNamespace); break;
             case ExpressionStatementNode expression: Walk(expression.Expression, ctx, currentNamespace); break;
             case BinaryExpressionNode binary: Walk(binary.Left, ctx, currentNamespace); Walk(binary.Right, ctx, currentNamespace); break;

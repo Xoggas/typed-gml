@@ -32,7 +32,9 @@ internal static class GmlExpressionRenderer
         InvocationExpressionNode n => $"{Render(n.Target, ctx)}({JoinArgs(n.PositionalArgs, n.NamedArgs, ctx)})",
         LambdaExpressionNode n => RenderLambda(n, ctx),
         LiteralExpressionNode n => RenderLiteral(n),
-        MemberAccessExpressionNode n => Emitters.Expressions.StaticMemberAccessHelper.TryRenderRead(n, ctx, out var staticMember)
+        MemberAccessExpressionNode n => Emitters.Expressions.ExceptionMemberAccessHelper.TryRender(n, ctx, out var exceptionMember)
+            ? exceptionMember
+            : Emitters.Expressions.StaticMemberAccessHelper.TryRenderRead(n, ctx, out var staticMember)
             ? staticMember
             : Emitters.Expressions.InstanceMemberAccessHelper.TryRenderRead(n, ctx, out var instanceMember)
                 ? instanceMember

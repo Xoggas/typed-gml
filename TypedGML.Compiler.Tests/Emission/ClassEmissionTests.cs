@@ -85,7 +85,7 @@ public sealed class ClassEmissionTests
             public class Animal {
                 private string _name;
                 public number Score;
-                public Animal(string name) {
+                public constructor(string name) {
                     _name = name;
                 }
             }
@@ -105,13 +105,13 @@ public sealed class ClassEmissionTests
         var result = Compile("""
             public class Animal {
                 public string Name;
-                public Animal(string name) {
+                public constructor(string name) {
                     Name = name;
                 }
             }
             public class Dog : Animal {
                 public string Breed;
-                public Dog(string name, string breed) : base(name) {
+                public constructor(string name, string breed) : base(name) {
                     Breed = breed;
                 }
             }

@@ -10,8 +10,8 @@ public sealed class ConstructorOverloadEmissionTests
     {
         var result = CompilerFixture.Compile("""
             public class A {
-                public A() { }
-                public A(number x) { }
+                public constructor() { }
+                public constructor(number x) { }
             }
 
             public class Host {
@@ -38,7 +38,7 @@ public sealed class ConstructorOverloadEmissionTests
     {
         var result = CompilerFixture.Compile("""
             public class B {
-                public B(number x) { }
+                public constructor(number x) { }
             }
             """);
 
@@ -47,6 +47,26 @@ public sealed class ConstructorOverloadEmissionTests
 
         GmlAssert.ContainsPattern(b, "function B_create(x)");
         GmlAssert.NotContainsPattern(b, "function B_create__number");
+    }
+
+    [Fact]
+    public void Test_RequestedConstructorNames()
+    {
+        var result = CompilerFixture.Compile("""
+            public class Foo {
+                public constructor(number x) { }
+            }
+
+            public class Bar {
+                public constructor() { }
+                public constructor(number x) { }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(ErrorText(result));
+        GmlAssert.ContainsPattern(result.GetFile("/Foo.gml")!, "function Foo_create(x)");
+        GmlAssert.ContainsPattern(result.GetFile("/Bar.gml")!, "function Bar_create__()");
+        GmlAssert.ContainsPattern(result.GetFile("/Bar.gml")!, "function Bar_create__number(x)");
     }
 
     private static string ErrorText(CompileResult result) =>

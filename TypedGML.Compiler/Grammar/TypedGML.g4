@@ -216,17 +216,17 @@ overloadableOperator
     | GE
     ;
 
-// public TypeName(var p: int) : base(p) { ... }
+// public constructor(Type p) : base(p) { ... }
 constructorDecl
     : decorator*
-      accessMod STATIC? (nameId | CONSTRUCTOR)
+      accessMod CONSTRUCTOR
       LPAREN paramList? RPAREN
       (COLON (BASE | THIS) LPAREN argList? RPAREN)?
       block
     ;
 
 staticConstructorDecl
-    : STATIC nameId LPAREN paramList? RPAREN block
+    : STATIC CONSTRUCTOR LPAREN RPAREN block
     ;
 
 eventDecl

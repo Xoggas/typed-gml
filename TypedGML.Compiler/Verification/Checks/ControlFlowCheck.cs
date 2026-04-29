@@ -25,8 +25,8 @@ public sealed class ControlFlowCheck : ISemanticCheck
             case WhileStatementNode loop:
                 CheckBool(loop.Condition, loop.Location, ctx);
                 break;
-            case ForStatementNode loop when loop.Condition is not null:
-                CheckBool(loop.Condition, loop.Location, ctx);
+            case ForStatementNode loop:
+                CheckForCondition(loop, ctx);
                 break;
             case RepeatStatementNode loop:
                 CheckNumber(loop.Count, loop.Location, ctx);
@@ -70,6 +70,29 @@ public sealed class ControlFlowCheck : ISemanticCheck
 
     private static bool Terminates(IAstNode node) =>
         node is ReturnStatementNode or BreakStatementNode or ContinueStatementNode or ThrowStatementNode;
+
+    private static void CheckForCondition(ForStatementNode loop, VerificationContext ctx)
+    {
+        if (loop.Condition is null)
+            return;
+
+        if (loop.Init is not VarDeclarationStatementNode declaration)
+        {
+            CheckBool(loop.Condition, loop.Location, ctx);
+            return;
+        }
+
+        ctx.Scope.Push();
+        try
+        {
+            ctx.Scope.Declare(declaration.Name, declaration.TypeRef ?? ExpressionTypeResolver.Resolve(declaration.Initializer, ctx) ?? string.Empty);
+            CheckBool(loop.Condition, loop.Location, ctx);
+        }
+        finally
+        {
+            ctx.Scope.Pop();
+        }
+    }
 
     private static void CheckBool(IAstNode condition, SourceLocation location, VerificationContext ctx)
     {

@@ -14,10 +14,10 @@ public sealed partial class AstBuilder
         new NamespaceDeclarationNode(Text(context.qualifiedName()), Nodes<IAstNode>(context.topLevelDecl()), context.SEMI() is not null, Doc(context), Location(context));
 
     public override IAstNode VisitClassDecl(TypedGMLParser.ClassDeclContext context) =>
-        new ClassDeclarationNode(context.ID().GetText(), Parts(context.accessMod(), context.classMod()), GenericParams(context.typeParams()), Texts(context.inheritanceList()?.typeRef() ?? []), Decorators(context.decorator()), Nodes<IAstNode>(context.memberDecl()), Doc(context), Location(context));
+        new ClassDeclarationNode(context.ID().GetText(), Parts(context.accessMod(), context.classMod()), GenericParams(context.typeParams()), Texts(context.inheritanceList()?.typeRef() ?? []), Decorators(context.decorator()), TypeMembers(context.memberDecl(), context.ID().GetText()), Doc(context), Location(context));
 
     public override IAstNode VisitStructDecl(TypedGMLParser.StructDeclContext context) =>
-        new StructDeclarationNode(context.ID().GetText(), Parts(context.accessMod()).Concat(context.READONLY() is null ? [] : [context.READONLY().GetText()]).ToList(), GenericParams(context.typeParams()), Texts(context.inheritanceList()?.typeRef() ?? []), Decorators(context.decorator()), Nodes<IAstNode>(context.memberDecl()), Doc(context), Location(context));
+        new StructDeclarationNode(context.ID().GetText(), Parts(context.accessMod()).Concat(context.READONLY() is null ? [] : [context.READONLY().GetText()]).ToList(), GenericParams(context.typeParams()), Texts(context.inheritanceList()?.typeRef() ?? []), Decorators(context.decorator()), TypeMembers(context.memberDecl(), context.ID().GetText()), Doc(context), Location(context));
 
     public override IAstNode VisitInterfaceDecl(TypedGMLParser.InterfaceDeclContext context) =>
         new InterfaceDeclarationNode(context.ID().GetText(), GenericParams(context.typeParams()), Texts(context.inheritanceList()?.typeRef() ?? []), Decorators(context.decorator()), Nodes<IAstNode>(context.interfaceMemberDecl()), Doc(context), Location(context));

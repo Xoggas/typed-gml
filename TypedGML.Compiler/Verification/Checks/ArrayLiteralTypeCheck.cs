@@ -12,10 +12,7 @@ public sealed class ArrayLiteralTypeCheck : ISemanticCheck
     {
         var array = (ArrayLiteralExpressionNode)node;
         if (array.Elements.Count == 0)
-        {
-            ctx.Diagnostics.Report(DiagnosticCode.TypeMismatch, DiagnosticSeverity.Error, "Empty array literal requires an explicit type context.", array.Location);
             return;
-        }
 
         var elementType = ExpressionTypeResolver.Resolve(array.Elements[0], ctx);
         if (array.Elements.Skip(1).Any(element => !TypeReferenceHelper.IsAssignable(elementType, ExpressionTypeResolver.Resolve(element, ctx), ctx)))
