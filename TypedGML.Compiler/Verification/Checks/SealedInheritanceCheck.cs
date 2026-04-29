@@ -11,11 +11,13 @@ public sealed class SealedInheritanceCheck : ISemanticCheck
     public void Check(IAstNode node, VerificationContext ctx)
     {
         var @class = (ClassDeclarationNode)node;
-        if (ctx.CurrentType?.Base?.IsSealed == true)
+        var currentType = ctx.CurrentType;
+        if (currentType?.Base?.IsSealed == true)
             ctx.Diagnostics.Report(
                 DiagnosticCode.SealedClassInheritance,
                 DiagnosticSeverity.Error,
-                $"Class '{@class.Name}' cannot inherit from sealed type '{ctx.CurrentType.Base.QualifiedName}'.",
-                @class.Location);
+                $"Class '{@class.Name}' cannot inherit from sealed type '{currentType.Base.QualifiedName}'.",
+                @class.Location,
+                currentType);
     }
 }

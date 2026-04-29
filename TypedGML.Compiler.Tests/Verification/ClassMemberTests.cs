@@ -10,6 +10,7 @@ public sealed class ClassMemberTests
     [Fact] public void Test_AbstractMemberImplemented_Valid() => AssertValid("public abstract class Base { public abstract void Foo(); } public class Child : Base { public override void Foo() { } }");
     [Fact] public void Test_InstantiateAbstractClass_TGML0004() => AssertHasError("public abstract class AbstractClass { } public class Host { public void Run() { var value = new AbstractClass(); } }", DiagnosticCode.AbstractClassInstantiation);
     [Fact] public void Test_SealedClassSubclassed_TGML0005() => AssertHasError("public sealed class A { } public class B : A { }", DiagnosticCode.SealedClassInheritance);
+    [Fact] public void Test_SealedBaseWithAbstractMember_DoesNotReportAbstractCompleteness() => AssertOnlyErrors("public sealed class A { public abstract void Test(); } public class B : A { }", DiagnosticCode.SealedClassInheritance);
     [Fact] public void Test_InterfaceMemberNotImplemented_TGML0006() => AssertHasError("public interface IFoo { void Foo(); } public class FooHost : IFoo { }", DiagnosticCode.InterfaceMemberNotImplemented);
     [Fact] public void Test_InterfaceMemberImplemented_Valid() => AssertValid("public interface IFoo { void Foo(); } public class FooHost : IFoo { public void Foo() { } }");
     [Fact] public void Test_OverrideWithNoVirtualAncestor_TGML0007() => AssertHasError("public class Base { public void Foo() { } } public class Child : Base { public override void Foo() { } }", DiagnosticCode.MissingOverrideTarget);
@@ -39,5 +40,11 @@ public sealed class ClassMemberTests
     {
         var result = CompilerFixture.Compile(source);
         result.HasError(code).Should().BeTrue(string.Join(Environment.NewLine, result.Errors.Select(error => $"{error.Code}: {error.Message}")));
+    }
+
+    private static void AssertOnlyErrors(string source, params DiagnosticCode[] codes)
+    {
+        var result = CompilerFixture.Compile(source);
+        result.Errors.Select(error => error.Code).Should().Equal(codes);
     }
 }

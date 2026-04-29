@@ -12,6 +12,10 @@ public sealed class AbstractCompletenessCheck : ISemanticCheck
     public void Check(IAstNode node, VerificationContext ctx)
     {
         var @class = (ClassDeclarationNode)node;
+        var currentType = ctx.CurrentType;
+        if (currentType is not null && ctx.Diagnostics.HasError(DiagnosticCode.SealedClassInheritance, currentType))
+            return;
+
         CheckBodies(@class, ctx);
         if (ctx.CurrentType?.IsAbstract == false)
             CheckAbstractBaseMembers(@class, ctx);
