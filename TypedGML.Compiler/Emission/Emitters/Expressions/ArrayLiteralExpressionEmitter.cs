@@ -10,6 +10,12 @@ public sealed class ArrayLiteralExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (ArrayLiteralExpressionNode)node;
+        if (ListLiteralRenderer.TryRender(expression, ctx, out var listLiteral))
+        {
+            ctx.Writer.Write(listLiteral);
+            return;
+        }
+
         ctx.Writer.Write($"[{string.Join(", ", expression.Elements.Select(e => ctx.Emitter.Render(e, ctx)))}]");
     }
 }

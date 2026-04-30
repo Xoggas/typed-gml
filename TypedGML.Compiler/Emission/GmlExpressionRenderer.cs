@@ -19,7 +19,9 @@ internal static class GmlExpressionRenderer
 
     public static string Render(IAstNode node, EmitContext ctx) => node switch
     {
-        ArrayLiteralExpressionNode n => $"[{string.Join(", ", n.Elements.Select(e => Render(e, ctx)))}]",
+        ArrayLiteralExpressionNode n => ListLiteralRenderer.TryRender(n, ctx, out var listLiteral)
+            ? listLiteral
+            : $"[{string.Join(", ", n.Elements.Select(e => Render(e, ctx)))}]",
         AssignmentExpressionNode n => $"{Render(n.Target, ctx)} {n.Op} {Render(n.Value, ctx)}",
         BaseAccessExpressionNode n => n.MemberName,
         BaseCallExpressionNode n => BaseCallInlineRenderer.Render(n, ctx),

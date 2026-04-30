@@ -20,6 +20,8 @@ public sealed class TypeSystemTests
     [Fact] public void Test_AssignWrongType_TGML0022() => CompileInMethod("number x = \"hello\";").HasError(DiagnosticCode.TypeMismatch).Should().BeTrue();
     [Fact] public void Test_ArrayLiteral_WrongElementType_Error() => CompileInMethod("number[] x = [\"hello\"];").HasError(DiagnosticCode.TypeMismatch).Should().BeTrue();
     [Fact] public void Test_ArrayLiteral_CorrectElementType_Valid() => CompileInMethod("number[] x = [1, 2, 3];").HasErrors.Should().BeFalse();
+    [Fact] public void Test_EmptyLiteralAssignedToList_Valid() => CompileInMethod("using TypedGML.Collections;", "List<number> x = [];").HasErrors.Should().BeFalse();
+    [Fact] public void Test_EmptyLiteralAssignedToArray_Valid() => CompileInMethod("number[] x = [];").HasErrors.Should().BeFalse();
 
     [Fact]
     public void Test_ArrayLiteral_FieldWrongElementType_Error() => Compile("""
@@ -66,6 +68,17 @@ public sealed class TypeSystemTests
     private static CompileResult CompileInMethod(string statement) =>
         Compile($$"""
             using TypedGML.Core;
+            public class VerificationHost {
+                public void Run() {
+                    {{statement}}
+                }
+            }
+            """);
+
+    private static CompileResult CompileInMethod(string usingDirective, string statement) =>
+        Compile($$"""
+            using TypedGML.Core;
+            {{usingDirective}}
             public class VerificationHost {
                 public void Run() {
                     {{statement}}

@@ -21,7 +21,7 @@ internal static class ConstructorFieldInitializerEmitter
         {
             if (field.Initializer is not null)
             {
-                ctx.Writer.WriteLine($"self.{field.Name} = {ctx.Emitter.Render(field.Initializer, ctx)};");
+                ctx.Writer.WriteLine($"self.{field.Name} = {ctx.RenderWithExpected(field.Initializer, field.TypeRef)};");
                 continue;
             }
 

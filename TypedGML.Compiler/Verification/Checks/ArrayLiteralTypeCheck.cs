@@ -11,6 +11,7 @@ public sealed class ArrayLiteralTypeCheck : ISemanticCheck
     public void Check(IAstNode node, VerificationContext ctx)
     {
         var array = (ArrayLiteralExpressionNode)node;
+        var targetElementType = ArrayLiteralTargetHelper.TargetElementType(ctx.CurrentExpectedType, ctx);
         if (array.Elements.Count == 0)
             return;
 
@@ -24,13 +25,7 @@ public sealed class ArrayLiteralTypeCheck : ISemanticCheck
             return;
         }
 
-        var targetElementType = TargetElementType(ctx.CurrentExpectedType);
         if (targetElementType is not null && !TypeReferenceHelper.IsAssignable(targetElementType, elementType, ctx))
             ctx.Diagnostics.Report(DiagnosticCode.TypeMismatch, DiagnosticSeverity.Error, $"Cannot assign array literal element type '{elementType}' to '{targetElementType}'.", array.Location);
     }
-
-    private static string? TargetElementType(string? typeRef) =>
-        !string.IsNullOrWhiteSpace(typeRef) && typeRef.EndsWith("[]", StringComparison.Ordinal)
-            ? typeRef[..^2]
-            : null;
 }

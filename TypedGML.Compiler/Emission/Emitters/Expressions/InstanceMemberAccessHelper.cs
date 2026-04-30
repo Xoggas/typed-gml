@@ -27,7 +27,7 @@ internal static class InstanceMemberAccessHelper
         if (!TryResolve(expression.Target, ctx, out var owner, out var member) || IsStaticLike(member))
             return false;
 
-        var value = ctx.Emitter.Render(expression.Value, ctx);
+        var value = ctx.RenderWithExpected(expression.Value, member.ReturnType);
         if (member.Kind == MemberKind.Field)
         {
             var target = expression.Target is IdentifierExpressionNode

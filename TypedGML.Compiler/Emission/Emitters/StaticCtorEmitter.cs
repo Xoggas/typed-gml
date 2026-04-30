@@ -52,7 +52,7 @@ public sealed class StaticCtorEmitter
         if (symbol is null)
             return;
 
-        var value = field.Initializer is null ? "undefined" : ctx.Emitter.Render(field.Initializer, ctx);
+        var value = field.Initializer is null ? "undefined" : ctx.RenderWithExpected(field.Initializer, field.TypeRef);
         ctx.Writer.WriteLine($"{NamingConvention.StaticMemberName(type, symbol)} = {value};");
     }
 

@@ -85,10 +85,15 @@ public sealed class MethodCallCheck : ISemanticCheck
         return true;
     }
 
-    private static bool ArgumentMatches(string targetType, IAstNode value, VerificationContext ctx) =>
-        value is LambdaExpressionNode lambda && DelegateTypeHelper.TrySignature(targetType, ctx, out _, out var parameterTypes)
+    private static bool ArgumentMatches(string targetType, IAstNode value, VerificationContext ctx)
+    {
+        if (value is ArrayLiteralExpressionNode)
+            return ArrayLiteralTargetHelper.IsLiteralTarget(targetType, ctx);
+
+        return value is LambdaExpressionNode lambda && DelegateTypeHelper.TrySignature(targetType, ctx, out _, out var parameterTypes)
             ? LambdaParametersMatch(lambda, parameterTypes)
             : TypeReferenceHelper.IsAssignable(targetType, ExpressionTypeResolver.Resolve(value, ctx), ctx);
+    }
 
     private static bool LambdaParametersMatch(LambdaExpressionNode lambda, IReadOnlyList<string> parameterTypes) =>
         lambda.Parameters.Count == parameterTypes.Count &&

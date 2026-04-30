@@ -57,7 +57,7 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
             return;
 
         var valueType = ExpressionTypeResolver.Resolve(assignment.Value, ctx);
-        if (IsEmptyArrayForArrayTarget(assignment.Value, targetType))
+        if (IsArrayLiteralForTarget(assignment.Value, targetType, ctx))
             return;
 
         if (!TypeReferenceHelper.IsAssignable(targetType, valueType, ctx))
@@ -94,7 +94,7 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
 
         if (!declaration.IsVar && !TypeReferenceHelper.IsAssignable(declaration.TypeRef, initializerType, ctx))
         {
-            if (IsEmptyArrayForArrayTarget(declaration.Initializer, declaration.TypeRef))
+            if (IsArrayLiteralForTarget(declaration.Initializer, declaration.TypeRef, ctx))
                 return;
 
             Report(DiagnosticCode.TypeMismatch, $"Cannot assign '{initializerType ?? "unknown"}' to '{declaration.TypeRef ?? "unknown"}'.", declaration.Location, ctx);
@@ -123,7 +123,7 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
                 return;
 
             var valueType = ExpressionTypeResolver.Resolve(@return.Value, ctx);
-            if (IsEmptyArrayForArrayTarget(@return.Value, expectedType))
+            if (IsArrayLiteralForTarget(@return.Value, expectedType, ctx))
                 return;
 
             if (!TypeReferenceHelper.IsAssignable(expectedType, valueType, ctx))
@@ -140,7 +140,8 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
             Report(DiagnosticCode.MissingReturnInNonVoidMethod, $"Not all code paths return a value of type '{returnType}'.", location, ctx);
     }
 
-    private static bool IsEmptyArrayForArrayTarget(IAstNode? value, string? targetType) => value is ArrayLiteralExpressionNode { Elements.Count: 0 } && targetType?.EndsWith("[]", StringComparison.Ordinal) == true;
+    private static bool IsArrayLiteralForTarget(IAstNode? value, string? targetType, VerificationContext ctx) =>
+        value is ArrayLiteralExpressionNode && ArrayLiteralTargetHelper.IsLiteralTarget(targetType, ctx);
 
     private static bool IsVoidDelegateReturn(VerificationContext ctx) => DelegateTypeHelper.TrySignature(ctx.CurrentExpectedType, ctx, out var returnType, out _) && returnType == "void";
 

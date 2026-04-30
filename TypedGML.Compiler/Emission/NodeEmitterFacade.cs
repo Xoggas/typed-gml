@@ -1,5 +1,6 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Statements;
+using TypedGML.Compiler.Emission.Emitters.Statements;
 
 namespace TypedGML.Compiler.Emission;
 
@@ -50,7 +51,7 @@ public sealed class NodeEmitterFacade(Action<IAstNode, EmitContext> dispatch)
 
     private static string RenderVar(VarDeclarationStatementNode declaration, EmitContext ctx)
     {
-        var initializer = declaration.Initializer is null ? string.Empty : $" = {ctx.Emitter.Render(declaration.Initializer, ctx)}";
+        var initializer = declaration.Initializer is null ? string.Empty : $" = {VarDeclarationStatementEmitter.RenderInitializerExpression(declaration, ctx)}";
         return $"var {declaration.Name}{initializer}";
     }
 }

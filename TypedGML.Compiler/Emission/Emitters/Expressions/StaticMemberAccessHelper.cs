@@ -39,7 +39,7 @@ internal static class StaticMemberAccessHelper
         if (!TryResolve(expression.Target, ctx, out var owner, out var member) || !member.Modifiers.Contains("static", StringComparer.Ordinal))
             return false;
 
-        var value = ctx.Emitter.Render(expression.Value, ctx);
+        var value = ctx.RenderWithExpected(expression.Value, member.ReturnType);
         if (member.Kind == MemberKind.Field)
         {
             rendered = $"{NamingConvention.StaticMemberName(owner, member)} {expression.Op} {value}";

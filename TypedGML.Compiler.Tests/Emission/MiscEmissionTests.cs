@@ -66,6 +66,30 @@ public sealed class MiscEmissionTests
         GmlAssert.ContainsPattern(CompileInMethod("var values = [1, 2, 3];").GetFile("MiscHost.gml")!, "[1, 2, 3]");
 
     [Fact]
+    public void Test_EmptyListLiteralEmitsListConstruction()
+    {
+        var gml = Compile("""
+            using TypedGML.Collections;
+            public class BankAccount { }
+            public class MiscHost {
+                private List<BankAccount> _accounts;
+                public constructor() {
+                    _accounts = [];
+                }
+            }
+            """).GetFile("MiscHost.gml")!;
+        GmlAssert.ContainsPattern(gml, "self._accounts = TypedGML_Collections_List1_create();");
+        GmlAssert.NotContainsPattern(gml, "self._accounts = [];");
+    }
+
+    [Fact]
+    public void Test_EmptyArrayLiteralEmitsArray()
+    {
+        var gml = CompileInMethod("number[] values = [];").GetFile("MiscHost.gml")!;
+        GmlAssert.ContainsPattern(gml, "var values = [];");
+    }
+
+    [Fact]
     public void Test_GenericArgs() =>
         GmlAssert.ContainsPattern(Compile("""
             public class Container<T> { }

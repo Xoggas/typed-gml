@@ -26,12 +26,12 @@ public sealed class VarDeclarationStatementEmitter : INodeEmitter
     private static string Initializer(VarDeclarationStatementNode statement, EmitContext ctx)
     {
         if (statement.Initializer is not null)
-            return $" = {RenderInitializer(statement, ctx)}";
+            return $" = {RenderInitializerExpression(statement, ctx)}";
 
         return IsDelegateType(statement.TypeRef, ctx) ? " = []" : string.Empty;
     }
 
-    private static string RenderInitializer(VarDeclarationStatementNode statement, EmitContext ctx) =>
+    internal static string RenderInitializerExpression(VarDeclarationStatementNode statement, EmitContext ctx) =>
         string.IsNullOrWhiteSpace(statement.TypeRef)
             ? ctx.Emitter.Render(statement.Initializer, ctx)
             : ctx.RenderWithExpected(statement.Initializer!, statement.TypeRef);
