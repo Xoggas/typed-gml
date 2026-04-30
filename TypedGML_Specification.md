@@ -1166,6 +1166,8 @@ BCL operator declarations use `@NativeCall("__op_*")` names. These are **compile
 | `__op_gte` | `a >= b` |
 | `__op_str_num_add` | `a + string(b)` |
 | `__op_num_str_add` | `string(a) + b` |
+| `__op_str_bool_add` | `a + string(b)` |
+| `__op_bool_str_add` | `string(a) + b` |
 
 Any `@NativeCall` name starting with `__op_` is treated as an intrinsic. Non-intrinsic `@NativeCall` names emit as regular GML function calls.
 
@@ -1330,6 +1332,9 @@ public class Bool {
     // Equality operators
     public static bool operator ==(bool a, bool b) { ... }   // @NativeCall("__op_eq")
     public static bool operator !=(bool a, bool b) { ... }   // @NativeCall("__op_neq")
+
+    public static string operator +(string a, bool b) { ... } // @NativeCall("__op_str_bool_add")
+    public static string operator +(bool a, string b) { ... } // @NativeCall("__op_bool_str_add")
 
     // Utility methods
     public static string ToString(bool value) { ... }    // value ? "true" : "false"

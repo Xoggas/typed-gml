@@ -27,6 +27,8 @@ public sealed class BclPopulationTests
         AssertOperator(number, "+", "string", "__op_num_str_add", "number", "string");
         AssertOperator(@string, "+", "string", "__op_add", "string", "string");
         AssertOperator(@bool, "==", "bool", "__op_eq", "bool", "bool");
+        AssertOperator(@bool, "+", "string", "__op_str_bool_add", "string", "bool");
+        AssertOperator(@bool, "+", "string", "__op_bool_str_add", "bool", "string");
     }
 
     private static TypeSymbol Resolve(SymbolTable symbols, string qualifiedName)

@@ -41,7 +41,7 @@ public sealed class BinaryExpressionEmitter : INodeEmitter
             return RenderStringConcat(binary, ctx);
 
         var rendered = ctx.Emitter.Render(node, ctx);
-        return ExpressionTypeLookup.Resolve(node, ctx) == "number" ? $"string({rendered})" : rendered;
+        return ExpressionTypeLookup.Resolve(node, ctx) is "number" or "bool" ? $"string({rendered})" : rendered;
     }
 
     private static int CountStringConcatNodes(IAstNode node, EmitContext ctx)

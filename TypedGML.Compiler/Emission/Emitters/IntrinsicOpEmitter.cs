@@ -56,6 +56,16 @@ internal static class IntrinsicOpEmitter
                     return false;
                 writer.Write($"string({argNames[0]}) + {argNames[1]}");
                 return true;
+            case "__op_str_bool_add":
+                if (argNames.Length != 2)
+                    return false;
+                writer.Write($"{argNames[0]} + string({argNames[1]})");
+                return true;
+            case "__op_bool_str_add":
+                if (argNames.Length != 2)
+                    return false;
+                writer.Write($"string({argNames[0]}) + {argNames[1]}");
+                return true;
             default:
                 return false;
         }
