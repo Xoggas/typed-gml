@@ -26,15 +26,8 @@ internal static class ExpressionTypeResolver
         ArrayLiteralExpressionNode array => ResolveArray(array, ctx),
         MemberAccessExpressionNode access => ResolveMemberAccess(access, ctx),
         InvocationExpressionNode invocation => ResolveInvocation(invocation, ctx),
-        BinaryExpressionNode binary => OperatorResolutionHelper.ResolveBinaryResult(
-            binary.Op,
-            Resolve(binary.Left, ctx),
-            Resolve(binary.Right, ctx),
-            ctx),
-        UnaryExpressionNode unary => OperatorResolutionHelper.ResolveUnaryResult(
-            unary.Op,
-            Resolve(unary.Operand, ctx),
-            ctx),
+        BinaryExpressionNode binary => OperatorResolutionHelper.ResolveBinaryResult(binary.Op, Resolve(binary.Left, ctx), Resolve(binary.Right, ctx), ctx),
+        UnaryExpressionNode unary => OperatorResolutionHelper.ResolveUnaryResult(unary.Op, Resolve(unary.Operand, ctx), ctx),
         TernaryExpressionNode ternary => Resolve(ternary.ThenExpr, ctx) == Resolve(ternary.ElseExpr, ctx)
             ? Resolve(ternary.ThenExpr, ctx)
             : null,
@@ -81,10 +74,11 @@ internal static class ExpressionTypeResolver
         if (QualifiedTypeAccessResolver.TryResolveType(access, ctx, out var type))
             return type.QualifiedName;
 
-        if (!SymbolResolver.TryResolveType(Resolve(access.Target, ctx), ctx, out var targetType))
+        var targetTypeRef = Resolve(access.Target, ctx);
+        if (!SymbolResolver.TryResolveType(targetTypeRef, ctx, out var targetType))
             return null;
 
-        return SymbolResolver.FindMember(targetType, access.MemberName, out _)?.ReturnType;
+        return GenericMemberResolver.FindMember(targetType, targetTypeRef, access.MemberName, out _)?.ReturnType;
     }
 
     private static string? ResolveInvocation(InvocationExpressionNode invocation, VerificationContext ctx)
@@ -117,7 +111,7 @@ internal static class ExpressionTypeResolver
         if (!SymbolResolver.TryResolveType(targetType, ctx, out var resolved))
             return null;
 
-        return resolved.Members.FirstOrDefault(m => m.Kind == MemberKind.Indexer)?.ReturnType;
+        return GenericMemberResolver.Members(resolved, targetType, "this", MemberKind.Indexer).FirstOrDefault()?.ReturnType;
     }
 
     private static string? ResolveNullConditional(NullConditionalExpressionNode conditional, VerificationContext ctx)

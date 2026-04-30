@@ -37,14 +37,15 @@ internal static class InvocationResolver
             return MemberSignatureHelper.Members(owner, memberName, MemberKind.Method).ToList();
         }
 
-        if (!SymbolResolver.TryResolveType(ExpressionTypeResolver.Resolve(access.Target, ctx), ctx, out var targetType))
+        var targetTypeRef = ExpressionTypeResolver.Resolve(access.Target, ctx);
+        if (!SymbolResolver.TryResolveType(targetTypeRef, ctx, out var targetType))
             return [];
 
-        var methods = MemberSignatureHelper.Members(targetType, access.MemberName, MemberKind.Method).ToList();
+        var methods = GenericMemberResolver.Members(targetType, targetTypeRef, access.MemberName, MemberKind.Method).ToList();
         if (methods.Count > 0)
             return methods;
 
-        var member = SymbolResolver.FindMember(targetType, access.MemberName, out _);
+        var member = GenericMemberResolver.FindMember(targetType, targetTypeRef, access.MemberName, out _);
         delegateInvocation = IsDelegateType(member?.ReturnType, ctx);
         return [];
     }
@@ -55,10 +56,11 @@ internal static class InvocationResolver
         out bool delegateInvocation)
     {
         delegateInvocation = false;
-        if (!SymbolResolver.TryResolveType(ExpressionTypeResolver.Resolve(conditional.Target, ctx), ctx, out var targetType))
+        var targetTypeRef = ExpressionTypeResolver.Resolve(conditional.Target, ctx);
+        if (!SymbolResolver.TryResolveType(targetTypeRef, ctx, out var targetType))
             return [];
 
-        return MemberSignatureHelper.Members(targetType, conditional.MemberName, MemberKind.Method).ToList();
+        return GenericMemberResolver.Members(targetType, targetTypeRef, conditional.MemberName, MemberKind.Method).ToList();
     }
 
     private static IReadOnlyList<MemberSymbol> ResolveIdentifier(

@@ -31,7 +31,10 @@ public sealed class MethodCallCheck : ISemanticCheck
 
         var matches = candidates.Where(candidate => Matches(candidate, invocation, ctx)).ToList();
         if (matches.Count == 0)
-            Report(DiagnosticCode.NoMatchingMethodOverload, "No overload matches the supplied arguments.", invocation.Location, ctx);
+        {
+            var code = NoMatchCode(candidates, invocation);
+            Report(code, NoMatchMessage(code), invocation.Location, ctx);
+        }
         else if (matches.Count > 1)
             Report(DiagnosticCode.AmbiguousMethodCall, "Call is ambiguous between multiple overloads.", invocation.Location, ctx);
     }
@@ -101,6 +104,27 @@ public sealed class MethodCallCheck : ISemanticCheck
 
     private static bool HasDuplicateNamedArgs(InvocationExpressionNode invocation) =>
         invocation.NamedArgs.GroupBy(arg => arg.Name, StringComparer.Ordinal).Any(group => group.Count() > 1);
+
+    private static DiagnosticCode NoMatchCode(IReadOnlyList<MemberSymbol> candidates, InvocationExpressionNode invocation) =>
+        candidates.Count == 1 && ShapeMatches(candidates[0], invocation)
+            ? DiagnosticCode.TypeMismatch
+            : DiagnosticCode.NoMatchingMethodOverload;
+
+    private static string NoMatchMessage(DiagnosticCode code) =>
+        code == DiagnosticCode.TypeMismatch
+            ? "Argument type does not match parameter type."
+            : "No overload matches the supplied arguments.";
+
+    private static bool ShapeMatches(MemberSymbol candidate, InvocationExpressionNode invocation)
+    {
+        if (invocation.PositionalArgs.Count > candidate.Parameters.Count)
+            return false;
+
+        var suppliedCount = invocation.PositionalArgs.Count + invocation.NamedArgs.Count;
+        return suppliedCount >= MemberSignatureHelper.RequiredParameters(candidate) &&
+            suppliedCount <= candidate.Parameters.Count &&
+            invocation.NamedArgs.All(arg => IndexOf(candidate, arg.Name) >= invocation.PositionalArgs.Count);
+    }
 
     private static int IndexOf(MemberSymbol candidate, string name)
     {

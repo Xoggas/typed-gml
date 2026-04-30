@@ -7,10 +7,10 @@ internal static class NullConditionalTypeResolver
 {
     public static string? ResolveAccess(NullConditionalExpressionNode conditional, VerificationContext ctx)
     {
-        if (!TryResolveTarget(conditional, ctx, out var targetType))
+        if (!TryResolveTarget(conditional, ctx, out var targetType, out var targetTypeRef))
             return null;
 
-        var member = SymbolResolver.FindMember(targetType, conditional.MemberName, out _);
+        var member = GenericMemberResolver.FindMember(targetType, targetTypeRef, conditional.MemberName, out _);
         return Nullable(member?.ReturnType);
     }
 
@@ -19,10 +19,10 @@ internal static class NullConditionalTypeResolver
         InvocationExpressionNode invocation,
         VerificationContext ctx)
     {
-        if (!TryResolveTarget(conditional, ctx, out var targetType))
+        if (!TryResolveTarget(conditional, ctx, out var targetType, out var targetTypeRef))
             return null;
 
-        var matches = MemberSignatureHelper.Members(targetType, conditional.MemberName, MemberKind.Method)
+        var matches = GenericMemberResolver.Members(targetType, targetTypeRef, conditional.MemberName, MemberKind.Method)
             .Where(candidate => Matches(candidate, invocation, ctx))
             .Take(2)
             .ToList();
@@ -33,8 +33,12 @@ internal static class NullConditionalTypeResolver
     private static bool TryResolveTarget(
         NullConditionalExpressionNode conditional,
         VerificationContext ctx,
-        out TypeSymbol targetType) =>
-        SymbolResolver.TryResolveType(ExpressionTypeResolver.Resolve(conditional.Target, ctx), ctx, out targetType);
+        out TypeSymbol targetType,
+        out string? targetTypeRef)
+    {
+        targetTypeRef = ExpressionTypeResolver.Resolve(conditional.Target, ctx);
+        return SymbolResolver.TryResolveType(targetTypeRef, ctx, out targetType);
+    }
 
     private static bool Matches(MemberSymbol candidate, InvocationExpressionNode invocation, VerificationContext ctx)
     {

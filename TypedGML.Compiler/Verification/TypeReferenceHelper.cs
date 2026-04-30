@@ -83,11 +83,35 @@ internal static class TypeReferenceHelper
 
         var start = typeRef.IndexOf('<');
         var end = typeRef.LastIndexOf('>');
-        if (start < 0 || end <= start)
-            return [];
+        return start < 0 || end <= start ? [] : SplitTypeArguments(typeRef[(start + 1)..end]);
+    }
 
-        return typeRef[(start + 1)..end]
-            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    private static IReadOnlyList<string> SplitTypeArguments(string typeRefs)
+    {
+        var args = new List<string>();
+        var depth = 0;
+        var start = 0;
+        for (var i = 0; i < typeRefs.Length; i++)
+        {
+            if (typeRefs[i] == '<')
+                depth++;
+            else if (typeRefs[i] == '>')
+                depth--;
+            else if (typeRefs[i] == ',' && depth == 0)
+            {
+                AddArgument(typeRefs[start..i], args);
+                start = i + 1;
+            }
+        }
+
+        AddArgument(typeRefs[start..], args);
+        return args;
+    }
+
+    private static void AddArgument(string typeRef, List<string> args)
+    {
+        if (!string.IsNullOrWhiteSpace(typeRef.Trim()))
+            args.Add(typeRef.Trim());
     }
 
     public static bool AreRelated(string? leftType, string? rightType, VerificationContext ctx)

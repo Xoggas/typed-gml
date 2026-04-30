@@ -24,6 +24,50 @@ public sealed class TypeSystemTests
     [Fact] public void Test_EmptyLiteralAssignedToArray_Valid() => CompileInMethod("number[] x = [];").HasErrors.Should().BeFalse();
 
     [Fact]
+    public void Test_GenericIndexer_ReturnsConcreteType() => Compile("""
+        using TypedGML.Collections;
+        public class VerificationHost {
+            public number Read(List<number> list, number i) {
+                return list[i];
+            }
+        }
+        """).HasErrors.Should().BeFalse();
+
+    [Fact]
+    public void Test_GenericMethod_ParameterSubstituted()
+    {
+        Compile("""
+            using TypedGML.Collections;
+            public class VerificationHost {
+                public void Run(List<string> list) {
+                    list.Add("x");
+                }
+            }
+            """).HasErrors.Should().BeFalse();
+
+        Compile("""
+            using TypedGML.Collections;
+            public class VerificationHost {
+                public void Run(List<string> list) {
+                    list.Add(42);
+                }
+            }
+            """).HasError(DiagnosticCode.TypeMismatch).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Test_GenericIndexer_AssignableToConcreteType() => Compile("""
+        using TypedGML.Collections;
+        public class BankAccount { }
+        public class VerificationHost {
+            public void Run(List<BankAccount> list) {
+                var x = list[0];
+                BankAccount account = x;
+            }
+        }
+        """).HasErrors.Should().BeFalse();
+
+    [Fact]
     public void Test_ArrayLiteral_FieldWrongElementType_Error() => Compile("""
         using TypedGML.Core;
         public class VerificationHost {
