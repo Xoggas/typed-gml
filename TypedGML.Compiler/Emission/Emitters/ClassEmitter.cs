@@ -52,14 +52,20 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
             ctx.Dispatch(member, ctx);
         foreach (var constructor in declaration.Members.OfType<ConstructorDeclarationNode>())
             _objectConstructorEmitter.Emit(ctx, constructor);
+        var createEventEmitted = false;
         foreach (var method in declaration.Members.OfType<MethodDeclarationNode>().Where(m => !m.Modifiers.Contains("static", StringComparer.Ordinal)))
         {
             var eventName = _eventEmitter.ResolveEventName(method, ctx.CurrentType);
             if (eventName is not null)
+            {
+                createEventEmitted |= string.Equals(eventName, "Create", StringComparison.Ordinal);
                 _eventEmitter.Emit(declaration, method, eventName, ctx);
+            }
             else
                 ctx.Dispatch(method, ctx);
         }
+        if (!createEventEmitted)
+            _eventEmitter.EmitCreateInitializers(declaration, ctx);
         foreach (var member in declaration.Members.Where(m => m is not FieldDeclarationNode and not ConstructorDeclarationNode and not MethodDeclarationNode))
             ctx.Dispatch(member, ctx);
         if (ctx.CurrentType is not null)

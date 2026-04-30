@@ -14,17 +14,19 @@ internal sealed class ClassEventEmitter
             return;
 
         var resolvedEvent = GmlEventMap.Resolve(eventName);
-        var eventWriter = new GmlWriter();
-        var eventCtx = ctx.WithWriter(eventWriter);
-        eventCtx.IsObjectEventContext = true;
-        eventCtx.SelfName = null;
-        eventCtx.Scope.Push();
-        EmitCreateInitializers(declaration, resolvedEvent, eventWriter, eventCtx);
-        foreach (var statement in block.Statements)
-            eventCtx.Dispatch(statement, eventCtx);
-        eventCtx.Scope.Pop();
-        var path = ctx.Files.GetEventPath(ctx.CurrentType, resolvedEvent);
-        ctx.Output.Write(path, eventWriter.GetOutput());
+        EmitEventFile(declaration, resolvedEvent, ctx, eventCtx =>
+        {
+            foreach (var statement in block.Statements)
+                eventCtx.Dispatch(statement, eventCtx);
+        });
+    }
+
+    public void EmitCreateInitializers(ClassDeclarationNode declaration, EmitContext ctx)
+    {
+        if (ctx.CurrentType is null || !declaration.Members.OfType<FieldDeclarationNode>().Any(HasInstanceInitializer))
+            return;
+
+        EmitEventFile(declaration, GmlEventMap.Resolve("Create"), ctx, _ => { });
     }
 
     public string? ResolveEventName(MethodDeclarationNode method, TypeSymbol? type)
@@ -44,6 +46,28 @@ internal sealed class ClassEventEmitter
         }
 
         return null;
+    }
+
+    private static void EmitEventFile(
+        ClassDeclarationNode declaration,
+        string resolvedEvent,
+        EmitContext ctx,
+        Action<EmitContext> emitBody)
+    {
+        var type = ctx.CurrentType;
+        if (type is null)
+            return;
+
+        var eventWriter = new GmlWriter();
+        var eventCtx = ctx.WithWriter(eventWriter);
+        eventCtx.IsObjectEventContext = true;
+        eventCtx.SelfName = null;
+        eventCtx.Scope.Push();
+        EmitCreateInitializers(declaration, resolvedEvent, eventWriter, eventCtx);
+        emitBody(eventCtx);
+        eventCtx.Scope.Pop();
+        var path = ctx.Files.GetEventPath(type, resolvedEvent);
+        ctx.Output.Write(path, eventWriter.GetOutput());
     }
 
     private static void EmitCreateInitializers(

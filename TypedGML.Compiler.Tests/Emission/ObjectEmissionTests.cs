@@ -88,6 +88,23 @@ public sealed class ObjectEmissionTests
     }
 
     [Fact]
+    public void Test_ObjectClass_FieldInitializerInCreateEvent()
+    {
+        var gml = Compile("""
+            using TypedGML.GameObjects;
+            @Object("OBJ_Player")
+            public class Player : GameObject {
+                public number[] Positions = [0];
+                public constructor(number x, number y, string layer) { }
+            }
+            """).GetFile("OBJ_Player/Create_0.gml")!;
+
+        gml.Should().NotBeNull();
+        GmlAssert.ContainsLine(gml, "Positions = [0];");
+        Normalize(gml).TrimStart().Should().StartWith("Positions = [0];");
+    }
+
+    [Fact]
     public void Test_NativePropertyInEvent()
     {
         var gml = Compile("""
