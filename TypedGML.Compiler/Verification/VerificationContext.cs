@@ -9,6 +9,7 @@ public sealed class VerificationContext(SymbolTable symbols, ScopeStack scope, D
     private readonly Stack<string> _returnTypeStack = [];
     private readonly List<string> _expectedTypeStack = [];
     private readonly Dictionary<string, string> _narrowedTypes = new(StringComparer.Ordinal);
+    private readonly Stack<NarrowingFrame> _narrowingFrames = [];
 
     public SymbolTable Symbols { get; } = symbols;
 
@@ -50,6 +51,25 @@ public sealed class VerificationContext(SymbolTable symbols, ScopeStack scope, D
     public void NarrowVariable(string name, string typeRef) =>
         _narrowedTypes[name] = typeRef;
 
+    public void PushNarrowing(string name, string typeRef)
+    {
+        var hadPrevious = _narrowedTypes.TryGetValue(name, out var previousType);
+        _narrowingFrames.Push(new NarrowingFrame(name, previousType ?? string.Empty, hadPrevious));
+        _narrowedTypes[name] = typeRef;
+    }
+
+    public void PopNarrowing(string name)
+    {
+        var frame = _narrowingFrames.Pop();
+        if (frame.Name != name)
+            throw new InvalidOperationException($"Cannot pop narrowing for '{name}' while '{frame.Name}' is active.");
+
+        if (frame.HadPrevious)
+            _narrowedTypes[name] = frame.PreviousType;
+        else
+            _narrowedTypes.Remove(name);
+    }
+
     public void ClearNarrowing(string name) =>
         _narrowedTypes.Remove(name);
 
@@ -67,4 +87,6 @@ public sealed class VerificationContext(SymbolTable symbols, ScopeStack scope, D
                 _narrowedTypes[entry.Key] = entry.Value;
         }
     }
+
+    private readonly record struct NarrowingFrame(string Name, string PreviousType, bool HadPrevious);
 }

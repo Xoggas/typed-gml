@@ -28,9 +28,7 @@ internal static class ExpressionTypeResolver
         InvocationExpressionNode invocation => ResolveInvocation(invocation, ctx),
         BinaryExpressionNode binary => OperatorResolutionHelper.ResolveBinaryResult(binary.Op, Resolve(binary.Left, ctx), Resolve(binary.Right, ctx), ctx),
         UnaryExpressionNode unary => OperatorResolutionHelper.ResolveUnaryResult(unary.Op, Resolve(unary.Operand, ctx), ctx),
-        TernaryExpressionNode ternary => Resolve(ternary.ThenExpr, ctx) == Resolve(ternary.ElseExpr, ctx)
-            ? Resolve(ternary.ThenExpr, ctx)
-            : null,
+        TernaryExpressionNode ternary => NullNarrowingHelper.ResolveTernary(ternary, ctx, branch => Resolve(branch, ctx)),
         NullCoalescingExpressionNode coalescing => TypeReferenceHelper.UnwrapNullable(Resolve(coalescing.Left, ctx)),
         NullConditionalExpressionNode conditional => ResolveNullConditional(conditional, ctx),
         IndexerAccessExpressionNode indexer => ResolveIndexer(indexer, ctx),

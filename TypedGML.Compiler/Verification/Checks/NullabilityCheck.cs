@@ -38,17 +38,12 @@ public sealed class NullabilityCheck : ISemanticCheck
 
     public static void ApplyThenBranchNarrowing(IfStatementNode statement, VerificationContext ctx)
     {
-        foreach (var narrowing in GetNullComparisons(statement.Condition, "!=", "and", ctx))
-            ctx.NarrowVariable(narrowing.Key, narrowing.Value);
+        NullNarrowingHelper.ApplyThenBranch(statement, ctx);
     }
 
     public static void ApplyEarlyExitNarrowing(IfStatementNode statement, VerificationContext ctx)
     {
-        if (statement.ElseIfClauses.Count > 0 || statement.ElseBlock is not null || !EndsWithReturnOrThrow(statement.ThenBlock))
-            return;
-
-        foreach (var narrowing in GetNullComparisons(statement.Condition, "==", "or", ctx))
-            ctx.NarrowVariable(narrowing.Key, narrowing.Value);
+        NullNarrowingHelper.ApplyEarlyExit(statement, ctx);
     }
 
     private static void CheckInvocation(InvocationExpressionNode invocation, VerificationContext ctx)
@@ -103,67 +98,6 @@ public sealed class NullabilityCheck : ISemanticCheck
 
         return member is not null;
     }
-
-    private static bool TryGetNullComparison(IAstNode condition, string op, VerificationContext ctx, out string name, out string typeRef)
-    {
-        name = string.Empty;
-        typeRef = string.Empty;
-
-        if (condition is not BinaryExpressionNode binary || binary.Op != op)
-            return false;
-
-        var identifier = NullCheckedIdentifier(binary);
-        if (identifier is null)
-            return false;
-
-        var currentType = ExpressionTypeResolver.Resolve(identifier, ctx);
-        if (!TypeReferenceHelper.IsNullable(currentType))
-            return false;
-
-        name = identifier.Name;
-        typeRef = TypeReferenceHelper.UnwrapNullable(currentType);
-        return !string.IsNullOrWhiteSpace(typeRef);
-    }
-
-    private static IReadOnlyList<KeyValuePair<string, string>> GetNullComparisons(
-        IAstNode condition,
-        string comparisonOp,
-        string junctionOp,
-        VerificationContext ctx)
-    {
-        var narrowed = new List<KeyValuePair<string, string>>();
-        return TryCollectNullComparisons(condition, comparisonOp, junctionOp, ctx, narrowed) ? narrowed : [];
-    }
-
-    private static bool TryCollectNullComparisons(
-        IAstNode condition,
-        string comparisonOp,
-        string junctionOp,
-        VerificationContext ctx,
-        List<KeyValuePair<string, string>> narrowed)
-    {
-        if (condition is BinaryExpressionNode binary && binary.Op == junctionOp)
-            return TryCollectNullComparisons(binary.Left, comparisonOp, junctionOp, ctx, narrowed) &&
-                   TryCollectNullComparisons(binary.Right, comparisonOp, junctionOp, ctx, narrowed);
-
-        if (!TryGetNullComparison(condition, comparisonOp, ctx, out var name, out var typeRef))
-            return false;
-
-        narrowed.Add(new KeyValuePair<string, string>(name, typeRef));
-        return true;
-    }
-
-    private static IdentifierExpressionNode? NullCheckedIdentifier(BinaryExpressionNode binary) =>
-        binary is { Left: IdentifierExpressionNode left, Right: LiteralExpressionNode { Kind: LiteralKind.Null } } ? left :
-        binary is { Left: LiteralExpressionNode { Kind: LiteralKind.Null }, Right: IdentifierExpressionNode right } ? right :
-        null;
-
-    private static bool EndsWithReturnOrThrow(IAstNode node) => node switch
-    {
-        ReturnStatementNode or ThrowStatementNode => true,
-        BlockStatementNode { Statements.Count: > 0 } block => block.Statements[^1] is ReturnStatementNode or ThrowStatementNode,
-        _ => false
-    };
 
     private static void Report(string message, SourceLocation location, VerificationContext ctx) =>
         ctx.Diagnostics.Report(DiagnosticCode.NullAssignedToNonNullableType, DiagnosticSeverity.Error, message, location);

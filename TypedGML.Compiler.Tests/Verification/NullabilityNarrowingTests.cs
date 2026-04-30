@@ -56,11 +56,34 @@ public sealed class NullabilityNarrowingTests
             x.Method();
             """));
 
+    [Fact]
+    public void Test_TernaryNarrowing_NotNull_ThenBranch() =>
+        AssertNoNullabilityError(CompileRun("""
+            var x = MaybeNull();
+            var label = (x != null) ? x.Field : "default";
+            """));
+
+    [Fact]
+    public void Test_TernaryNarrowing_IsNull_ElseBranch() =>
+        AssertNoNullabilityError(CompileRun("""
+            var x = MaybeNull();
+            var label = (x == null) ? "fallback" : x.Field;
+            """));
+
+    [Fact]
+    public void Test_TernaryNarrowing_StillNullableInOppositeBranch() =>
+        AssertHasNullabilityError(CompileRun("""
+            var x = MaybeNull();
+            var label = (x != null) ? "ok" : x.Field;
+            """));
+
     private static CompileResult CompileRun(string statements) =>
         CompilerFixture.Compile($$"""
             using TypedGML.Core;
 
             public class NarrowTarget {
+                public string Field;
+
                 public void Method() {
                 }
             }
