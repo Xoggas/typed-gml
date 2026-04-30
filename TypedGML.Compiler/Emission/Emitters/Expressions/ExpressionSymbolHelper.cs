@@ -31,6 +31,12 @@ internal static class ExpressionSymbolHelper
         if (QualifiedTypeAccessResolver.TryResolveType(target, ctx, out type))
             return true;
 
+        if (target is ThisExpressionNode && ctx.CurrentType is not null)
+        {
+            type = ctx.CurrentType;
+            return true;
+        }
+
         if (target is IdentifierExpressionNode identifier)
         {
             if (identifier.Name == "this" && ctx.CurrentType is not null) { type = ctx.CurrentType; return true; }

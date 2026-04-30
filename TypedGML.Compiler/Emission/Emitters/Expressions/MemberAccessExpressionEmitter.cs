@@ -22,6 +22,12 @@ public sealed class MemberAccessExpressionEmitter : INodeEmitter
             return;
         }
 
+        if (InstanceMemberAccessHelper.TryRenderRead(expression, ctx, out rendered))
+        {
+            ctx.Writer.Write(rendered);
+            return;
+        }
+
         ctx.Writer.Write($"{ctx.Emitter.Render(expression.Target, ctx)}.{expression.MemberName}");
     }
 }
