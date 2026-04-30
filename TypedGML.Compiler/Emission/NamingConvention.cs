@@ -37,6 +37,12 @@ public static class NamingConvention
     public static string StaticPropertyBackingName(TypeSymbol type, MemberSymbol prop) =>
         $"global.{TypeName(type)}__{prop.Name}";
 
+    public static string PropertyBackingName(string propertyName) =>
+        $"__backing_{propertyName}";
+
+    public static string InstancePropertyBackingName(string selfName, string propertyName) =>
+        $"{selfName}.{PropertyBackingName(propertyName)}";
+
     public static string OperatorName(TypeSymbol type, string op) =>
         $"{TypeName(type)}_op_{OperatorPart(op)}";
 

@@ -76,7 +76,9 @@ public sealed class PropertyEmitter : INodeEmitter
     {
         if (target is not null)
             return string.IsNullOrEmpty(selfName) ? target : $"{selfName}.{target}";
-        return string.IsNullOrEmpty(selfName) ? $"__backing_{property.Name}" : $"{selfName}.__backing_{property.Name}";
+        return string.IsNullOrEmpty(selfName)
+            ? NamingConvention.PropertyBackingName(property.Name)
+            : NamingConvention.InstancePropertyBackingName(selfName, property.Name);
     }
 
     private static void WithAccessorContext(EmitContext ctx, MemberSymbol symbol, string? selfName, bool hasValue, Action action)

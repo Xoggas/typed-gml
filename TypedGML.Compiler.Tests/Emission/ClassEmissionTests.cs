@@ -31,6 +31,30 @@ public sealed class ClassEmissionTests
     }
 
     [Fact]
+    public void Test_AutoProperty_BackingFieldInitialized()
+    {
+        var result = Compile("""
+            public class T {
+                public number Value { get; set; }
+                public string Name { get; }
+                public bool Active { get; set; }
+
+                public constructor(number value, bool active) {
+                    Value = value;
+                    Active = active;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var gml = result.GetFile("/T.gml")!;
+
+        GmlAssert.ContainsPattern(gml, "self.__backing_Value = 0;");
+        GmlAssert.ContainsPattern(gml, "self.__backing_Name = undefined;");
+        GmlAssert.ContainsPattern(gml, "self.__backing_Active = false;");
+    }
+
+    [Fact]
     public void Test_OverrideInlined()
     {
         var gml = Compile("""

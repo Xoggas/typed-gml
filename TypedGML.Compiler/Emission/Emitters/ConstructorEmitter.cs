@@ -17,6 +17,7 @@ public sealed class ConstructorEmitter : INodeEmitter
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine("var self = {};");
             ConstructorFieldInitializerEmitter.Emit(type, null, ctx);
+            ConstructorAutoPropertyInitializerEmitter.Emit(type, ctx);
             ctx.Writer.WriteLine("return self;");
             ctx.Writer.EndBlock();
         });
@@ -40,6 +41,7 @@ public sealed class ConstructorEmitter : INodeEmitter
             ctx.Writer.WriteLine("var self = {};");
             ConstructorChainInliner.Emit(constructor, ctx);
             ConstructorFieldInitializerEmitter.Emit(ctx.CurrentType, constructor.Body, ctx);
+            ConstructorAutoPropertyInitializerEmitter.Emit(ctx.CurrentType, ctx);
             EmitBodyStatements(constructor.Body, ctx);
             ctx.Writer.WriteLine("return self;");
             ctx.Writer.EndBlock();
