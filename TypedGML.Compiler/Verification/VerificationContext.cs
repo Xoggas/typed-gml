@@ -8,6 +8,7 @@ public sealed class VerificationContext(SymbolTable symbols, ScopeStack scope, D
 {
     private readonly Stack<string> _returnTypeStack = [];
     private readonly List<string> _expectedTypeStack = [];
+    private readonly Dictionary<string, string> _narrowedTypes = new(StringComparer.Ordinal);
 
     public SymbolTable Symbols { get; } = symbols;
 
@@ -42,4 +43,28 @@ public sealed class VerificationContext(SymbolTable symbols, ScopeStack scope, D
 
     public void PopExpectedType() =>
         _expectedTypeStack.RemoveAt(_expectedTypeStack.Count - 1);
+
+    public bool TryResolveNarrowedType(string name, out string typeRef) =>
+        _narrowedTypes.TryGetValue(name, out typeRef!);
+
+    public void NarrowVariable(string name, string typeRef) =>
+        _narrowedTypes[name] = typeRef;
+
+    public void ClearNarrowing(string name) =>
+        _narrowedTypes.Remove(name);
+
+    public void WithNarrowingScope(Action action)
+    {
+        var snapshot = new Dictionary<string, string>(_narrowedTypes, StringComparer.Ordinal);
+        try
+        {
+            action();
+        }
+        finally
+        {
+            _narrowedTypes.Clear();
+            foreach (var entry in snapshot)
+                _narrowedTypes[entry.Key] = entry.Value;
+        }
+    }
 }

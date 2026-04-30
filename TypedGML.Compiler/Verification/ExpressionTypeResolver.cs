@@ -55,6 +55,9 @@ internal static class ExpressionTypeResolver
         if (identifier.Name == "base")
             return ctx.CurrentType?.Base?.QualifiedName;
 
+        if (ctx.TryResolveNarrowedType(identifier.Name, out var narrowedType))
+            return narrowedType;
+
         if (ctx.Scope.TryResolve(identifier.Name, out var scopedType))
             return scopedType;
 

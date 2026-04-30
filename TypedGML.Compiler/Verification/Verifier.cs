@@ -7,6 +7,7 @@ using TypedGML.Compiler.Diagnostics;
 using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Verification;
+
 public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag diagnostics)
 {
     public void Verify(IReadOnlyList<FileNode> files, SymbolTable symbols)
@@ -56,19 +57,19 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
                 WalkExpected(field.Initializer, field.TypeRef, ctx, currentNamespace);
                 break;
             case PropertyDeclarationNode property:
-                WithMember(ResolveProperty(property), ctx, false, null, () => { RunChecks(property, ctx); foreach (var accessor in property.Accessors) WalkAccessor(accessor, property.TypeRef, property.Modifiers, ctx, currentNamespace); });
+                WithMember(VerifierMemberResolver.ResolveProperty(property), ctx, false, null, () => { RunChecks(property, ctx); foreach (var accessor in property.Accessors) WalkAccessor(accessor, property.TypeRef, property.Modifiers, ctx, currentNamespace); });
                 break;
             case IndexerDeclarationNode indexer:
-                WithMember(ResolveIndexer(indexer), ctx, false, [indexer.Parameter], () => { RunChecks(indexer, ctx); foreach (var accessor in indexer.Accessors) WalkAccessor(accessor, indexer.TypeRef, indexer.Modifiers, ctx, currentNamespace, indexer.Parameter); });
+                WithMember(VerifierMemberResolver.ResolveIndexer(indexer), ctx, false, [indexer.Parameter], () => { RunChecks(indexer, ctx); foreach (var accessor in indexer.Accessors) WalkAccessor(accessor, indexer.TypeRef, indexer.Modifiers, ctx, currentNamespace, indexer.Parameter); });
                 break;
             case MethodDeclarationNode method:
-                WithMember(FindMethod(method, ctx), ctx, false, method.Parameters, () => { RunChecks(method, ctx); WalkNullable(method.Body, ctx, currentNamespace); });
+                WithMember(VerifierMemberResolver.FindMethod(method, ctx), ctx, false, method.Parameters, () => { RunChecks(method, ctx); WalkNullable(method.Body, ctx, currentNamespace); });
                 break;
             case ConstructorDeclarationNode ctor:
-                WithMember(FindConstructor(ctor, ctx), ctx, true, ctor.Parameters, () => { RunChecks(ctor, ctx); WalkMany(ctor.ChainArgs, ctx, currentNamespace); Walk(ctor.Body, ctx, currentNamespace); });
+                WithMember(VerifierMemberResolver.FindConstructor(ctor, ctx), ctx, true, ctor.Parameters, () => { RunChecks(ctor, ctx); WalkMany(ctor.ChainArgs, ctx, currentNamespace); Walk(ctor.Body, ctx, currentNamespace); });
                 break;
             case StaticConstructorDeclarationNode ctor:
-                WithMember(FindStaticConstructor(ctor, ctx), ctx, true, ctor.Parameters, () => { RunChecks(ctor, ctx); Walk(ctor.Body, ctx, currentNamespace); });
+                WithMember(VerifierMemberResolver.FindStaticConstructor(ctor, ctx), ctx, true, ctor.Parameters, () => { RunChecks(ctor, ctx); Walk(ctor.Body, ctx, currentNamespace); });
                 break;
             case OperatorDeclarationNode op:
                 WithMember(new MemberSymbol { Name = op.OperatorSymbol, ReturnType = op.ReturnType, Modifiers = op.Modifiers.ToHashSet(StringComparer.Ordinal) }, ctx, false, op.Parameters, () => { RunChecks(op, ctx); WalkNullable(op.Body, ctx, currentNamespace); });
@@ -87,6 +88,7 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
     }
     private void RunChecks(IAstNode node, VerificationContext ctx)
     {
+        Checks.NullabilityCheck.ClearReassignedVariable(node, ctx);
         foreach (var check in checks)
             if (check.Matches(node))
                 check.Check(node, ctx);
@@ -97,9 +99,9 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
         {
             case ParameterNode parameter: WalkNullable(parameter.DefaultValue, ctx, currentNamespace); break;
             case DecoratorNode decorator: WalkMany(decorator.Args, ctx, currentNamespace); break;
-            case BlockStatementNode block: ctx.Scope.Push(); WalkMany(block.Statements, ctx, currentNamespace); ctx.Scope.Pop(); break;
-            case VarDeclarationStatementNode declaration: WalkExpected(declaration.Initializer, declaration.IsVar ? null : declaration.TypeRef, ctx, currentNamespace); ctx.Scope.Declare(declaration.Name, declaration.TypeRef ?? ExpressionTypeResolver.Resolve(declaration.Initializer, ctx) ?? string.Empty); break;
-            case IfStatementNode @if: Walk(@if.Condition, ctx, currentNamespace); Walk(@if.ThenBlock, ctx, currentNamespace); WalkMany(@if.ElseIfClauses, ctx, currentNamespace); WalkNullable(@if.ElseBlock, ctx, currentNamespace); break;
+            case BlockStatementNode block: ctx.Scope.Push(); ctx.WithNarrowingScope(() => WalkMany(block.Statements, ctx, currentNamespace)); ctx.Scope.Pop(); break;
+            case VarDeclarationStatementNode declaration: WalkExpected(declaration.Initializer, declaration.IsVar ? null : declaration.TypeRef, ctx, currentNamespace); ctx.Scope.Declare(declaration.Name, declaration.TypeRef ?? ExpressionTypeResolver.Resolve(declaration.Initializer, ctx) ?? string.Empty); ctx.ClearNarrowing(declaration.Name); break;
+            case IfStatementNode @if: WalkIf(@if, ctx, currentNamespace); break;
             case ElseIfClauseNode clause: Walk(clause.Condition, ctx, currentNamespace); Walk(clause.ThenBlock, ctx, currentNamespace); break;
             case WhileStatementNode loop: WithLoop(ctx, () => { Walk(loop.Condition, ctx, currentNamespace); Walk(loop.Body, ctx, currentNamespace); }); break;
             case ForStatementNode loop: WithLoop(ctx, () => { WalkNullable(loop.Init, ctx, currentNamespace); WalkNullable(loop.Condition, ctx, currentNamespace); WalkMany(loop.Update, ctx, currentNamespace); Walk(loop.Body, ctx, currentNamespace); }); break;
@@ -132,19 +134,14 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
     private void WalkMany(IEnumerable<IAstNode> nodes, VerificationContext ctx, string currentNamespace) { foreach (var node in nodes) Walk(node, ctx, currentNamespace); }
     private void WalkNullable(IAstNode? node, VerificationContext ctx, string currentNamespace) { if (node is not null) Walk(node, ctx, currentNamespace); }
     private void WalkExpected(IAstNode? node, string? expectedType, VerificationContext ctx, string currentNamespace) { if (node is null) return; ctx.PushExpectedType(expectedType); Walk(node, ctx, currentNamespace); ctx.PopExpectedType(); }
+    private void WalkIf(IfStatementNode @if, VerificationContext ctx, string currentNamespace) { Walk(@if.Condition, ctx, currentNamespace); ctx.WithNarrowingScope(() => { Checks.NullabilityCheck.ApplyThenBranchNarrowing(@if, ctx); Walk(@if.ThenBlock, ctx, currentNamespace); }); WalkMany(@if.ElseIfClauses, ctx, currentNamespace); WalkNullable(@if.ElseBlock, ctx, currentNamespace); Checks.NullabilityCheck.ApplyEarlyExitNarrowing(@if, ctx); }
     private void WalkInvocation(InvocationExpressionNode invocation, VerificationContext ctx, string currentNamespace) { Walk(invocation.Target, ctx, currentNamespace); for (var i = 0; i < invocation.PositionalArgs.Count; i++) WalkExpected(invocation.PositionalArgs[i], InvocationExpectedTypeResolver.Positional(invocation, i, ctx), ctx, currentNamespace); foreach (var namedArg in invocation.NamedArgs) WalkExpected(namedArg.Value, InvocationExpectedTypeResolver.Named(invocation, namedArg.Name, ctx), ctx, currentNamespace); }
-    private void WalkLambda(LambdaExpressionNode lambda, VerificationContext ctx, string currentNamespace) { DelegateTypeHelper.TrySignature(ctx.CurrentExpectedType, ctx, out var returnType, out var parameterTypes); ctx.Scope.Push(); for (var i = 0; i < lambda.Parameters.Count; i++) ctx.Scope.Declare(lambda.Parameters[i].Name, ParameterType(lambda, parameterTypes, i)); ctx.PushReturnType(returnType); RunChecks(lambda, ctx); Walk(lambda.Body, ctx, currentNamespace); ctx.PopReturnType(); ctx.Scope.Pop(); }
+    private void WalkLambda(LambdaExpressionNode lambda, VerificationContext ctx, string currentNamespace) { DelegateTypeHelper.TrySignature(ctx.CurrentExpectedType, ctx, out var returnType, out var parameterTypes); ctx.Scope.Push(); ctx.WithNarrowingScope(() => { for (var i = 0; i < lambda.Parameters.Count; i++) ctx.Scope.Declare(lambda.Parameters[i].Name, ParameterType(lambda, parameterTypes, i)); ctx.PushReturnType(returnType); RunChecks(lambda, ctx); Walk(lambda.Body, ctx, currentNamespace); ctx.PopReturnType(); }); ctx.Scope.Pop(); }
     private static string ParameterType(LambdaExpressionNode lambda, IReadOnlyList<string> parameterTypes, int index) => string.IsNullOrEmpty(lambda.Parameters[index].TypeRef) && index < parameterTypes.Count ? parameterTypes[index] : lambda.Parameters[index].TypeRef;
     private static string Combine(string currentNamespace, string name) => string.IsNullOrEmpty(currentNamespace) ? name : $"{currentNamespace}.{name}";
     private void WithType(string qualifiedName, int arity, VerificationContext ctx, Action action) { var previous = ctx.CurrentType; ctx.Symbols.TryResolve(qualifiedName, arity, null, [], out var type); ctx.CurrentType = type; action(); ctx.CurrentType = previous; }
-    private void WithMember(MemberSymbol member, VerificationContext ctx, bool isConstructor, IReadOnlyList<ParameterNode>? parameters, Action action) { var previousMember = ctx.CurrentMember; var previousConstructor = ctx.IsInConstructor; ctx.CurrentMember = member; ctx.IsInConstructor = isConstructor; ctx.Scope.Push(); ctx.PushReturnType(member.ReturnType); foreach (var parameter in parameters ?? []) ctx.Scope.Declare(parameter.Name, parameter.TypeRef); action(); ctx.PopReturnType(); ctx.Scope.Pop(); ctx.CurrentMember = previousMember; ctx.IsInConstructor = previousConstructor; }
+    private void WithMember(MemberSymbol member, VerificationContext ctx, bool isConstructor, IReadOnlyList<ParameterNode>? parameters, Action action) { var previousMember = ctx.CurrentMember; var previousConstructor = ctx.IsInConstructor; ctx.CurrentMember = member; ctx.IsInConstructor = isConstructor; ctx.Scope.Push(); ctx.PushReturnType(member.ReturnType); foreach (var parameter in parameters ?? []) ctx.Scope.Declare(parameter.Name, parameter.TypeRef); ctx.WithNarrowingScope(action); ctx.PopReturnType(); ctx.Scope.Pop(); ctx.CurrentMember = previousMember; ctx.IsInConstructor = previousConstructor; }
     private void WithLoop(VerificationContext ctx, Action action) { var previous = ctx.IsInLoop; ctx.IsInLoop = true; action(); ctx.IsInLoop = previous; }
     private void WithSwitch(VerificationContext ctx, Action action) { var previous = ctx.IsInSwitch; ctx.IsInSwitch = true; action(); ctx.IsInSwitch = previous; }
     private void WalkAccessor(AccessorNode accessor, string typeRef, IReadOnlyList<string> modifiers, VerificationContext ctx, string currentNamespace, ParameterNode? indexerParameter = null) { var member = new MemberSymbol { Name = accessor.Kind.ToString(), ReturnType = accessor.Kind == AccessorKind.Get ? typeRef : "void", Modifiers = modifiers.ToHashSet(StringComparer.Ordinal) }; WithMember(member, ctx, false, null, () => { if (indexerParameter is not null) ctx.Scope.Declare(indexerParameter.Name, indexerParameter.TypeRef); ctx.Scope.Declare("field", typeRef); if (accessor.Kind == AccessorKind.Set) ctx.Scope.Declare("value", typeRef); RunChecks(accessor, ctx); WalkNullable(accessor.Body, ctx, currentNamespace); }); }
-    private MemberSymbol FindMethod(MethodDeclarationNode method, VerificationContext ctx) => SymbolResolver.FindMember(ctx.CurrentType, method.Name, out _) ?? new MemberSymbol { Name = method.Name, ReturnType = method.TypeRef, Parameters = method.Parameters.Select(p => new ParameterSymbol(p.Name, p.TypeRef, p.DefaultValue is not null, p.DefaultValue)).ToList(), GenericParameters = method.GenericParams, Modifiers = method.Modifiers.ToHashSet(StringComparer.Ordinal) };
-    private MemberSymbol FindConstructor(ConstructorDeclarationNode ctor, VerificationContext ctx) => ctx.CurrentType?.Members.FirstOrDefault(m => m.Kind == MemberKind.Constructor && ParametersMatch(m.Parameters, ctor.Parameters)) ?? new MemberSymbol { Name = ".ctor", ReturnType = "void", Parameters = ctor.Parameters.Select(p => new ParameterSymbol(p.Name, p.TypeRef, p.DefaultValue is not null, p.DefaultValue)).ToList(), Modifiers = ctor.Modifiers.ToHashSet(StringComparer.Ordinal) };
-    private MemberSymbol FindStaticConstructor(StaticConstructorDeclarationNode ctor, VerificationContext ctx) => ctx.CurrentType?.Members.FirstOrDefault(m => m.Kind == MemberKind.StaticConstructor) ?? new MemberSymbol { Name = ".cctor", Kind = MemberKind.StaticConstructor, ReturnType = "void", Parameters = ctor.Parameters.Select(p => new ParameterSymbol(p.Name, p.TypeRef, p.DefaultValue is not null, p.DefaultValue)).ToList(), Modifiers = new HashSet<string>(StringComparer.Ordinal) { "static" } };
-    private MemberSymbol ResolveProperty(PropertyDeclarationNode property) => new() { Name = property.Name, Kind = MemberKind.Property, ReturnType = property.TypeRef, Modifiers = property.Modifiers.ToHashSet(StringComparer.Ordinal) };
-    private MemberSymbol ResolveIndexer(IndexerDeclarationNode indexer) => new() { Name = "this", Kind = MemberKind.Indexer, ReturnType = indexer.TypeRef, Parameters = [new ParameterSymbol(indexer.Parameter.Name, indexer.Parameter.TypeRef, indexer.Parameter.DefaultValue is not null, indexer.Parameter.DefaultValue)], Modifiers = indexer.Modifiers.ToHashSet(StringComparer.Ordinal) };
-    private static bool ParametersMatch(IReadOnlyList<ParameterSymbol> symbols, IReadOnlyList<ParameterNode> parameters) => symbols.Count == parameters.Count && symbols.Zip(parameters).All(p => p.First.TypeRef == p.Second.TypeRef);
 }
