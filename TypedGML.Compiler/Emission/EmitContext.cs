@@ -45,6 +45,8 @@ public sealed class EmitContext(
 
     public bool IsObjectEventContext { get; set; }
 
+    public bool IsInConstructor { get; set; }
+
     internal Action<TypedGML.Compiler.Ast.IAstNode, EmitContext> Dispatch { get; } = dispatch;
 
     internal List<IReadOnlyDictionary<string, IAstNode>> SubstitutionFrames { get; set; } = [];
@@ -119,6 +121,7 @@ public sealed class EmitContext(
             CurrentMember = CurrentMember,
             SelfName = SelfName,
             IsObjectEventContext = IsObjectEventContext,
+            IsInConstructor = IsInConstructor,
             SubstitutionFrames = SubstitutionFrames,
             BaseCallLookupType = BaseCallLookupType,
             ExpectedTypeStack = ExpectedTypeStack,

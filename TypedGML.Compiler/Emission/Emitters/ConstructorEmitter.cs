@@ -12,7 +12,7 @@ public sealed class ConstructorEmitter : INodeEmitter
     public static void EmitImplicit(TypeSymbol type, EmitContext ctx)
     {
         ctx.Writer.Write($"function {NamingConvention.ConstructorName(type)}()");
-        WithConstructorContext(ctx, [], () =>
+        WithConstructorContext(ctx, [], null, () =>
         {
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine("var self = {};");
@@ -35,7 +35,7 @@ public sealed class ConstructorEmitter : INodeEmitter
             ? NamingConvention.ConstructorName(ctx.CurrentType)
             : NamingConvention.ConstructorName(ctx.CurrentType, symbol);
         ctx.Writer.Write($"function {functionName}({parameters})");
-        WithConstructorContext(ctx, constructor.Parameters, () =>
+        WithConstructorContext(ctx, constructor.Parameters, symbol, () =>
         {
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine("var self = {};");
@@ -64,10 +64,18 @@ public sealed class ConstructorEmitter : INodeEmitter
             member.Kind == MemberKind.Constructor &&
             member.Parameters.Select(p => p.TypeRef).SequenceEqual(constructor.Parameters.Select(p => p.TypeRef), StringComparer.Ordinal));
 
-    private static void WithConstructorContext(EmitContext ctx, IReadOnlyList<ParameterNode> parameters, Action action)
+    private static void WithConstructorContext(
+        EmitContext ctx,
+        IReadOnlyList<ParameterNode> parameters,
+        MemberSymbol? symbol,
+        Action action)
     {
         var previousSelf = ctx.SelfName;
+        var previousMember = ctx.CurrentMember;
+        var previousConstructor = ctx.IsInConstructor;
         ctx.SelfName = "self";
+        ctx.CurrentMember = symbol;
+        ctx.IsInConstructor = true;
         ctx.Scope.Push();
         foreach (var parameter in parameters)
             ctx.Scope.Declare(parameter.Name, parameter.TypeRef);
@@ -78,6 +86,8 @@ public sealed class ConstructorEmitter : INodeEmitter
         finally
         {
             ctx.Scope.Pop();
+            ctx.IsInConstructor = previousConstructor;
+            ctx.CurrentMember = previousMember;
             ctx.SelfName = previousSelf;
         }
     }

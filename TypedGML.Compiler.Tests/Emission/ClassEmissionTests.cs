@@ -55,6 +55,27 @@ public sealed class ClassEmissionTests
     }
 
     [Fact]
+    public void Test_ReadOnlyAutoProperty_ConstructorAssignsBackingField()
+    {
+        var result = Compile("""
+            public class BankAccount {
+                public string Owner { get; }
+
+                public constructor(string owner) {
+                    Owner = owner;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var gml = result.GetFile("BankAccount.gml")!;
+
+        GmlAssert.HasFunction(gml, "BankAccount_get_Owner");
+        GmlAssert.NotContainsPattern(gml, "BankAccount_set_Owner");
+        GmlAssert.ContainsPattern(gml, "self.__backing_Owner = owner;");
+    }
+
+    [Fact]
     public void Test_OverrideInlined()
     {
         var gml = Compile("""

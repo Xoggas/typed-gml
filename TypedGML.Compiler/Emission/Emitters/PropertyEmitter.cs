@@ -21,7 +21,9 @@ public sealed class PropertyEmitter : INodeEmitter
         if (symbol is null)
             return;
 
-        foreach (var accessor in property.Accessors)
+        foreach (var accessor in property.Accessors.Where(accessor => accessor.Kind == AccessorKind.Get))
+            EmitAccessor(ctx, property, symbol, accessor);
+        foreach (var accessor in property.Accessors.Where(accessor => accessor.Kind == AccessorKind.Set))
             EmitAccessor(ctx, property, symbol, accessor);
     }
 

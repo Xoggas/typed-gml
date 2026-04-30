@@ -40,7 +40,7 @@ internal static class InstanceMemberAccessHelper
         if (member.Kind != MemberKind.Property)
             return false;
 
-        rendered = RenderPropertyAssignment(expression, owner, member, value, ctx);
+        rendered = PropertyAssignmentRenderer.Render(expression, owner, member, value, ctx);
         return !string.IsNullOrEmpty(rendered);
     }
 
@@ -58,38 +58,6 @@ internal static class InstanceMemberAccessHelper
         MemberKind.Property => $"{NamingConvention.PropertyGetter(owner, member)}({ctx.Emitter.Render(access.Target, ctx)})",
         _ => string.Empty
     };
-
-    private static string RenderPropertyAssignment(
-        AssignmentExpressionNode expression,
-        TypeSymbol owner,
-        MemberSymbol member,
-        string value,
-        EmitContext ctx)
-    {
-        if (expression.Target is IdentifierExpressionNode)
-            return WriteCurrentProperty(expression.Op, owner, member, value, ctx);
-
-        var access = (MemberAccessExpressionNode)expression.Target;
-        var target = ctx.Emitter.Render(access.Target, ctx);
-        if (member.NativePropertyName is not null)
-            return $"{target}.{member.NativePropertyName} {expression.Op} {value}";
-        if (expression.Op == "=")
-            return $"{NamingConvention.PropertySetter(owner, member)}({target}, {value})";
-        var op = expression.Op[..^1];
-        return $"{NamingConvention.PropertySetter(owner, member)}({target}, {NamingConvention.PropertyGetter(owner, member)}({target}) {op} {value})";
-    }
-
-    private static string WriteCurrentProperty(string op, TypeSymbol owner, MemberSymbol member, string value, EmitContext ctx)
-    {
-        if (ctx.IsObjectEventContext && member.NativePropertyName is not null)
-            return $"{member.NativePropertyName} {op} {value}";
-        if (member.NativePropertyName is not null && ctx.SelfName is not null)
-            return $"{ctx.SelfName}.{member.NativePropertyName} {op} {value}";
-        if (op == "=")
-            return $"{NamingConvention.PropertySetter(owner, member)}({ctx.SelfName}, {value})";
-        var read = $"{NamingConvention.PropertyGetter(owner, member)}({ctx.SelfName})";
-        return $"{NamingConvention.PropertySetter(owner, member)}({ctx.SelfName}, {read} {op[..^1]} {value})";
-    }
 
     private static string CurrentField(MemberSymbol member, EmitContext ctx) =>
         ctx.IsObjectEventContext || string.IsNullOrEmpty(ctx.SelfName) ? member.Name : $"{ctx.SelfName}.{member.Name}";
