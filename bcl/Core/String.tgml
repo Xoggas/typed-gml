@@ -28,6 +28,11 @@ public class String
         return String.IndexOf(s, sub) != 0;
     }
 
+    public static bool IsNullOrEmpty(string s)
+    {
+        return s == null or s == "";
+    }
+
     @NativeCall("string_replace_all")
     public static string Replace(string s, string old, string newStr) { return default(string); }
 

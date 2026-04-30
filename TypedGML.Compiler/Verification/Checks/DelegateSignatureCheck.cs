@@ -80,8 +80,7 @@ public sealed class DelegateSignatureCheck : ISemanticCheck
 
     private static bool MatchesLambda(LambdaExpressionNode lambda, string returnType, IReadOnlyList<string> parameterTypes) =>
         lambda.Parameters.Count == parameterTypes.Count &&
-        lambda.Parameters.Zip(parameterTypes).All(pair => string.IsNullOrEmpty(pair.First.TypeRef) || pair.First.TypeRef == pair.Second) &&
-        (returnType == "void" || ExpressionTypeResolver.Resolve(lambda.Body, new VerificationContext(new SymbolTable(new DiagnosticBag()), new ScopeStack(), new DiagnosticBag())) is not null);
+        lambda.Parameters.Zip(parameterTypes).All(pair => string.IsNullOrEmpty(pair.First.TypeRef) || pair.First.TypeRef == pair.Second);
 
     private static void Report(string message, SourceLocation location, VerificationContext ctx) =>
         ctx.Diagnostics.Report(DiagnosticCode.DelegateSignatureMismatch, DiagnosticSeverity.Error, message, location);

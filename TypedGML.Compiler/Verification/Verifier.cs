@@ -7,7 +7,6 @@ using TypedGML.Compiler.Diagnostics;
 using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Verification;
-
 public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag diagnostics)
 {
     public void Verify(IReadOnlyList<FileNode> files, SymbolTable symbols)
@@ -119,7 +118,7 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
             case AssignmentExpressionNode assignment: Walk(assignment.Target, ctx, currentNamespace); WalkExpected(assignment.Value, ExpressionTypeResolver.Resolve(assignment.Target, ctx), ctx, currentNamespace); break;
             case MemberAccessExpressionNode access: Walk(access.Target, ctx, currentNamespace); break;
             case IndexerAccessExpressionNode indexer: Walk(indexer.Target, ctx, currentNamespace); Walk(indexer.Index, ctx, currentNamespace); break;
-            case InvocationExpressionNode invocation: Walk(invocation.Target, ctx, currentNamespace); WalkMany(invocation.PositionalArgs, ctx, currentNamespace); WalkMany(invocation.NamedArgs, ctx, currentNamespace); break;
+            case InvocationExpressionNode invocation: WalkInvocation(invocation, ctx, currentNamespace); break;
             case NamedArgNode named: Walk(named.Value, ctx, currentNamespace); break;
             case ObjectCreationExpressionNode creation: WalkMany(creation.PositionalArgs, ctx, currentNamespace); WalkMany(creation.NamedArgs, ctx, currentNamespace); break;
             case CastExpressionNode cast: Walk(cast.Expression, ctx, currentNamespace); break;
@@ -133,6 +132,7 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
     private void WalkMany(IEnumerable<IAstNode> nodes, VerificationContext ctx, string currentNamespace) { foreach (var node in nodes) Walk(node, ctx, currentNamespace); }
     private void WalkNullable(IAstNode? node, VerificationContext ctx, string currentNamespace) { if (node is not null) Walk(node, ctx, currentNamespace); }
     private void WalkExpected(IAstNode? node, string? expectedType, VerificationContext ctx, string currentNamespace) { if (node is null) return; ctx.PushExpectedType(expectedType); Walk(node, ctx, currentNamespace); ctx.PopExpectedType(); }
+    private void WalkInvocation(InvocationExpressionNode invocation, VerificationContext ctx, string currentNamespace) { Walk(invocation.Target, ctx, currentNamespace); for (var i = 0; i < invocation.PositionalArgs.Count; i++) WalkExpected(invocation.PositionalArgs[i], InvocationExpectedTypeResolver.Positional(invocation, i, ctx), ctx, currentNamespace); foreach (var namedArg in invocation.NamedArgs) WalkExpected(namedArg.Value, InvocationExpectedTypeResolver.Named(invocation, namedArg.Name, ctx), ctx, currentNamespace); }
     private void WalkLambda(LambdaExpressionNode lambda, VerificationContext ctx, string currentNamespace) { DelegateTypeHelper.TrySignature(ctx.CurrentExpectedType, ctx, out var returnType, out var parameterTypes); ctx.Scope.Push(); for (var i = 0; i < lambda.Parameters.Count; i++) ctx.Scope.Declare(lambda.Parameters[i].Name, ParameterType(lambda, parameterTypes, i)); ctx.PushReturnType(returnType); RunChecks(lambda, ctx); Walk(lambda.Body, ctx, currentNamespace); ctx.PopReturnType(); ctx.Scope.Pop(); }
     private static string ParameterType(LambdaExpressionNode lambda, IReadOnlyList<string> parameterTypes, int index) => string.IsNullOrEmpty(lambda.Parameters[index].TypeRef) && index < parameterTypes.Count ? parameterTypes[index] : lambda.Parameters[index].TypeRef;
     private static string Combine(string currentNamespace, string name) => string.IsNullOrEmpty(currentNamespace) ? name : $"{currentNamespace}.{name}";

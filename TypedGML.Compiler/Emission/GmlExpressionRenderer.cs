@@ -79,7 +79,12 @@ internal static class GmlExpressionRenderer
     {
         var parameters = string.Join(", ", node.Parameters.Select(p => p.Name));
         if (node.Body is not Ast.Statements.BlockStatementNode)
-            return $"function({parameters}) {{ return {Render(node.Body, ctx)}; }}";
+        {
+            var rendered = Render(node.Body, ctx);
+            return EmitDelegateTypeHelper.TrySignature(ctx.CurrentExpectedType, ctx, out var returnType, out _) && returnType != "void"
+                ? $"function({parameters}) {{ return {rendered}; }}"
+                : $"function({parameters}) {{ {rendered}; }}";
+        }
 
         var writer = new GmlWriter();
         var nested = ctx.WithWriter(writer);

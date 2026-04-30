@@ -69,7 +69,7 @@ public sealed class MethodCallCheck : ISemanticCheck
             return false;
 
         for (var i = 0; i < invocation.PositionalArgs.Count; i++)
-            if (!TypeReferenceHelper.IsAssignable(candidate.Parameters[i].TypeRef, ExpressionTypeResolver.Resolve(invocation.PositionalArgs[i], ctx), ctx))
+            if (!ArgumentMatches(candidate.Parameters[i].TypeRef, invocation.PositionalArgs[i], ctx))
                 return false;
 
         foreach (var namedArg in invocation.NamedArgs)
@@ -78,12 +78,21 @@ public sealed class MethodCallCheck : ISemanticCheck
             if (index < 0)
                 return false;
 
-            if (!TypeReferenceHelper.IsAssignable(candidate.Parameters[index].TypeRef, ExpressionTypeResolver.Resolve(namedArg.Value, ctx), ctx))
+            if (!ArgumentMatches(candidate.Parameters[index].TypeRef, namedArg.Value, ctx))
                 return false;
         }
 
         return true;
     }
+
+    private static bool ArgumentMatches(string targetType, IAstNode value, VerificationContext ctx) =>
+        value is LambdaExpressionNode lambda && DelegateTypeHelper.TrySignature(targetType, ctx, out _, out var parameterTypes)
+            ? LambdaParametersMatch(lambda, parameterTypes)
+            : TypeReferenceHelper.IsAssignable(targetType, ExpressionTypeResolver.Resolve(value, ctx), ctx);
+
+    private static bool LambdaParametersMatch(LambdaExpressionNode lambda, IReadOnlyList<string> parameterTypes) =>
+        lambda.Parameters.Count == parameterTypes.Count &&
+        lambda.Parameters.Zip(parameterTypes).All(pair => string.IsNullOrEmpty(pair.First.TypeRef) || pair.First.TypeRef == pair.Second);
 
     private static bool HasDuplicateNamedArgs(InvocationExpressionNode invocation) =>
         invocation.NamedArgs.GroupBy(arg => arg.Name, StringComparer.Ordinal).Any(group => group.Count() > 1);

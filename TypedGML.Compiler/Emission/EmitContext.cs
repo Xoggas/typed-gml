@@ -51,6 +51,29 @@ public sealed class EmitContext(
 
     public TypeSymbol? BaseCallLookupType { get; set; }
 
+    private List<string> ExpectedTypeStack { get; set; } = [];
+
+    public string? CurrentExpectedType => ExpectedTypeStack.Count == 0 ? null : ExpectedTypeStack[^1];
+
+    public string RenderWithExpected(IAstNode node, string? expectedType)
+    {
+        PushExpectedType(expectedType);
+        try
+        {
+            return Emitter.Render(node, this);
+        }
+        finally
+        {
+            PopExpectedType();
+        }
+    }
+
+    public void PushExpectedType(string? typeRef) =>
+        ExpectedTypeStack.Add(typeRef ?? string.Empty);
+
+    public void PopExpectedType() =>
+        ExpectedTypeStack.RemoveAt(ExpectedTypeStack.Count - 1);
+
     public void PushSubstitution(Dictionary<string, IAstNode> substitutions) =>
         SubstitutionFrames.Add(substitutions);
 
@@ -98,6 +121,7 @@ public sealed class EmitContext(
             IsObjectEventContext = IsObjectEventContext,
             SubstitutionFrames = SubstitutionFrames,
             BaseCallLookupType = BaseCallLookupType,
+            ExpectedTypeStack = ExpectedTypeStack,
         };
 
     private int FindSubstitutionFrame(string name)

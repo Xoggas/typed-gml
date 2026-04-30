@@ -10,6 +10,10 @@ public class GameObject
     @NativeProperty("object_index")
     public number ObjectIndex { get; }
 
+    public constructor(number x, number y, string layer)
+    {
+    }
+
     // ── Position ─────────────────────────────────────────────────
     @NativeProperty("x")
     public number X { get; set; }

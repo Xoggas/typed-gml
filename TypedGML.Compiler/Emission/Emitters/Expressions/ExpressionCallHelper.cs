@@ -67,12 +67,12 @@ internal static class ExpressionCallHelper
 
         var values = new string[candidate.Parameters.Count];
         for (var i = 0; i < positionalArgs.Count && i < values.Length; i++)
-            values[i] = ctx.Emitter.Render(positionalArgs[i], ctx);
+            values[i] = ctx.RenderWithExpected(positionalArgs[i], candidate.Parameters[i].TypeRef);
         foreach (var namedArg in namedArgs)
         {
             var index = candidate.Parameters.ToList().FindIndex(p => p.Name == namedArg.Name);
             if (index >= 0)
-                values[index] = ctx.Emitter.Render(namedArg.Value, ctx);
+                values[index] = ctx.RenderWithExpected(namedArg.Value, candidate.Parameters[index].TypeRef);
         }
 
         for (var i = 0; i < values.Length; i++)

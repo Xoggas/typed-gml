@@ -23,7 +23,9 @@ public sealed class DelegateEmissionTests
         var result = CompilerFixture.Compile("public class LambdaHost { public void Run() { Action<number> fn = (number x) => x * 2; } }");
 
         result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
-        GmlAssert.ContainsPattern(result.GetFile("LambdaHost.gml")!, "var fn = function(x) { return (x * 2); };");
+        var gml = result.GetFile("LambdaHost.gml")!;
+        GmlAssert.ContainsPattern(gml, "var fn = function(x) { (x * 2); };");
+        GmlAssert.NotContainsPattern(gml, "return (x * 2);");
     }
 
     [Fact]

@@ -23,10 +23,11 @@ public sealed class AssignmentExpressionEmitter : INodeEmitter
         }
 
         var target = ctx.Emitter.Render(expression.Target, ctx);
+        var targetType = ExpressionTypeLookup.Resolve(expression.Target, ctx);
         if (!ExpressionSymbolHelper.IsDelegateTarget(expression.Target, ctx) ||
             expression.Op is not "+=" and not "-=")
         {
-            var renderedValue = ctx.Emitter.Render(expression.Value, ctx);
+            var renderedValue = ctx.RenderWithExpected(expression.Value, targetType);
             ctx.Writer.Write($"{target} {expression.Op} {renderedValue}");
             return;
         }

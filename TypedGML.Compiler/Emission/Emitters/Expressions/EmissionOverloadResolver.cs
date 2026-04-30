@@ -33,19 +33,28 @@ internal static class EmissionOverloadResolver
             return false;
 
         for (var i = 0; i < positionalArgs.Count; i++)
-            if (!IsAssignable(Substitute(candidate.Parameters[i].TypeRef, substitutions), ExpressionTypeLookup.Resolve(positionalArgs[i], ctx), ctx))
+            if (!ArgumentMatches(Substitute(candidate.Parameters[i].TypeRef, substitutions), positionalArgs[i], ctx))
                 return false;
 
         foreach (var namedArg in namedArgs)
         {
             var index = IndexOf(candidate, namedArg.Name);
             if (index < 0 || index < positionalArgs.Count ||
-                !IsAssignable(Substitute(candidate.Parameters[index].TypeRef, substitutions), ExpressionTypeLookup.Resolve(namedArg.Value, ctx), ctx))
+                !ArgumentMatches(Substitute(candidate.Parameters[index].TypeRef, substitutions), namedArg.Value, ctx))
                 return false;
         }
 
         return true;
     }
+
+    private static bool ArgumentMatches(string targetType, IAstNode value, EmitContext ctx) =>
+        value is LambdaExpressionNode lambda && EmitDelegateTypeHelper.TrySignature(targetType, ctx, out _, out var parameterTypes)
+            ? LambdaParametersMatch(lambda, parameterTypes)
+            : IsAssignable(targetType, ExpressionTypeLookup.Resolve(value, ctx), ctx);
+
+    private static bool LambdaParametersMatch(LambdaExpressionNode lambda, IReadOnlyList<string> parameterTypes) =>
+        lambda.Parameters.Count == parameterTypes.Count &&
+        lambda.Parameters.Zip(parameterTypes).All(pair => string.IsNullOrEmpty(pair.First.TypeRef) || pair.First.TypeRef == pair.Second);
 
     private static bool IsAssignable(string? targetType, string? sourceType, EmitContext ctx)
     {

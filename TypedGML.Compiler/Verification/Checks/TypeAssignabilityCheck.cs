@@ -6,7 +6,6 @@ using TypedGML.Compiler.Ast.Statements;
 using TypedGML.Compiler.Diagnostics;
 
 namespace TypedGML.Compiler.Verification.Checks;
-
 public sealed class TypeAssignabilityCheck : ISemanticCheck
 {
     public bool Matches(IAstNode node) =>
@@ -109,7 +108,10 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
             return;
 
         if (expectedType == "void" && @return.Value is not null)
-            Report(DiagnosticCode.InvalidReturnUsage, "Void member cannot return a value.", @return.Location, ctx);
+        {
+            var isVoidDelegate = IsVoidDelegateReturn(ctx);
+            Report(isVoidDelegate ? DiagnosticCode.TypeMismatch : DiagnosticCode.InvalidReturnUsage, isVoidDelegate ? "Void delegate lambda cannot return a value." : "Void member cannot return a value.", @return.Location, ctx);
+        }
 
         if (expectedType != "void" && @return.Value is null)
             Report(DiagnosticCode.MissingReturnInNonVoidMethod, $"Member returning '{expectedType}' must return a value.", @return.Location, ctx);
@@ -139,6 +141,8 @@ public sealed class TypeAssignabilityCheck : ISemanticCheck
     }
 
     private static bool IsEmptyArrayForArrayTarget(IAstNode? value, string? targetType) => value is ArrayLiteralExpressionNode { Elements.Count: 0 } && targetType?.EndsWith("[]", StringComparison.Ordinal) == true;
+
+    private static bool IsVoidDelegateReturn(VerificationContext ctx) => DelegateTypeHelper.TrySignature(ctx.CurrentExpectedType, ctx, out var returnType, out _) && returnType == "void";
 
     private static void Report(DiagnosticCode code, string message, SourceLocation location, VerificationContext ctx) =>
         ctx.Diagnostics.Report(code, DiagnosticSeverity.Error, message, location);
