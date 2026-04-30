@@ -79,6 +79,13 @@ internal static class ExpressionTypeLookup
 
     private static MemberSymbol? ResolveMember(IAstNode target, EmitContext ctx)
     {
+        if (target is MemberAccessExpressionNode qualifiedAccess &&
+            QualifiedTypeAccessResolver.TryResolveMember(qualifiedAccess, ctx, out var qualifiedOwner, out var qualifiedMember))
+        {
+            qualifiedOwner = PrimitiveBclTypeResolver.ResolveMemberOwner(qualifiedOwner, ctx.Symbols);
+            return qualifiedOwner.Members.FirstOrDefault(m => m.Name == qualifiedMember);
+        }
+
         if (target is MemberAccessExpressionNode access &&
             ExpressionSymbolHelper.TryResolveTargetType(access.Target, ctx, out var owner))
             return owner.Members.FirstOrDefault(m => m.Name == access.MemberName);

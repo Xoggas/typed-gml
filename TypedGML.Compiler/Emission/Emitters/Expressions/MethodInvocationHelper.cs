@@ -42,6 +42,7 @@ internal static class MethodInvocationHelper
                 receiver = ctx.SelfName ?? "self";
                 return TryResolveCurrentMethod(identifier.Name, expression, ctx, out owner, out member);
             case MemberAccessExpressionNode access when QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var qualifiedType, out var qualifiedMember):
+                qualifiedType = PrimitiveBclTypeResolver.ResolveMemberOwner(qualifiedType, ctx.Symbols);
                 owner = qualifiedType;
                 member = EmissionOverloadResolver.Pick(
                     qualifiedType.Members.Where(m => m.Kind == MemberKind.Method && m.Name == qualifiedMember).ToList(),

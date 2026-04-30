@@ -70,7 +70,10 @@ internal static class ExpressionTypeResolver
     private static string? ResolveMemberAccess(MemberAccessExpressionNode access, VerificationContext ctx)
     {
         if (QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var owner, out var memberName))
+        {
+            owner = PrimitiveBclTypeResolver.ResolveMemberOwner(owner, ctx.Symbols);
             return SymbolResolver.FindMember(owner, memberName, out _)?.ReturnType;
+        }
 
         if (QualifiedTypeAccessResolver.TryResolveType(access, ctx, out var type))
             return type.QualifiedName;

@@ -26,7 +26,7 @@ public sealed class MemberAccessCheck : ISemanticCheck
     {
         if (QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var qualifiedType, out var qualifiedMember))
         {
-            CheckMember(qualifiedType, qualifiedMember, access.Location, ctx);
+            CheckMember(PrimitiveBclTypeResolver.ResolveMemberOwner(qualifiedType, ctx.Symbols), qualifiedMember, access.Location, ctx);
             return;
         }
 

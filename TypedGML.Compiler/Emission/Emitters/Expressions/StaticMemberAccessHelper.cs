@@ -68,6 +68,7 @@ internal static class StaticMemberAccessHelper
         switch (node)
         {
             case MemberAccessExpressionNode access when QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var qualifiedType, out var qualifiedMember):
+                qualifiedType = PrimitiveBclTypeResolver.ResolveMemberOwner(qualifiedType, ctx.Symbols);
                 return TryResolveMember(qualifiedType, qualifiedMember, out owner, out member);
             case MemberAccessExpressionNode access when TryResolveType(access.Target, ctx, out var type):
                 return TryResolveMember(type, access.MemberName, out owner, out member);

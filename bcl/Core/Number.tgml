@@ -95,5 +95,8 @@ public class Number
 
     @NativeCall("random_range")
     public static number RandomRange(number minValue, number maxValue) { return default(number); }
+
+    @NativeCall("real")
+    public static number Parse(string value) { return default(number); }
 }
 

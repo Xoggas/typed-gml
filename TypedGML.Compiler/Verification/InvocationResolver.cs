@@ -32,7 +32,10 @@ internal static class InvocationResolver
     {
         delegateInvocation = false;
         if (QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var owner, out var memberName))
+        {
+            owner = PrimitiveBclTypeResolver.ResolveMemberOwner(owner, ctx.Symbols);
             return MemberSignatureHelper.Members(owner, memberName, MemberKind.Method).ToList();
+        }
 
         if (!SymbolResolver.TryResolveType(ExpressionTypeResolver.Resolve(access.Target, ctx), ctx, out var targetType))
             return [];
