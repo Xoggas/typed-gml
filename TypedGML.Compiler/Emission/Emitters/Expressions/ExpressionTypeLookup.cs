@@ -19,6 +19,7 @@ internal static class ExpressionTypeLookup
         },
         IdentifierExpressionNode identifier => ResolveIdentifier(identifier, ctx),
         ObjectCreationExpressionNode creation => creation.TypeRef,
+        CastExpressionNode cast => cast.CastKind == CastKind.Is ? "bool" : cast.TargetType,
         MemberAccessExpressionNode access => ResolveMember(access, ctx)?.ReturnType,
         InvocationExpressionNode invocation => ResolveInvocation(invocation, ctx),
         BinaryExpressionNode binary => ResolveBinary(binary, ctx),
