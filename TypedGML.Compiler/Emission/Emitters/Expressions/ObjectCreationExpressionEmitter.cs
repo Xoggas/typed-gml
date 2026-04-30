@@ -1,6 +1,7 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Symbols;
+using TypedGML.Compiler.Utils;
 
 namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 
@@ -29,7 +30,19 @@ public sealed class ObjectCreationExpressionEmitter : INodeEmitter
             return;
         }
 
-        if (expression.PositionalArgs.Count <= 3)
+        var constructor = PickConstructor(type, expression, ctx);
+        var hasBaseSpatialValues = ObjectConstructorSpatialArguments.TryGetBaseChainValues(
+            constructor,
+            arg => ExpressionTypeLookup.Resolve(arg, ctx),
+            out var spatialArgs);
+        if (hasBaseSpatialValues && constructor?.Parameters.Count == 0)
+        {
+            var values = spatialArgs.Select(arg => ctx.Emitter.Render(arg, ctx)).ToList();
+            ctx.Writer.Write($"instance_create_layer({values[0]}, {values[1]}, {values[2]}, {type.ObjectAssetName})");
+            return;
+        }
+
+        if (!hasBaseSpatialValues && expression.PositionalArgs.Count <= 3)
         {
             var x = expression.PositionalArgs.ElementAtOrDefault(0) is null ? "undefined" : ctx.Emitter.Render(expression.PositionalArgs[0], ctx);
             var y = expression.PositionalArgs.ElementAtOrDefault(1) is null ? "undefined" : ctx.Emitter.Render(expression.PositionalArgs[1], ctx);
@@ -38,7 +51,7 @@ public sealed class ObjectCreationExpressionEmitter : INodeEmitter
             return;
         }
 
-        ctx.Writer.Write($"{ConstructorName(type, expression, ctx)}({string.Join(", ", expression.PositionalArgs.Select(a => ctx.Emitter.Render(a, ctx)).Concat(expression.NamedArgs.Select(a => ctx.Emitter.Render(a.Value, ctx))) )})");
+        ctx.Writer.Write($"{ConstructorName(type, expression, ctx)}({string.Join(", ", expression.PositionalArgs.Select(a => ctx.Emitter.Render(a, ctx)).Concat(expression.NamedArgs.Select(a => ctx.Emitter.Render(a.Value, ctx))))})");
     }
 
     private static void EmitGenericCreation(ObjectCreationExpressionNode expression, TypeSymbol type, EmitContext ctx)
@@ -51,17 +64,20 @@ public sealed class ObjectCreationExpressionEmitter : INodeEmitter
 
     private static string ConstructorName(TypeSymbol type, ObjectCreationExpressionNode expression, EmitContext ctx)
     {
-        var constructor = EmissionOverloadResolver.Pick(
-            type.Members.Where(member => member.Kind == MemberKind.Constructor).ToList(),
-            expression.PositionalArgs,
-            expression.NamedArgs,
-            ctx,
-            Substitutions(type, expression.TypeArgs));
+        var constructor = PickConstructor(type, expression, ctx);
 
         return constructor is null
             ? NamingConvention.ConstructorName(type)
             : NamingConvention.ConstructorName(type, constructor);
     }
+
+    private static MemberSymbol? PickConstructor(TypeSymbol type, ObjectCreationExpressionNode expression, EmitContext ctx) =>
+        EmissionOverloadResolver.Pick(
+            type.Members.Where(member => member.Kind == MemberKind.Constructor).ToList(),
+            expression.PositionalArgs,
+            expression.NamedArgs,
+            ctx,
+            Substitutions(type, expression.TypeArgs));
 
     private static IReadOnlyDictionary<string, string> Substitutions(TypeSymbol type, IReadOnlyList<string> typeArgs) =>
         type.GenericParameters.Zip(typeArgs)

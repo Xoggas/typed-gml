@@ -25,7 +25,7 @@ public class String
 
     public static bool Contains(string s, string sub)
     {
-        return String.IndexOf(s, sub) != 0;
+        return string.IndexOf(s, sub) != 0;
     }
 
     public static bool IsNullOrEmpty(string s)

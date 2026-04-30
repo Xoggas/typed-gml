@@ -1,3 +1,4 @@
+using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Members;
 
 namespace TypedGML.Compiler.Symbols;
@@ -17,6 +18,10 @@ public sealed class MemberSymbol
     public IReadOnlySet<string> Modifiers { get; set; } = new HashSet<string>();
 
     public object? ConstValue { get; set; }
+
+    public ConstructorChainTarget ConstructorChainTarget { get; set; } = ConstructorChainTarget.None;
+
+    public IReadOnlyList<IAstNode> ConstructorChainArgs { get; set; } = [];
 
     public string? NativeEventName { get; set; }
 

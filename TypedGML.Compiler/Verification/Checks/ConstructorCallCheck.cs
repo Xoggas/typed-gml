@@ -3,6 +3,7 @@ using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Diagnostics;
 using TypedGML.Compiler.Symbols;
+using TypedGML.Compiler.Utils;
 
 namespace TypedGML.Compiler.Verification.Checks;
 
@@ -46,9 +47,6 @@ public sealed class ConstructorCallCheck : ISemanticCheck
             Report(DiagnosticCode.AbstractClassInstantiation, $"Abstract type '{type.QualifiedName}' cannot be instantiated.", creation.Location, ctx);
 
         var positionalArgs = creation.PositionalArgs;
-        if (type.ObjectAssetName is not null && creation.PositionalArgs.Count < 3)
-            Report(DiagnosticCode.InvalidObjectConstructorArgumentCount, "@Object construction requires x, y, and layer arguments.", creation.Location, ctx);
-
         var constructors = type.Members.Where(member => member.Kind == MemberKind.Constructor).ToList();
         if (constructors.Count == 0)
         {
@@ -58,8 +56,16 @@ public sealed class ConstructorCallCheck : ISemanticCheck
         }
 
         var substitutions = GenericTypeSubstitution.Map(type, creation.TypeArgs);
-        if (!constructors.Any(member => Matches(member, positionalArgs, substitutions, ctx)))
+        var matches = constructors.Where(member => Matches(member, positionalArgs, substitutions, ctx)).ToList();
+        if (matches.Count == 0)
+        {
             Report(DiagnosticCode.NoMatchingMethodOverload, $"Type '{type.QualifiedName}' does not have a matching constructor.", creation.Location, ctx);
+            return;
+        }
+
+        if (type.ObjectAssetName is not null &&
+            !matches.Any(member => ObjectConstructorSpatialArguments.SuppliesRequiredValues(member, arg => ExpressionTypeResolver.Resolve(arg, ctx))))
+            Report(DiagnosticCode.InvalidObjectConstructorArgumentCount, "@Object construction requires x, y, and layer arguments from the constructor parameters or base constructor call.", creation.Location, ctx);
     }
 
     private static bool Matches(MemberSymbol constructor, IReadOnlyList<IAstNode> args, VerificationContext ctx) =>
