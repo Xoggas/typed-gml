@@ -34,14 +34,15 @@ internal static class InvocationResolver
         if (QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var owner, out var memberName))
         {
             owner = PrimitiveBclTypeResolver.ResolveMemberOwner(owner, ctx.Symbols);
-            return MemberSignatureHelper.Members(owner, memberName, MemberKind.Method).ToList();
+            return MemberCandidateFilter.MostDerived(MemberSignatureHelper.Members(owner, memberName, MemberKind.Method)).ToList();
         }
 
         var targetTypeRef = ExpressionTypeResolver.Resolve(access.Target, ctx);
         if (!SymbolResolver.TryResolveType(targetTypeRef, ctx, out var targetType))
             return [];
 
-        var methods = GenericMemberResolver.Members(targetType, targetTypeRef, access.MemberName, MemberKind.Method).ToList();
+        var methods = MemberCandidateFilter.MostDerived(
+            GenericMemberResolver.Members(targetType, targetTypeRef, access.MemberName, MemberKind.Method)).ToList();
         if (methods.Count > 0)
             return methods;
 
@@ -60,7 +61,8 @@ internal static class InvocationResolver
         if (!SymbolResolver.TryResolveType(targetTypeRef, ctx, out var targetType))
             return [];
 
-        return GenericMemberResolver.Members(targetType, targetTypeRef, conditional.MemberName, MemberKind.Method).ToList();
+        return MemberCandidateFilter.MostDerived(
+            GenericMemberResolver.Members(targetType, targetTypeRef, conditional.MemberName, MemberKind.Method)).ToList();
     }
 
     private static IReadOnlyList<MemberSymbol> ResolveIdentifier(
@@ -75,7 +77,8 @@ internal static class InvocationResolver
             return [];
         }
 
-        var methods = MemberSignatureHelper.Members(ctx.CurrentType, identifier.Name, MemberKind.Method).ToList();
+        var methods = MemberCandidateFilter.MostDerived(
+            MemberSignatureHelper.Members(ctx.CurrentType, identifier.Name, MemberKind.Method)).ToList();
         if (methods.Count > 0)
             return methods;
 
