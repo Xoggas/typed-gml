@@ -29,29 +29,29 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
                     VisitNodes(ns.Body, Combine(currentNamespace, ns.Name));
                     break;
                 case ClassDeclarationNode type:
-                    PopulateMembers(type.Members, Combine(currentNamespace, type.Name));
+                    PopulateMembers(type.Members, Combine(currentNamespace, type.Name), type.GenericParams.Count);
                     VisitNodes(type.Members, currentNamespace);
                     break;
                 case StructDeclarationNode type:
-                    PopulateMembers(type.Members, Combine(currentNamespace, type.Name));
+                    PopulateMembers(type.Members, Combine(currentNamespace, type.Name), type.GenericParams.Count);
                     VisitNodes(type.Members, currentNamespace);
                     break;
                 case InterfaceDeclarationNode type:
-                    PopulateMembers(type.Members, Combine(currentNamespace, type.Name));
+                    PopulateMembers(type.Members, Combine(currentNamespace, type.Name), type.GenericParams.Count);
                     break;
                 case EnumDeclarationNode type:
                     PopulateEnumMembers(type.Members, Combine(currentNamespace, type.Name));
                     break;
                 case DelegateDeclarationNode type:
-                    PopulateDelegate(type, Combine(currentNamespace, type.Name));
+                    PopulateDelegate(type, Combine(currentNamespace, type.Name), type.GenericParams.Count);
                     break;
             }
         }
     }
 
-    private void PopulateMembers(IEnumerable<IAstNode> members, string qualifiedTypeName)
+    private void PopulateMembers(IEnumerable<IAstNode> members, string qualifiedTypeName, int arity)
     {
-        if (!symbolTable.TryResolve(qualifiedTypeName, null, [], out var typeSymbol))
+        if (!symbolTable.TryResolve(qualifiedTypeName, arity, null, [], out var typeSymbol))
             return;
 
         foreach (var member in members)
@@ -127,9 +127,9 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
             });
     }
 
-    private void PopulateDelegate(DelegateDeclarationNode declaration, string qualifiedTypeName)
+    private void PopulateDelegate(DelegateDeclarationNode declaration, string qualifiedTypeName, int arity)
     {
-        if (!symbolTable.TryResolve(qualifiedTypeName, null, [], out var typeSymbol))
+        if (!symbolTable.TryResolve(qualifiedTypeName, arity, null, [], out var typeSymbol))
             return;
 
         typeSymbol.Members.Add(new MemberSymbol

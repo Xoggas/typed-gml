@@ -34,16 +34,16 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
                 WalkMany(ns.Body, ctx, Combine(currentNamespace, ns.Name));
                 break;
             case ClassDeclarationNode type:
-                WithType(Combine(currentNamespace, type.Name), ctx, () => { RunChecks(type, ctx); WalkMany(type.Members, ctx, currentNamespace); });
+                WithType(Combine(currentNamespace, type.Name), type.GenericParams.Count, ctx, () => { RunChecks(type, ctx); WalkMany(type.Members, ctx, currentNamespace); });
                 break;
             case StructDeclarationNode type:
-                WithType(Combine(currentNamespace, type.Name), ctx, () => { RunChecks(type, ctx); WalkMany(type.Members, ctx, currentNamespace); });
+                WithType(Combine(currentNamespace, type.Name), type.GenericParams.Count, ctx, () => { RunChecks(type, ctx); WalkMany(type.Members, ctx, currentNamespace); });
                 break;
             case InterfaceDeclarationNode type:
-                WithType(Combine(currentNamespace, type.Name), ctx, () => { RunChecks(type, ctx); WalkMany(type.Members, ctx, currentNamespace); });
+                WithType(Combine(currentNamespace, type.Name), type.GenericParams.Count, ctx, () => { RunChecks(type, ctx); WalkMany(type.Members, ctx, currentNamespace); });
                 break;
             case EnumDeclarationNode type:
-                WithType(Combine(currentNamespace, type.Name), ctx, () => { RunChecks(type, ctx); WalkMany(type.Members, ctx, currentNamespace); });
+                WithType(Combine(currentNamespace, type.Name), 0, ctx, () => { RunChecks(type, ctx); WalkMany(type.Members, ctx, currentNamespace); });
                 break;
             case EnumMemberNode member:
                 RunChecks(member, ctx);
@@ -136,7 +136,7 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
     private void WalkLambda(LambdaExpressionNode lambda, VerificationContext ctx, string currentNamespace) { DelegateTypeHelper.TrySignature(ctx.CurrentExpectedType, ctx, out var returnType, out var parameterTypes); ctx.Scope.Push(); for (var i = 0; i < lambda.Parameters.Count; i++) ctx.Scope.Declare(lambda.Parameters[i].Name, ParameterType(lambda, parameterTypes, i)); ctx.PushReturnType(returnType); RunChecks(lambda, ctx); Walk(lambda.Body, ctx, currentNamespace); ctx.PopReturnType(); ctx.Scope.Pop(); }
     private static string ParameterType(LambdaExpressionNode lambda, IReadOnlyList<string> parameterTypes, int index) => string.IsNullOrEmpty(lambda.Parameters[index].TypeRef) && index < parameterTypes.Count ? parameterTypes[index] : lambda.Parameters[index].TypeRef;
     private static string Combine(string currentNamespace, string name) => string.IsNullOrEmpty(currentNamespace) ? name : $"{currentNamespace}.{name}";
-    private void WithType(string qualifiedName, VerificationContext ctx, Action action) { var previous = ctx.CurrentType; ctx.Symbols.TryResolve(qualifiedName, null, [], out var type); ctx.CurrentType = type; action(); ctx.CurrentType = previous; }
+    private void WithType(string qualifiedName, int arity, VerificationContext ctx, Action action) { var previous = ctx.CurrentType; ctx.Symbols.TryResolve(qualifiedName, arity, null, [], out var type); ctx.CurrentType = type; action(); ctx.CurrentType = previous; }
     private void WithMember(MemberSymbol member, VerificationContext ctx, bool isConstructor, IReadOnlyList<ParameterNode>? parameters, Action action) { var previousMember = ctx.CurrentMember; var previousConstructor = ctx.IsInConstructor; ctx.CurrentMember = member; ctx.IsInConstructor = isConstructor; ctx.Scope.Push(); ctx.PushReturnType(member.ReturnType); foreach (var parameter in parameters ?? []) ctx.Scope.Declare(parameter.Name, parameter.TypeRef); action(); ctx.PopReturnType(); ctx.Scope.Pop(); ctx.CurrentMember = previousMember; ctx.IsInConstructor = previousConstructor; }
     private void WithLoop(VerificationContext ctx, Action action) { var previous = ctx.IsInLoop; ctx.IsInLoop = true; action(); ctx.IsInLoop = previous; }
     private void WithSwitch(VerificationContext ctx, Action action) { var previous = ctx.IsInSwitch; ctx.IsInSwitch = true; action(); ctx.IsInSwitch = previous; }

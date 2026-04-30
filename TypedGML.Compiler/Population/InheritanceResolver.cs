@@ -34,23 +34,23 @@ public sealed class InheritanceResolver(SymbolTable symbolTable, DiagnosticBag d
                     ResolveNodes(ns.Body, Combine(currentNamespace, ns.Name), usingPrefixes);
                     break;
                 case ClassDeclarationNode type:
-                    ResolveType(type.BaseTypes, Combine(currentNamespace, type.Name), type.Location, false, currentNamespace, usingPrefixes);
+                    ResolveType(type.BaseTypes, Combine(currentNamespace, type.Name), type.GenericParams.Count, type.Location, false, currentNamespace, usingPrefixes);
                     ResolveNodes(type.Members, currentNamespace, usingPrefixes);
                     break;
                 case StructDeclarationNode type:
-                    ResolveType(type.BaseTypes, Combine(currentNamespace, type.Name), type.Location, true, currentNamespace, usingPrefixes);
+                    ResolveType(type.BaseTypes, Combine(currentNamespace, type.Name), type.GenericParams.Count, type.Location, true, currentNamespace, usingPrefixes);
                     ResolveNodes(type.Members, currentNamespace, usingPrefixes);
                     break;
                 case InterfaceDeclarationNode type:
-                    ResolveInterfaces(type.BaseTypes, Combine(currentNamespace, type.Name), currentNamespace, usingPrefixes);
+                    ResolveInterfaces(type.BaseTypes, Combine(currentNamespace, type.Name), type.GenericParams.Count, currentNamespace, usingPrefixes);
                     break;
             }
         }
     }
 
-    private void ResolveType(IReadOnlyList<string> baseTypes, string qualifiedName, Diagnostics.SourceLocation location, bool isStruct, string currentNamespace, IReadOnlyList<string> usingPrefixes)
+    private void ResolveType(IReadOnlyList<string> baseTypes, string qualifiedName, int arity, Diagnostics.SourceLocation location, bool isStruct, string currentNamespace, IReadOnlyList<string> usingPrefixes)
     {
-        if (!symbolTable.TryResolve(qualifiedName, null, [], out var typeSymbol))
+        if (!symbolTable.TryResolve(qualifiedName, arity, null, [], out var typeSymbol))
             return;
 
         if (!symbolTable.TryResolve("object", null, [], out var objectType))
@@ -82,9 +82,9 @@ public sealed class InheritanceResolver(SymbolTable symbolTable, DiagnosticBag d
         }
     }
 
-    private void ResolveInterfaces(IReadOnlyList<string> baseTypes, string qualifiedName, string currentNamespace, IReadOnlyList<string> usingPrefixes)
+    private void ResolveInterfaces(IReadOnlyList<string> baseTypes, string qualifiedName, int arity, string currentNamespace, IReadOnlyList<string> usingPrefixes)
     {
-        if (!symbolTable.TryResolve(qualifiedName, null, [], out var typeSymbol))
+        if (!symbolTable.TryResolve(qualifiedName, arity, null, [], out var typeSymbol))
             return;
 
         typeSymbol.Interfaces.Clear();

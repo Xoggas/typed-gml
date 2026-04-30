@@ -24,8 +24,7 @@ public sealed class GenericEmissionTests
 
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("Host.gml")!;
-        GmlAssert.ContainsPattern(gml, "var b = Box_create(42);");
-        GmlAssert.ContainsPattern(gml, "b.__genericArgs = { T: \"number\" };");
+        GmlAssert.ContainsPattern(gml, "var b = (function() { var __inst = Box1_create(42); __inst.__genericArgs = { T: \"number\" }; return __inst; })();");
     }
 
     [Fact]
@@ -40,7 +39,7 @@ public sealed class GenericEmissionTests
             """);
 
         result.HasErrors.Should().BeFalse();
-        var gml = result.GetFile("Box.gml")!;
+        var gml = result.GetFile("Box1.gml")!;
         GmlAssert.ContainsPattern(gml, "return self.__genericArgs.T;");
     }
 

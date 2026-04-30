@@ -7,7 +7,7 @@ namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 internal static class ExpressionSymbolHelper
 {
     public static bool TryResolveType(EmitContext ctx, string? typeRef, out TypeSymbol symbol) =>
-        ctx.Symbols.TryResolve(RootName(typeRef), CurrentNamespace(ctx), ctx.UsingPrefixes, out symbol);
+        ctx.Symbols.TryResolve(typeRef ?? string.Empty, CurrentNamespace(ctx), ctx.UsingPrefixes, out symbol);
 
     public static bool IsDelegateTarget(IAstNode target, EmitContext ctx) =>
         TryResolveDelegateMember(target, ctx, out _) ||
@@ -57,7 +57,7 @@ internal static class ExpressionSymbolHelper
         }
 
         if (target is ObjectCreationExpressionNode creation)
-            return TryResolveType(ctx, creation.TypeRef, out type);
+            return ctx.Symbols.TryResolve(creation.TypeRef, creation.TypeArgs.Count, CurrentNamespace(ctx), ctx.UsingPrefixes, out type);
 
         if (target is CastExpressionNode cast)
             return TryResolveType(ctx, cast.TargetType, out type);
@@ -93,14 +93,6 @@ internal static class ExpressionSymbolHelper
         if (ctx.CurrentType is null || !ctx.CurrentType.QualifiedName.Contains('.', StringComparison.Ordinal))
             return string.Empty;
         return ctx.CurrentType.QualifiedName[..ctx.CurrentType.QualifiedName.LastIndexOf('.')];
-    }
-
-    private static string RootName(string? typeRef)
-    {
-        if (string.IsNullOrWhiteSpace(typeRef))
-            return string.Empty;
-        var stop = typeRef.IndexOfAny(['<', '?', '[']);
-        return stop >= 0 ? typeRef[..stop] : typeRef;
     }
 
     private static bool TryResolveBclAlias(string name, EmitContext ctx, out TypeSymbol type)

@@ -15,7 +15,7 @@ public sealed class StructEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEm
     {
         var declaration = (StructDeclarationNode)node;
         var previousType = ctx.CurrentType;
-        ctx.CurrentType = ResolveType(ctx, declaration.Name);
+        ctx.CurrentType = ResolveType(ctx, declaration.Name, declaration.GenericParams.Count);
         EmitCreate(declaration, ctx);
         foreach (var member in declaration.Members.Where(m => m is not ConstructorDeclarationNode))
             ctx.Dispatch(member, ctx);
@@ -65,8 +65,8 @@ public sealed class StructEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEm
         ctx.Dispatch(body, ctx);
     }
 
-    private static TypeSymbol? ResolveType(EmitContext ctx, string name) =>
-        ctx.Symbols.TryResolve(name, ctx.CurrentNamespacePrefix, [], out var symbol) ? symbol : null;
+    private static TypeSymbol? ResolveType(EmitContext ctx, string name, int arity) =>
+        ctx.Symbols.TryResolve(name, arity, ctx.CurrentNamespacePrefix, [], out var symbol) ? symbol : null;
 
     private static string FormatValue(IAstNode? node) => node switch
     {

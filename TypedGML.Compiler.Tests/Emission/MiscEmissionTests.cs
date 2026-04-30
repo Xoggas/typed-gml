@@ -41,8 +41,8 @@ public sealed class MiscEmissionTests
                 }
             }
             """).GetFile("MiscHost.gml")!;
-        GmlAssert.ContainsPattern(gml, "Dictionary_create()");
-        GmlAssert.ContainsPattern(gml, "Dictionary_Add(");
+        GmlAssert.ContainsPattern(gml, "TypedGML_Collections_Dictionary2_create()");
+        GmlAssert.ContainsPattern(gml, "TypedGML_Collections_Dictionary2_Add(");
         GmlAssert.NotContainsPattern(gml, "ds_map_");
     }
 
@@ -57,7 +57,7 @@ public sealed class MiscEmissionTests
                 }
             }
             """).GetFile("MiscHost.gml")!;
-        GmlAssert.ContainsPattern(gml, "Dictionary_create()");
+        GmlAssert.ContainsPattern(gml, "TypedGML_Collections_Dictionary2_create()");
         GmlAssert.NotContainsPattern(gml, "(function()");
     }
 
@@ -74,7 +74,7 @@ public sealed class MiscEmissionTests
                     var value = new Container<number>();
                 }
             }
-            """).GetFile("MiscHost.gml")!, "value.__genericArgs = { T: \"number\" };");
+            """).GetFile("MiscHost.gml")!, "__inst.__genericArgs = { T: \"number\" };");
 
     [Fact]
     public void Test_GmlFormatting_FourSpaceIndent()
@@ -107,9 +107,9 @@ public sealed class MiscEmissionTests
                 }
             }
             """);
-        var gml = result.GetFile("TypedGML_Collections_HashSet.gml")!;
-        GmlAssert.ContainsPattern(gml, """(("HashSet[" + string(TypedGML_Collections_HashSet_get_Count(self)) + "]"))""");
-        GmlAssert.NotContainsPattern(gml, """(("HashSet[" + string(TypedGML_Collections_HashSet_get_Count(self))) + "]")""");
+        var gml = result.GetFile("TypedGML_Collections_HashSet1.gml")!;
+        GmlAssert.ContainsPattern(gml, """(("HashSet[" + string(TypedGML_Collections_HashSet1_get_Count(self)) + "]"))""");
+        GmlAssert.NotContainsPattern(gml, """(("HashSet[" + string(TypedGML_Collections_HashSet1_get_Count(self))) + "]")""");
     }
 
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);

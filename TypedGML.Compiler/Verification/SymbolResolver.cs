@@ -6,7 +6,15 @@ internal static class SymbolResolver
 {
     public static bool TryResolveType(string? typeRef, VerificationContext ctx, out TypeSymbol symbol) =>
         ctx.Symbols.TryResolve(
-            TypeReferenceHelper.RootName(typeRef),
+            typeRef ?? string.Empty,
+            TypeReferenceHelper.CurrentNamespace(ctx.CurrentType),
+            ctx.UsingPrefixes,
+            out symbol);
+
+    public static bool TryResolveType(string typeName, int arity, VerificationContext ctx, out TypeSymbol symbol) =>
+        ctx.Symbols.TryResolve(
+            typeName,
+            arity,
             TypeReferenceHelper.CurrentNamespace(ctx.CurrentType),
             ctx.UsingPrefixes,
             out symbol);

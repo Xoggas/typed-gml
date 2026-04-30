@@ -37,6 +37,43 @@ public sealed class PopulationTypeTests
         Compile("namespace A { public class Foo { } } namespace B { public class Foo { } }")
             .HasErrors.Should().BeFalse();
 
+    [Fact]
+    public void Test_GenericArityDistinguishesTypes() =>
+        Compile("""
+            namespace Test {
+                public delegate void Action();
+                public delegate void Action<T>(T arg);
+            }
+            """).HasErrors.Should().BeFalse();
+
+    [Fact]
+    public void Test_DuplicateSameArity_Error() =>
+        Compile("""
+            namespace Test {
+                public delegate void Action<T>(T arg);
+                public delegate void Action<U>(U arg);
+            }
+            """).HasError(DiagnosticCode.DuplicateTypeName).Should().BeTrue();
+
+    [Fact]
+    public void Test_TypeRefResolution_PicksCorrectArity()
+    {
+        var (result, symbols) = PopulationFixture.CompileWithSymbols("""
+            namespace Test {
+                public delegate void Action();
+                public delegate void Action<T>(T arg);
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        symbols.TryResolve("Test.Action<number>", null, [], out var type).Should().BeTrue();
+        type.Arity.Should().Be(1);
+    }
+
+    [Fact]
+    public void Test_BCLDelegates_NoErrors() =>
+        Compile("public class UserType { }").HasErrors.Should().BeFalse();
+
     private static CompileResult Compile(string source) =>
         PopulationFixture.Compile(source);
 }

@@ -100,7 +100,7 @@ internal static class BaseCallInlineRenderer
     private static bool TryGetClass(TypeSymbol type, EmitContext ctx, out ClassDeclarationNode declaration)
     {
         declaration = null!;
-        if (!ctx.TypeDeclarations.TryGetValue(type.QualifiedName, out var node))
+        if (!ctx.TypeDeclarations.TryGetValue(TypeDeclarationMapBuilder.Key(type), out var node))
             return false;
 
         if (node is not ClassDeclarationNode @class)

@@ -57,7 +57,7 @@ internal static class ConstructorChainInliner
 
     private static ConstructorDeclarationNode? ResolveConstructor(TypeSymbol type, int argumentCount, EmitContext ctx)
     {
-        if (!ctx.TypeDeclarations.TryGetValue(type.QualifiedName, out var declaration) || declaration is not ClassDeclarationNode @class)
+        if (!ctx.TypeDeclarations.TryGetValue(TypeDeclarationMapBuilder.Key(type), out var declaration) || declaration is not ClassDeclarationNode @class)
             return null;
 
         return @class.Members.OfType<ConstructorDeclarationNode>()

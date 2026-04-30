@@ -5,7 +5,7 @@ namespace TypedGML.Compiler.Emission;
 public static class NamingConvention
 {
     public static string TypeName(TypeSymbol type) =>
-        type.QualifiedName.Replace('.', '_');
+        $"{type.QualifiedName.Replace('.', '_')}{GenericAritySuffix(type)}";
 
     public static string MethodName(TypeSymbol type, MemberSymbol method) =>
         $"{TypeName(type)}_{method.Name}{OverloadSuffix(method)}";
@@ -53,6 +53,9 @@ public static class NamingConvention
         method.Overloads.Count > 0
             ? "__" + string.Join("_", method.Parameters.Select(p => p.TypeRef.Replace(".", "_", StringComparison.Ordinal)))
             : string.Empty;
+
+    private static string GenericAritySuffix(TypeSymbol type) =>
+        type.Arity == 0 ? string.Empty : type.Arity.ToString();
 
     private static string OperatorPart(string op) => op switch
     {

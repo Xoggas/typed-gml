@@ -12,13 +12,7 @@ internal static class GenericArgsRenderer
     }
 
     private static string ResolveTypeName(string typeRef, EmitContext ctx) =>
-        ctx.Symbols.TryResolve(TypeRoot(typeRef), ctx.CurrentNamespacePrefix, ctx.UsingPrefixes, out var type)
+        ctx.Symbols.TryResolve(typeRef, ctx.CurrentNamespacePrefix, ctx.UsingPrefixes, out var type)
             ? NamingConvention.TypeName(type)
             : typeRef;
-
-    private static string TypeRoot(string value)
-    {
-        var stop = value.IndexOfAny(['<', '?', '[']);
-        return stop >= 0 ? value[..stop] : value;
-    }
 }

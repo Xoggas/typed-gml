@@ -12,7 +12,7 @@ public sealed class ObjectCreationCheck : ISemanticCheck
     public void Check(IAstNode node, VerificationContext ctx)
     {
         var creation = (ObjectCreationExpressionNode)node;
-        if (!SymbolResolver.TryResolveType(creation.TypeRef, ctx, out var type))
+        if (!SymbolResolver.TryResolveType(creation.TypeRef, creation.TypeArgs.Count, ctx, out var type))
             return;
 
         if (type.Kind == TypeKind.Interface || type.Kind == TypeKind.Enum)

@@ -16,7 +16,7 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
     {
         var declaration = (ClassDeclarationNode)node;
         var previousType = ctx.CurrentType;
-        ctx.CurrentType = ResolveType(ctx, declaration.Name);
+        ctx.CurrentType = ResolveType(ctx, declaration.Name, declaration.GenericParams.Count);
         if (ctx.Decorators.ObjectAssetName is not null)
             EmitGameObject(declaration, ctx);
         else
@@ -69,7 +69,7 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
     private static void EmitDefaultConstructor(EmitContext ctx)
         => ConstructorEmitter.EmitImplicit(ctx.CurrentType!, ctx);
 
-    private static TypeSymbol? ResolveType(EmitContext ctx, string name) =>
-        ctx.Symbols.TryResolve(name, ctx.CurrentNamespacePrefix, [], out var symbol) ? symbol : null;
+    private static TypeSymbol? ResolveType(EmitContext ctx, string name, int arity) =>
+        ctx.Symbols.TryResolve(name, arity, ctx.CurrentNamespacePrefix, [], out var symbol) ? symbol : null;
 
 }

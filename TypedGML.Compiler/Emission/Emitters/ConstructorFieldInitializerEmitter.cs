@@ -32,7 +32,7 @@ internal static class ConstructorFieldInitializerEmitter
 
     private static IEnumerable<FieldDeclarationNode> Fields(TypeSymbol type, EmitContext ctx)
     {
-        if (!ctx.TypeDeclarations.TryGetValue(type.QualifiedName, out var declaration))
+        if (!ctx.TypeDeclarations.TryGetValue(TypeDeclarationMapBuilder.Key(type), out var declaration))
             return [];
 
         return declaration switch

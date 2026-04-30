@@ -11,7 +11,7 @@ public sealed class GenericConstraintCheck : ISemanticCheck
 
     public void Check(IAstNode node, VerificationContext ctx)
     {
-        if (node is not ObjectCreationExpressionNode creation || !SymbolResolver.TryResolveType(creation.TypeRef, ctx, out var type))
+        if (node is not ObjectCreationExpressionNode creation || !SymbolResolver.TryResolveType(creation.TypeRef, creation.TypeArgs.Count, ctx, out var type))
             return;
 
         if (creation.TypeArgs.Count != type.GenericParameters.Count)

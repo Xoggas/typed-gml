@@ -16,6 +16,8 @@ public sealed class TypeSymbol
 
     public List<GenericParamNode> GenericParameters { get; } = [];
 
+    public int Arity => GenericParameters.Count;
+
     public bool IsAbstract { get; set; }
 
     public bool IsSealed { get; set; }

@@ -11,7 +11,7 @@ public sealed class ObjectCreationExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (ObjectCreationExpressionNode)node;
-        if (!ExpressionSymbolHelper.TryResolveType(ctx, expression.TypeRef, out var type))
+        if (!ctx.Symbols.TryResolve(expression.TypeRef, expression.TypeArgs.Count, ctx.CurrentNamespacePrefix, ctx.UsingPrefixes, out var type))
         {
             ctx.Writer.Write($"{expression.TypeRef.Replace(".", "_", StringComparison.Ordinal)}_create({ExpressionCallHelper.JoinConstructorArguments(null, expression.PositionalArgs, expression.NamedArgs, ctx)})");
             return;

@@ -111,7 +111,7 @@ public sealed class MethodEmitter : INodeEmitter
             })
             return null;
 
-        if (!ctx.TypeDeclarations.TryGetValue(ctx.CurrentType!.QualifiedName, out var declaration) || declaration is not Ast.Declarations.ClassDeclarationNode @class)
+        if (!ctx.TypeDeclarations.TryGetValue(TypeDeclarationMapBuilder.Key(ctx.CurrentType!), out var declaration) || declaration is not Ast.Declarations.ClassDeclarationNode @class)
             return null;
 
         return @class.Members.OfType<MethodDeclarationNode>()

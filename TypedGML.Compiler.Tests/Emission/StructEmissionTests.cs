@@ -46,7 +46,7 @@ public sealed class StructEmissionTests
                 public T MakeGeneric() { return default(T); }
                 public Point MakePoint() { return default(Point); }
             }
-            """).GetFile("Box.gml")!;
+            """).GetFile("Box1.gml")!;
         GmlAssert.ContainsPattern(gml, "__tgml_default(__genericArgs.T)");
         GmlAssert.ContainsPattern(gml, "Point_create()");
     }

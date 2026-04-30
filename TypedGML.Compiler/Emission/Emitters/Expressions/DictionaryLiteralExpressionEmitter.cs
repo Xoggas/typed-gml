@@ -25,12 +25,12 @@ public sealed class DictionaryLiteralExpressionEmitter : INodeEmitter
     }
 
     private static string ResolveDictionaryCtorName(EmitContext ctx) =>
-        ctx.Symbols.TryResolve("Dictionary", ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
+        ctx.Symbols.TryResolve("Dictionary", 2, ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
             ? NamingConvention.ConstructorName(dictType)
             : "Dictionary_create";
 
     private static string ResolveDictionaryAddName(EmitContext ctx) =>
-        ctx.Symbols.TryResolve("Dictionary", ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
+        ctx.Symbols.TryResolve("Dictionary", 2, ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
             ? NamingConvention.MethodName(dictType, dictType.Members.First(m => m.Kind == Symbols.MemberKind.Method && m.Name == "Add"))
             : "Dictionary_Add";
 }

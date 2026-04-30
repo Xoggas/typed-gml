@@ -42,7 +42,7 @@ internal static class GmlExpressionRenderer
         NameofExpressionNode n => $"\"{n.Chain.LastOrDefault() ?? string.Empty}\"",
         NullCoalescingExpressionNode n => $"({Render(n.Left, ctx)} != undefined ? {Render(n.Left, ctx)} : {Render(n.Right, ctx)})",
         NullConditionalExpressionNode n => $"({Render(n.Target, ctx)} != undefined ? {Render(n.Target, ctx)}.{n.MemberName} : undefined)",
-        ObjectCreationExpressionNode n => $"{ResolveConstructorName(n.TypeRef, ctx)}({JoinArgs(n.PositionalArgs, n.NamedArgs, ctx)})",
+        ObjectCreationExpressionNode n => $"{ResolveConstructorName(n.TypeRef, n.TypeArgs.Count, ctx)}({JoinArgs(n.PositionalArgs, n.NamedArgs, ctx)})",
         TernaryExpressionNode n => $"({Render(n.Condition, ctx)} ? {Render(n.ThenExpr, ctx)} : {Render(n.ElseExpr, ctx)})",
         ThisExpressionNode => ctx.SelfName ?? "self",
         TypeofExpressionNode n => RenderTypeof(n, ctx),
@@ -66,12 +66,12 @@ internal static class GmlExpressionRenderer
     }
 
     private static string ResolveDictionaryCtorName(EmitContext ctx) =>
-        ctx.Symbols.TryResolve("Dictionary", ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
+        ctx.Symbols.TryResolve("Dictionary", 2, ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
             ? NamingConvention.ConstructorName(dictType)
             : "Dictionary_create";
 
     private static string ResolveDictionaryAddName(EmitContext ctx) =>
-        ctx.Symbols.TryResolve("Dictionary", ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
+        ctx.Symbols.TryResolve("Dictionary", 2, ctx.CurrentNamespacePrefix, ["TypedGML.Collections"], out var dictType)
             ? NamingConvention.MethodName(dictType, dictType.Members.First(m => m.Kind == Symbols.MemberKind.Method && m.Name == "Add"))
             : "Dictionary_Add";
 
@@ -88,8 +88,8 @@ internal static class GmlExpressionRenderer
         return writer.GetOutput().TrimEnd();
     }
 
-    private static string ResolveConstructorName(string typeRef, EmitContext ctx) =>
-        ctx.Symbols.TryResolve(typeRef, ctx.CurrentNamespacePrefix, [], out var symbol)
+    private static string ResolveConstructorName(string typeRef, int arity, EmitContext ctx) =>
+        ctx.Symbols.TryResolve(typeRef, arity, ctx.CurrentNamespacePrefix, [], out var symbol)
             ? NamingConvention.ConstructorName(symbol)
             : $"{typeRef.Replace(".", "_", StringComparison.Ordinal)}_create";
 
@@ -103,7 +103,7 @@ internal static class GmlExpressionRenderer
                 : node.Name;
 
     private static string RenderTypeof(TypeofExpressionNode node, EmitContext ctx) =>
-        ctx.Symbols.TryResolve(TypeRoot(node.TypeName), ctx.CurrentNamespacePrefix, ctx.UsingPrefixes, out var type)
+        ctx.Symbols.TryResolve(node.TypeName, ctx.CurrentNamespacePrefix, ctx.UsingPrefixes, out var type)
             ? $"\"{NamingConvention.TypeName(type)}\""
             : $"\"{node.TypeName}\"";
 
@@ -121,9 +121,4 @@ internal static class GmlExpressionRenderer
     private static string Unquote(string value) =>
         value.Length >= 2 && value[0] == '"' && value[^1] == '"' ? value[1..^1] : value;
 
-    private static string TypeRoot(string value)
-    {
-        var stop = value.IndexOfAny(['<', '?', '[']);
-        return stop >= 0 ? value[..stop] : value;
-    }
 }
