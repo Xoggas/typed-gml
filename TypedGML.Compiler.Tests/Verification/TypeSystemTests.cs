@@ -18,6 +18,17 @@ public sealed class TypeSystemTests
     [Fact] public void Test_VarInferredFromLiteral() => CompileInMethod("var x = 42;").HasErrors.Should().BeFalse();
     [Fact] public void Test_VarFromNull_TGML0013() => CompileInMethod("var x = null;").HasError(DiagnosticCode.AmbiguousVarInference).Should().BeTrue();
     [Fact] public void Test_AssignWrongType_TGML0022() => CompileInMethod("number x = \"hello\";").HasError(DiagnosticCode.TypeMismatch).Should().BeTrue();
+    [Fact] public void Test_ArrayLiteral_WrongElementType_Error() => CompileInMethod("number[] x = [\"hello\"];").HasError(DiagnosticCode.TypeMismatch).Should().BeTrue();
+    [Fact] public void Test_ArrayLiteral_CorrectElementType_Valid() => CompileInMethod("number[] x = [1, 2, 3];").HasErrors.Should().BeFalse();
+
+    [Fact]
+    public void Test_ArrayLiteral_FieldWrongElementType_Error() => Compile("""
+        using TypedGML.Core;
+        public class VerificationHost {
+            public number[] Positions = ["hello"];
+        }
+        """).HasError(DiagnosticCode.TypeMismatch).Should().BeTrue();
+
     [Fact] public void Test_ImplicitConversion_Valid() => Compile("""
         public class WrappedNumber {
             public constructor() { }

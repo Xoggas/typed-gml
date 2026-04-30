@@ -15,7 +15,22 @@ public sealed class ArrayLiteralTypeCheck : ISemanticCheck
             return;
 
         var elementType = ExpressionTypeResolver.Resolve(array.Elements[0], ctx);
+        if (string.IsNullOrWhiteSpace(elementType))
+            return;
+
         if (array.Elements.Skip(1).Any(element => !TypeReferenceHelper.IsAssignable(elementType, ExpressionTypeResolver.Resolve(element, ctx), ctx)))
+        {
             ctx.Diagnostics.Report(DiagnosticCode.TypeMismatch, DiagnosticSeverity.Error, "All array literal elements must have compatible types.", array.Location);
+            return;
+        }
+
+        var targetElementType = TargetElementType(ctx.CurrentExpectedType);
+        if (targetElementType is not null && !TypeReferenceHelper.IsAssignable(targetElementType, elementType, ctx))
+            ctx.Diagnostics.Report(DiagnosticCode.TypeMismatch, DiagnosticSeverity.Error, $"Cannot assign array literal element type '{elementType}' to '{targetElementType}'.", array.Location);
     }
+
+    private static string? TargetElementType(string? typeRef) =>
+        !string.IsNullOrWhiteSpace(typeRef) && typeRef.EndsWith("[]", StringComparison.Ordinal)
+            ? typeRef[..^2]
+            : null;
 }

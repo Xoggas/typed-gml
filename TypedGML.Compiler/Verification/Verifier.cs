@@ -53,7 +53,7 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
                 break;
             case FieldDeclarationNode field:
                 RunChecks(field, ctx);
-                WalkNullable(field.Initializer, ctx, currentNamespace);
+                WalkExpected(field.Initializer, field.TypeRef, ctx, currentNamespace);
                 break;
             case PropertyDeclarationNode property:
                 WithMember(ResolveProperty(property), ctx, false, null, () => { RunChecks(property, ctx); foreach (var accessor in property.Accessors) WalkAccessor(accessor, property.TypeRef, property.Modifiers, ctx, currentNamespace); });
