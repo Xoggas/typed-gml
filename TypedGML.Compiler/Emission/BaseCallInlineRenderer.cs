@@ -10,20 +10,7 @@ namespace TypedGML.Compiler.Emission;
 
 internal static class BaseCallInlineRenderer
 {
-    public static string Render(BaseCallExpressionNode call, EmitContext ctx)
-    {
-        var method = ResolveMethod(call, ctx);
-        if (method?.Method.Body is null)
-            return "undefined";
-
-        var writer = new GmlWriter();
-        var nested = ctx.WithWriter(writer);
-        writer.Write("(function()");
-        writer.BeginBlock();
-        EmitResolved(call, method.Value.Owner, method.Value.Method, nested);
-        writer.EndBlock();
-        return $"{writer.GetOutput().TrimEnd()})()";
-    }
+    public static string Render(BaseCallExpressionNode call, EmitContext ctx) => "undefined";
 
     public static void Emit(BaseCallExpressionNode call, EmitContext ctx)
     {
@@ -32,6 +19,20 @@ internal static class BaseCallInlineRenderer
             return;
 
         EmitResolved(call, method.Value.Owner, method.Value.Method, ctx);
+    }
+
+    public static void EmitWithReturnTarget(BaseCallExpressionNode call, string targetName, EmitContext ctx)
+    {
+        var previousTarget = ctx.BaseCallReturnTarget;
+        ctx.BaseCallReturnTarget = targetName;
+        try
+        {
+            Emit(call, ctx);
+        }
+        finally
+        {
+            ctx.BaseCallReturnTarget = previousTarget;
+        }
     }
 
     private static void EmitResolved(BaseCallExpressionNode call, TypeSymbol owner, MethodDeclarationNode method, EmitContext ctx)

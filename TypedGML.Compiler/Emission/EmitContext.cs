@@ -53,6 +53,8 @@ public sealed class EmitContext(
 
     public TypeSymbol? BaseCallLookupType { get; set; }
 
+    public string? BaseCallReturnTarget { get; set; }
+
     private List<string> ExpectedTypeStack { get; set; } = [];
 
     public string? CurrentExpectedType => ExpectedTypeStack.Count == 0 ? null : ExpectedTypeStack[^1];
@@ -124,6 +126,7 @@ public sealed class EmitContext(
             IsInConstructor = IsInConstructor,
             SubstitutionFrames = SubstitutionFrames,
             BaseCallLookupType = BaseCallLookupType,
+            BaseCallReturnTarget = BaseCallReturnTarget,
             ExpectedTypeStack = ExpectedTypeStack,
         };
 

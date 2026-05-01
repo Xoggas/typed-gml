@@ -13,6 +13,9 @@ public sealed class VarDeclarationStatementEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var statement = (VarDeclarationStatementNode)node;
+        if (TryEmitBaseCallInitializer(statement, ctx))
+            return;
+
         if (TryEmitGenericObjectCreation(statement, ctx))
             return;
 
@@ -35,6 +38,21 @@ public sealed class VarDeclarationStatementEmitter : INodeEmitter
         string.IsNullOrWhiteSpace(statement.TypeRef)
             ? ctx.Emitter.Render(statement.Initializer, ctx)
             : ctx.RenderWithExpected(statement.Initializer!, statement.TypeRef);
+
+    private static bool TryEmitBaseCallInitializer(VarDeclarationStatementNode statement, EmitContext ctx)
+    {
+        if (statement.Initializer is not BaseCallExpressionNode baseCall)
+            return false;
+
+        const string resultName = "__base_result";
+        ctx.Writer.WriteLine($"var {resultName};");
+        BaseCallInlineRenderer.EmitWithReturnTarget(baseCall, resultName, ctx);
+        ctx.Writer.WriteLine($"var {statement.Name} = {resultName};");
+        var typeRef = statement.TypeRef ?? ExpressionTypeLookup.Resolve(statement.Initializer, ctx);
+        if (!string.IsNullOrWhiteSpace(typeRef))
+            ctx.Scope.Declare(statement.Name, typeRef);
+        return true;
+    }
 
     private static bool IsDelegateType(string? typeRef, EmitContext ctx) =>
         !string.IsNullOrWhiteSpace(typeRef) &&

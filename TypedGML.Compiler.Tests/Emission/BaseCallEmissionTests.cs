@@ -29,6 +29,64 @@ public sealed class BaseCallEmissionTests
     }
 
     [Fact]
+    public void Test_ReturnBaseCall_InlinesParentReturnsWithoutIife()
+    {
+        var result = Compile("""
+            public class Account {
+                public number Balance;
+                public virtual bool Withdraw(number amount) {
+                    if (amount <= 0) {
+                        return false;
+                    }
+                    if (amount > Balance) {
+                        return false;
+                    }
+                    Balance = Balance - amount;
+                    return true;
+                }
+            }
+            public class FeeAccount : Account {
+                public override bool Withdraw(number amount) {
+                    return base.Withdraw(amount);
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(ErrorText(result));
+        var childMethod = FunctionBlock(result.GetFile("FeeAccount.gml")!, "function FeeAccount_Withdraw");
+        GmlAssert.ContainsPattern(childMethod, "if ((amount <= 0))");
+        GmlAssert.ContainsPattern(childMethod, "return false;");
+        GmlAssert.ContainsPattern(childMethod, "return true;");
+        GmlAssert.NotContainsPattern(childMethod, "(function()");
+        GmlAssert.NotContainsPattern(childMethod, "return Account_Withdraw(");
+    }
+
+    [Fact]
+    public void Test_BaseCall_VarInitializer_CapturesReturnValue()
+    {
+        var result = Compile("""
+            public class Parent {
+                public virtual number Value() {
+                    return 7;
+                }
+            }
+            public class Child : Parent {
+                public override number Value() {
+                    var x = base.Value();
+                    return x;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(ErrorText(result));
+        var childMethod = FunctionBlock(result.GetFile("Child.gml")!, "function Child_Value");
+        GmlAssert.ContainsPattern(childMethod, "var __base_result;");
+        GmlAssert.ContainsPattern(childMethod, "__base_result = 7;");
+        GmlAssert.ContainsPattern(childMethod, "var x = __base_result;");
+        GmlAssert.NotContainsPattern(childMethod, "(function()");
+    }
+
+    [Fact]
     public void Test_BaseCall_NonExistentMethod_Error()
     {
         var result = Compile("""
