@@ -47,5 +47,8 @@ public enum DiagnosticCode
     CrossTypeStaticReference = 44,
     GameObjectMissingObjectDecorator = 45,
     ObjectDecoratorWithoutGameObject = 46,
-    InvalidStaticConstructorUsage = 47
+    InvalidStaticConstructorUsage = 47,
+    CollisionArgumentMustBeTypeof = 47,
+    CollisionTargetMissingObjectDecorator = 48,
+    CollisionDecoratorInvalidTarget = 49
 }

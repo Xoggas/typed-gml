@@ -55,6 +55,13 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
         var createEventEmitted = false;
         foreach (var method in declaration.Members.OfType<MethodDeclarationNode>().Where(m => !m.Modifiers.Contains("static", StringComparer.Ordinal)))
         {
+            var collisionTargetFileName = _eventEmitter.ResolveCollisionTargetFileName(method, ctx);
+            if (collisionTargetFileName is not null)
+            {
+                _eventEmitter.EmitCollision(declaration, method, collisionTargetFileName, ctx);
+                continue;
+            }
+
             var eventName = _eventEmitter.ResolveEventName(method, ctx.CurrentType);
             if (eventName is not null)
             {

@@ -60,7 +60,6 @@ public static class GmlEventMap
             ["AsyncNetwork"]       = "Other_68",
             ["AsyncSocial"]        = "Other_70",
             ["AsyncSystem"]        = "Other_75",
-            ["CollisionPrefix"] = "Collision_",
             ["KeyPress"]        = "Keyboard_",
             ["KeyRelease"]      = "KeyRelease_",
         };

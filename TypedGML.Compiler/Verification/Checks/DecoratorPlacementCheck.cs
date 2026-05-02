@@ -16,14 +16,28 @@ public sealed class DecoratorPlacementCheck : ISemanticCheck
     public void Check(IAstNode node, VerificationContext ctx)
     {
         foreach (var decorator in DecoratorHelper.Decorators(node))
+        {
+            if (decorator.Name == "Collision")
+            {
+                if (node is not MethodDeclarationNode || string.IsNullOrEmpty(ctx.CurrentType?.ObjectAssetName))
+                    ctx.Diagnostics.Report(
+                        DiagnosticCode.CollisionDecoratorInvalidTarget,
+                        DiagnosticSeverity.Error,
+                        "@Collision can only be applied to methods in @Object classes.",
+                        decorator.Location);
+                continue;
+            }
+
             if (!Valid(decorator.Name, node))
                 ctx.Diagnostics.Report(DiagnosticCode.TypeMismatch, DiagnosticSeverity.Error, $"Decorator '@{decorator.Name}' is not valid on {node.GetType().Name}.", decorator.Location);
+        }
     }
 
     private static bool Valid(string name, IAstNode node) => name switch
     {
         "Object" => node is ClassDeclarationNode,
         "NativeEvent" => node is MethodDeclarationNode,
+        "Collision" => node is MethodDeclarationNode,
         "NativeProperty" => node is PropertyDeclarationNode,
         "NativeCall" => node is MethodDeclarationNode or OperatorDeclarationNode or ConversionOperatorNode,
         "Asset" => node is PropertyDeclarationNode,

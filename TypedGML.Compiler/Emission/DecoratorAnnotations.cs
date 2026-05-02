@@ -5,4 +5,5 @@ public sealed record DecoratorAnnotations(
     string? NativeEventName,
     string? NativePropertyName,
     string? NativeCallName,
-    string? AssetName);
+    string? AssetName,
+    string? CollisionTargetFileName);

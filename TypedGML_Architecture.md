@@ -1011,7 +1011,6 @@ static class GmlEventMap
         ["GameStart"]       = "Other_2",
         ["GameEnd"]         = "Other_3",
         ["AnimationEnd"]    = "Other_7",
-        ["CollisionPrefix"] = "Collision_",   // Collision_OBJ_Enemy etc — suffix appended by emitter
         ["Alarm"]           = "Alarm_",       // Alarm_0..Alarm_11 — suffix appended by emitter
         ["KeyPress"]        = "Keyboard_",
         ["KeyRelease"]      = "KeyRelease_",

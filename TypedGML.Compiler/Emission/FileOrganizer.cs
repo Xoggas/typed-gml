@@ -17,6 +17,12 @@ public sealed class FileOrganizer(string outputRoot)
         return Path.Combine(outputRoot, "objects", objectName, $"{eventName}.gml");
     }
 
+    public string GetCollisionEventPath(TypeSymbol ownerType, string collisionTargetFileName)
+    {
+        var objectName = ownerType.ObjectAssetName ?? NamingConvention.TypeName(ownerType);
+        return Path.Combine(outputRoot, "objects", objectName, $"{collisionTargetFileName}.gml");
+    }
+
     public string GetMacroPath(string namespaceName) =>
         Path.Combine(outputRoot, "macros", $"{namespaceName.Replace(".", "_", StringComparison.Ordinal)}_macros.gml");
 

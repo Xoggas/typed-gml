@@ -132,14 +132,14 @@ public sealed class Emitter(
         OperatorDeclarationNode n => decoratorProcessor.Process(n.Decorators, diagnostics),
         ConversionOperatorNode n => decoratorProcessor.Process(n.Decorators, diagnostics),
         EventDeclarationNode n => decoratorProcessor.Process(n.Decorators, diagnostics),
-        _ => new DecoratorAnnotations(null, null, null, null, null)
+        _ => new DecoratorAnnotations(null, null, null, null, null, null)
     };
 
     private static string Combine(string? currentNamespace, string name) =>
         string.IsNullOrEmpty(currentNamespace) ? name : $"{currentNamespace}.{name}";
 
     private EmitContext NewContext() =>
-        new(symbolTable, new GmlWriter(), fileOrganizer, outputSink ?? new FileGmlOutputSink(), new DecoratorAnnotations(null, null, null, null, null), diagnostics, Dispatch)
+        new(symbolTable, new GmlWriter(), fileOrganizer, outputSink ?? new FileGmlOutputSink(), new DecoratorAnnotations(null, null, null, null, null, null), diagnostics, Dispatch)
         {
             TypeDeclarations = _typeDeclarations
         };

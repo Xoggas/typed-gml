@@ -8,6 +8,8 @@ namespace TypedGML.Compiler.Emission.Emitters;
 
 internal sealed class ClassEventEmitter
 {
+    private readonly DecoratorProcessor _decoratorProcessor = new();
+
     public void Emit(ClassDeclarationNode declaration, MethodDeclarationNode method, string eventName, EmitContext ctx)
     {
         if (method.Body is not BlockStatementNode block || ctx.CurrentType is null)
@@ -19,6 +21,18 @@ internal sealed class ClassEventEmitter
             foreach (var statement in block.Statements)
                 eventCtx.Dispatch(statement, eventCtx);
         });
+    }
+
+    public void EmitCollision(ClassDeclarationNode declaration, MethodDeclarationNode method, string collisionTargetFileName, EmitContext ctx)
+    {
+        if (method.Body is not BlockStatementNode block || ctx.CurrentType is null)
+            return;
+
+        EmitEventFile(declaration, collisionTargetFileName, ctx, eventCtx =>
+        {
+            foreach (var statement in block.Statements)
+                eventCtx.Dispatch(statement, eventCtx);
+        }, true);
     }
 
     public void EmitCreateInitializers(ClassDeclarationNode declaration, EmitContext ctx)
@@ -48,11 +62,23 @@ internal sealed class ClassEventEmitter
         return null;
     }
 
+    public string? ResolveCollisionTargetFileName(MethodDeclarationNode method, EmitContext ctx) =>
+        method.Decorators.Any(d => d.Name == "Collision")
+            ? _decoratorProcessor.Process(
+                method.Decorators,
+                ctx.Diagnostics,
+                ctx.Symbols,
+                ctx.CurrentType,
+                ctx.CurrentNamespacePrefix,
+                ctx.UsingPrefixes).CollisionTargetFileName
+            : null;
+
     private static void EmitEventFile(
         ClassDeclarationNode declaration,
         string resolvedEvent,
         EmitContext ctx,
-        Action<EmitContext> emitBody)
+        Action<EmitContext> emitBody,
+        bool isCollision = false)
     {
         var type = ctx.CurrentType;
         if (type is null)
@@ -67,7 +93,9 @@ internal sealed class ClassEventEmitter
         EmitCreateInitializers(declaration, resolvedEvent, eventWriter, eventCtx);
         emitBody(eventCtx);
         eventCtx.Scope.Pop();
-        var path = ctx.Files.GetEventPath(type, resolvedEvent);
+        var path = isCollision
+            ? ctx.Files.GetCollisionEventPath(type, resolvedEvent)
+            : ctx.Files.GetEventPath(type, resolvedEvent);
         ctx.Output.Write(path, eventWriter.GetOutput());
     }
 

@@ -815,6 +815,7 @@ All built-in decorators affect **code generation**. They are defined in BCL but 
 |---|---|---|
 | `@Object("gmlName")` | class | Binds the class to a GML object asset. `new T(x,y,layer)` calls `instance_create_layer`. |
 | `@NativeEvent("eventName")` | method | Binds this method to a GML event (e.g. `"Create"`, `"Step"`, `"Draw"`). Emits to the corresponding GML event file. |
+| `@Collision(typeof(T))` | method | Binds to the collision event with GML object `T`. `T` must be `@Object`-decorated. Generates `Collision_<T_asset_name>.gml`. |
 | `@NativeProperty("gmlName")` | property | Binds the property to a GML native property (e.g. `"x"`, `"y"`, `"speed"`). `get` emits as `gmlName`, `set` as `gmlName = value`. |
 | `@NativeCall("funcName")` | method | Body is ignored. Emits a direct call to GML function `funcName(...)`. |
 | `@Asset("assetName")` | property | Binds to a GML asset by name. Get emits the asset reference. |
@@ -1859,6 +1860,9 @@ Compilation halts after the Population phase if any structural errors are found.
 | TGML0044 | Verification | Static constructor has an access modifier |
 | TGML0045 | Verification | Class extends `GameObject` but is missing the `@Object` decorator |
 | TGML0046 | Verification | Class has `@Object` decorator but does not explicitly extend `GameObject` |
+| TGML0047 | Verification | `@Collision` argument must be `typeof(TypeName)` |
+| TGML0048 | Verification | `@Collision` target type is not decorated with `@Object` |
+| TGML0049 | Verification | `@Collision` can only be applied to methods in `@Object` classes |
 
 ---
 

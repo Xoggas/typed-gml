@@ -57,6 +57,7 @@ try
         new LambdaCheck(),
         new DecoratorPlacementCheck(),
         new NativeEventNameCheck(),
+        new CollisionDecoratorCheck(),
         new ObjectDecoratorCheck(),
         new GameObjectDecoratorCheck(),
         new ConstExpressionCheck(),

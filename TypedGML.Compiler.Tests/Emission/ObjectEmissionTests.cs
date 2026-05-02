@@ -119,6 +119,31 @@ public sealed class ObjectEmissionTests
         GmlAssert.NotContainsPattern(gml, "self.X");
     }
 
+    [Fact]
+    public void Test_CollisionEventFile_UsesTargetObjectAsset()
+    {
+        var result = Compile("""
+            using TypedGML.GameObjects;
+            @Object("obj_Enemy")
+            public class Enemy : GameObject { }
+
+            @Object("obj_Player")
+            public class Player : GameObject {
+                public number Hits;
+
+                @Collision(typeof(Enemy))
+                public void OnCollisionEnemy() {
+                    Hits = Hits + 1;
+                }
+            }
+            """);
+
+        var gml = result.GetFile("obj_Player/Collision_obj_Enemy.gml")!;
+        gml.Should().NotBeNull();
+        GmlAssert.ContainsPattern(gml, "Hits = Hits + 1;");
+        result.GetFile("obj_Player/CollisionPrefix.gml").Should().BeNull();
+    }
+
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);
 
     private static string Normalize(string text) =>
