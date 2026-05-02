@@ -34,6 +34,7 @@ public sealed class PropertyEmitter : INodeEmitter
         if (accessor.Kind == AccessorKind.Get)
         {
             ctx.Writer.Write($"function {NamingConvention.PropertyGetter(ctx.CurrentType!, symbol)}({ParameterList(selfName)})");
+            ctx.ResetTempVars();
             if (accessor.Body is null || target is not null)
             {
                 ctx.Writer.BeginBlock();
@@ -46,6 +47,7 @@ public sealed class PropertyEmitter : INodeEmitter
         }
 
         ctx.Writer.Write($"function {NamingConvention.PropertySetter(ctx.CurrentType!, symbol)}({ParameterList(selfName, "value")})");
+        ctx.ResetTempVars();
         if (accessor.Body is null || target is not null)
         {
             ctx.Writer.BeginBlock();

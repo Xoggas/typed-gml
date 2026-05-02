@@ -14,38 +14,30 @@ public sealed class EmitContext(
     Action<TypedGML.Compiler.Ast.IAstNode, EmitContext> dispatch)
 {
     public SymbolTable Symbols { get; } = symbols;
-
     public NodeEmitterFacade Emitter { get; } = new(dispatch);
-
     public GmlWriter Writer { get; } = writer;
-
     public Type Naming { get; } = typeof(NamingConvention);
-
     public FileOrganizer Files { get; } = files;
-
     public IGmlOutputSink Output { get; } = output;
-
     public TypeSymbol? CurrentType { get; set; }
-
     public string? CurrentNamespacePrefix { get; set; }
-
     public DecoratorAnnotations Decorators { get; set; } = decorators;
-
     public DiagnosticBag Diagnostics { get; } = diagnostics;
-
     public IReadOnlyList<string> UsingPrefixes { get; set; } = [];
-
     public IReadOnlyDictionary<string, IAstNode> TypeDeclarations { get; set; } = new Dictionary<string, IAstNode>(StringComparer.Ordinal);
-
     public ScopeStack Scope { get; set; } = new();
-
     public MemberSymbol? CurrentMember { get; set; }
-
     public string? SelfName { get; set; }
-
     public bool IsObjectEventContext { get; set; }
-
     public bool IsInConstructor { get; set; }
+
+    public int TempVarCounter
+    {
+        get => TempVariables.Counter;
+        set => TempVariables.Counter = value;
+    }
+
+    public bool CanEmitTempPrelude => TempVariables.PreludeDepth > 0 && TempVariables.SuppressDepth == 0;
 
     internal Action<TypedGML.Compiler.Ast.IAstNode, EmitContext> Dispatch { get; } = dispatch;
 
@@ -56,6 +48,8 @@ public sealed class EmitContext(
     public string? BaseCallReturnTarget { get; set; }
 
     private List<string> ExpectedTypeStack { get; set; } = [];
+
+    internal TempVariableState TempVariables { get; private set; } = new();
 
     public string? CurrentExpectedType => ExpectedTypeStack.Count == 0 ? null : ExpectedTypeStack[^1];
 
@@ -128,6 +122,7 @@ public sealed class EmitContext(
             BaseCallLookupType = BaseCallLookupType,
             BaseCallReturnTarget = BaseCallReturnTarget,
             ExpectedTypeStack = ExpectedTypeStack,
+            TempVariables = TempVariables,
         };
 
     private int FindSubstitutionFrame(string name)

@@ -16,6 +16,7 @@ public sealed class OperatorEmitter : INodeEmitter
 
         var parameters = string.Join(", ", operatorNode.Parameters.Select(p => p.Name));
         ctx.Writer.Write($"function {NamingConvention.OperatorName(ctx.CurrentType, operatorNode.OperatorSymbol)}({parameters})");
+        ctx.ResetTempVars();
         ctx.Writer.BeginBlock();
         var nativeCall = DecoratorArg(operatorNode.Decorators, "NativeCall");
         if (nativeCall is not null)

@@ -14,6 +14,7 @@ public sealed class ConstructorEmitter : INodeEmitter
         ctx.Writer.Write($"function {NamingConvention.ConstructorName(type)}()");
         WithConstructorContext(ctx, [], null, () =>
         {
+            ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine("var self = {};");
             ConstructorFieldInitializerEmitter.Emit(type, null, ctx);
@@ -37,6 +38,7 @@ public sealed class ConstructorEmitter : INodeEmitter
         ctx.Writer.Write($"function {functionName}({parameters})");
         WithConstructorContext(ctx, constructor.Parameters, symbol, () =>
         {
+            ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine("var self = {};");
             ConstructorChainInliner.Emit(constructor, ctx);

@@ -1,3 +1,4 @@
+using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Symbols;
 
@@ -21,14 +22,25 @@ internal static class NullConditionalInvocationHelper
             return false;
 
         var receiver = ctx.Emitter.Render(conditional.Target, ctx);
+        if (ctx.CanEmitTempPrelude && !IsSimple(conditional.Target))
+        {
+            var temp = ctx.NextTempVarName();
+            ctx.AddTempPreludeLine($"var {temp} = {receiver};");
+            receiver = temp;
+        }
+
         var target = member.Modifiers.Contains("static", StringComparer.Ordinal)
             ? NamingConvention.StaticMemberName(owner, member)
             : NamingConvention.MethodName(owner, member);
-        var orderedArgs = ExpressionCallHelper.JoinArguments(expression.Target, expression.PositionalArgs, expression.NamedArgs, ctx);
+        var orderedArgs = ctx.RunWithoutTempPrelude(() =>
+            ExpressionCallHelper.JoinArguments(expression.Target, expression.PositionalArgs, expression.NamedArgs, ctx));
         var args = member.Modifiers.Contains("static", StringComparer.Ordinal)
             ? orderedArgs
             : string.IsNullOrEmpty(orderedArgs) ? receiver : $"{receiver}, {orderedArgs}";
         rendered = $"({receiver} != undefined ? {target}({args}) : undefined)";
         return true;
     }
+
+    private static bool IsSimple(IAstNode node) =>
+        node is IdentifierExpressionNode or LiteralExpressionNode;
 }

@@ -58,6 +58,34 @@ public sealed class NullableEmissionTests
         GmlAssert.ContainsPattern(result.GetFile("NullableHost.gml")!, "var x = (s != undefined ? MyStruct_GetValue(s) : undefined);");
     }
 
+    [Fact]
+    public void Test_NullConditionalAndCoalescingCacheNonTrivialOperands()
+    {
+        var result = Compile("""
+            public class BankAccount {
+                public string Owner { get; }
+            }
+            public class Bank {
+                public BankAccount? FindAccount(string id) {
+                    return null;
+                }
+            }
+            public class NullableHost {
+                private Bank _bank;
+                public void Run() {
+                    string owner = _bank.FindAccount("ACC-001")?.Owner ?? "unknown";
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(e => $"{e.Code}: {e.Message}")));
+        var gml = result.GetFile("NullableHost.gml")!;
+        gml.Split("Bank_FindAccount", StringSplitOptions.None).Length.Should().Be(2);
+        GmlAssert.ContainsPattern(gml, "var __tmp_0 = Bank_FindAccount(self._bank, \"ACC-001\");");
+        GmlAssert.ContainsPattern(gml, "var __tmp_1 = (__tmp_0 != undefined ? BankAccount_get_Owner(__tmp_0) : undefined);");
+        GmlAssert.ContainsPattern(gml, "var owner = (__tmp_1 != undefined ? __tmp_1 : \"unknown\");");
+    }
+
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);
 
     private static CompileResult CompileInMethod(string statement) =>

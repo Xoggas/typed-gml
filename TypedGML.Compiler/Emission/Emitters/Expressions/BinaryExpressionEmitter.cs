@@ -18,7 +18,9 @@ public sealed class BinaryExpressionEmitter : INodeEmitter
         }
 
         var left = ctx.Emitter.Render(expression.Left, ctx);
-        var right = ctx.Emitter.Render(expression.Right, ctx);
+        var right = expression.Op is "and" or "or"
+            ? ctx.RenderWithoutTempPrelude(expression.Right)
+            : ctx.Emitter.Render(expression.Right, ctx);
         ctx.Writer.Write(
             $"({left} {ExpressionFormatHelper.BinaryOperator(expression.Op)} {right})");
     }

@@ -17,6 +17,8 @@ public sealed class ExpressionStatementEmitter : INodeEmitter
             return;
         }
 
-        ctx.Writer.WriteLine($"{ctx.Emitter.Render(statement.Expression, ctx)};");
+        var expression = ctx.RenderWithTempPrelude(statement.Expression);
+        ctx.FlushTempPrelude();
+        ctx.Writer.WriteLine($"{expression};");
     }
 }

@@ -20,6 +20,7 @@ public sealed class VarDeclarationStatementEmitter : INodeEmitter
             return;
 
         var initializer = Initializer(statement, ctx);
+        ctx.FlushTempPrelude();
         ctx.Writer.WriteLine($"var {statement.Name}{initializer};");
         var typeRef = statement.TypeRef ?? ExpressionTypeLookup.Resolve(statement.Initializer, ctx);
         if (!string.IsNullOrWhiteSpace(typeRef))
@@ -36,8 +37,8 @@ public sealed class VarDeclarationStatementEmitter : INodeEmitter
 
     internal static string RenderInitializerExpression(VarDeclarationStatementNode statement, EmitContext ctx) =>
         string.IsNullOrWhiteSpace(statement.TypeRef)
-            ? ctx.Emitter.Render(statement.Initializer, ctx)
-            : ctx.RenderWithExpected(statement.Initializer!, statement.TypeRef);
+            ? ctx.RenderWithTempPrelude(statement.Initializer)
+            : ctx.RenderWithExpectedTempPrelude(statement.Initializer!, statement.TypeRef);
 
     private static bool TryEmitBaseCallInitializer(VarDeclarationStatementNode statement, EmitContext ctx)
     {

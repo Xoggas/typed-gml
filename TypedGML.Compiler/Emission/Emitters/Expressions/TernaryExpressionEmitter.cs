@@ -11,6 +11,6 @@ public sealed class TernaryExpressionEmitter : INodeEmitter
     {
         var expression = (TernaryExpressionNode)node;
         ctx.Writer.Write(
-            $"({ctx.Emitter.Render(expression.Condition, ctx)} ? {ctx.Emitter.Render(expression.ThenExpr, ctx)} : {ctx.Emitter.Render(expression.ElseExpr, ctx)})");
+            $"({ctx.Emitter.Render(expression.Condition, ctx)} ? {ctx.RenderWithoutTempPrelude(expression.ThenExpr)} : {ctx.RenderWithoutTempPrelude(expression.ElseExpr)})");
     }
 }

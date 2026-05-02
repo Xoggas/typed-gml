@@ -62,6 +62,7 @@ internal sealed class ClassEventEmitter
         var eventCtx = ctx.WithWriter(eventWriter);
         eventCtx.IsObjectEventContext = true;
         eventCtx.SelfName = null;
+        eventCtx.ResetTempVars();
         eventCtx.Scope.Push();
         EmitCreateInitializers(declaration, resolvedEvent, eventWriter, eventCtx);
         emitBody(eventCtx);
@@ -80,7 +81,11 @@ internal sealed class ClassEventEmitter
             return;
 
         foreach (var field in declaration.Members.OfType<FieldDeclarationNode>().Where(HasInstanceInitializer))
-            eventWriter.WriteLine($"{field.Name} = {eventCtx.Emitter.Render(field.Initializer!, eventCtx)};");
+        {
+            var value = eventCtx.RenderWithTempPrelude(field.Initializer);
+            eventCtx.FlushTempPrelude();
+            eventWriter.WriteLine($"{field.Name} = {value};");
+        }
     }
 
     private static bool HasInstanceInitializer(FieldDeclarationNode field) =>

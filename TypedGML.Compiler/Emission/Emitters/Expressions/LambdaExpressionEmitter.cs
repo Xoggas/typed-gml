@@ -15,12 +15,16 @@ public sealed class LambdaExpressionEmitter : INodeEmitter
         ctx.Writer.Write($"function({parameters})");
         if (expression.Body is not BlockStatementNode)
         {
-            var rendered = ctx.Emitter.Render(expression.Body, ctx);
+            var rendered = ctx.RenderWithoutTempPrelude(expression.Body);
             ctx.Writer.Write(ShouldReturn(ctx) ? $" {{ return {rendered}; }}" : $" {{ {rendered}; }}");
             return;
         }
 
-        ctx.Emitter.Emit(expression.Body, ctx);
+        ctx.RunWithoutTempPrelude(() =>
+        {
+            ctx.Emitter.Emit(expression.Body, ctx);
+            return string.Empty;
+        });
     }
 
     private static bool ShouldReturn(EmitContext ctx) =>

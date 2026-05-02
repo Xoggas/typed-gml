@@ -1,13 +1,14 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Symbols;
+using TypedGML.Compiler.Utils;
 
 namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 
 internal static class ExpressionSymbolHelper
 {
     public static bool TryResolveType(EmitContext ctx, string? typeRef, out TypeSymbol symbol) =>
-        ctx.Symbols.TryResolve(typeRef ?? string.Empty, CurrentNamespace(ctx), ctx.UsingPrefixes, out symbol);
+        ctx.Symbols.TryResolve(TypeHelper.UnwrapNullable(typeRef ?? string.Empty), CurrentNamespace(ctx), ctx.UsingPrefixes, out symbol);
 
     public static bool IsDelegateTarget(IAstNode target, EmitContext ctx) =>
         TryResolveDelegateMember(target, ctx, out _) ||
@@ -70,6 +71,13 @@ internal static class ExpressionSymbolHelper
 
         if (target is DefaultExpressionNode defaultValue)
             return TryResolveType(ctx, defaultValue.TypeName, out type);
+
+        if (target is InvocationExpressionNode or NullConditionalExpressionNode or NullCoalescingExpressionNode or TernaryExpressionNode)
+        {
+            var resolvedType = ExpressionTypeLookup.Resolve(target, ctx);
+            if (!string.IsNullOrWhiteSpace(resolvedType) && TryResolveType(ctx, resolvedType, out type))
+                return true;
+        }
 
         type = null!;
         return false;

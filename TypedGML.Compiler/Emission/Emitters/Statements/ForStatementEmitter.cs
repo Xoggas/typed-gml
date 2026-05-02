@@ -14,6 +14,7 @@ public sealed class ForStatementEmitter : INodeEmitter
         var init = ctx.Emitter.Render(statement.Init, ctx);
         var condition = RenderCondition(statement.Condition, ctx);
         var update = string.Join(", ", statement.Update.Select(n => ctx.Emitter.Render(n, ctx)));
+        ctx.FlushTempPrelude();
         ctx.Writer.Write($"for ({init}; {condition}; {update})");
         StatementEmitterHelper.EmitBody(statement.Body, ctx);
     }

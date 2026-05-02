@@ -18,6 +18,7 @@ public sealed class StaticCtorEmitter
             return;
 
         ctx.Writer.Write($"function {NamingConvention.StaticCtorFunctionName(type)}()");
+        ctx.ResetTempVars();
         ctx.Writer.BeginBlock();
         staticMethods.ForEach(method => EmitMethod(type, method, ctx));
         staticFields.ForEach(field => EmitField(type, field, ctx));
@@ -36,6 +37,7 @@ public sealed class StaticCtorEmitter
 
         var parameters = string.Join(", ", method.Parameters.Select(p => p.Name));
         ctx.Writer.Write($"{NamingConvention.StaticMemberName(type, symbol)} = function({parameters})");
+        ctx.ResetTempVars();
         ctx.Writer.BeginBlock();
         var nativeCall = DecoratorArg(method.Decorators, "NativeCall");
         if (nativeCall is not null)
@@ -52,7 +54,8 @@ public sealed class StaticCtorEmitter
         if (symbol is null)
             return;
 
-        var value = field.Initializer is null ? "undefined" : ctx.RenderWithExpected(field.Initializer, field.TypeRef);
+        var value = field.Initializer is null ? "undefined" : ctx.RenderWithExpectedTempPrelude(field.Initializer, field.TypeRef);
+        ctx.FlushTempPrelude();
         ctx.Writer.WriteLine($"{NamingConvention.StaticMemberName(type, symbol)} = {value};");
     }
 
@@ -71,6 +74,7 @@ public sealed class StaticCtorEmitter
         if (accessor.Kind == AccessorKind.Get)
         {
             ctx.Writer.Write($"{NamingConvention.StaticGetterName(type, symbol)} = function()");
+            ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
             if (accessor.Body is null)
                 ctx.Writer.WriteLine($"return {PropertyTarget(type, property, symbol)};");
@@ -82,6 +86,7 @@ public sealed class StaticCtorEmitter
         }
 
         ctx.Writer.Write($"{NamingConvention.StaticSetterName(type, symbol)} = function(value)");
+        ctx.ResetTempVars();
         ctx.Writer.BeginBlock();
         if (accessor.Body is null)
             ctx.Writer.WriteLine($"{PropertyTarget(type, property, symbol)} = value;");

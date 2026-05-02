@@ -26,6 +26,7 @@ public sealed class FunctionEmitter : INodeEmitter
         ctx.Writer.Write($"function {functionName}({parameters})");
         var previousMember = ctx.CurrentMember;
         ctx.CurrentMember = member;
+        ctx.ResetTempVars();
         ctx.Scope.Push();
         foreach (var parameter in function.Parameters)
             ctx.Scope.Declare(parameter.Name, parameter.TypeRef);

@@ -10,12 +10,16 @@ public sealed class IfStatementEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var statement = (IfStatementNode)node;
-        ctx.Writer.Write($"if ({ctx.Emitter.Render(statement.Condition, ctx)})");
+        var condition = ctx.RenderWithTempPrelude(statement.Condition);
+        ctx.FlushTempPrelude();
+        ctx.Writer.Write($"if ({condition})");
         StatementEmitterHelper.EmitBody(statement.ThenBlock, ctx);
 
         foreach (var clause in statement.ElseIfClauses)
         {
-            ctx.Writer.Write($"else if ({ctx.Emitter.Render(clause.Condition, ctx)})");
+            var elseIfCondition = ctx.RenderWithTempPrelude(clause.Condition);
+            ctx.FlushTempPrelude();
+            ctx.Writer.Write($"else if ({elseIfCondition})");
             StatementEmitterHelper.EmitBody(clause.ThenBlock, ctx);
         }
 

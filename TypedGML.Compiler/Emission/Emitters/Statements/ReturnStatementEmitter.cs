@@ -13,7 +13,8 @@ public sealed class ReturnStatementEmitter : INodeEmitter
         var statement = (ReturnStatementNode)node;
         if (ctx.BaseCallReturnTarget is not null)
         {
-            var captured = statement.Value is null ? "undefined" : ctx.Emitter.Render(statement.Value, ctx);
+            var captured = statement.Value is null ? "undefined" : ctx.RenderWithTempPrelude(statement.Value);
+            ctx.FlushTempPrelude();
             ctx.Writer.WriteLine($"{ctx.BaseCallReturnTarget} = {captured};");
             return;
         }
@@ -24,7 +25,8 @@ public sealed class ReturnStatementEmitter : INodeEmitter
             return;
         }
 
-        var value = statement.Value is null ? string.Empty : $" {ctx.Emitter.Render(statement.Value, ctx)}";
+        var value = statement.Value is null ? string.Empty : $" {ctx.RenderWithTempPrelude(statement.Value)}";
+        ctx.FlushTempPrelude();
         ctx.Writer.WriteLine($"return{value};");
     }
 }

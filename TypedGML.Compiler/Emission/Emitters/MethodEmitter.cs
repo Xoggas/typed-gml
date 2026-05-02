@@ -25,6 +25,7 @@ public sealed class MethodEmitter : INodeEmitter
         var nativeCall = DecoratorArg(method.Decorators, "NativeCall");
         WithMemberContext(ctx, symbol, selfName, method.Parameters, () =>
         {
+            ctx.ResetTempVars();
             ctx.Writer.Write($"function {functionName}({parameters})");
             if (nativeCall is not null)
             {
