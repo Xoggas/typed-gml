@@ -48,6 +48,7 @@ internal static class InstanceMemberAccessHelper
     private static string RenderCurrentMemberRead(TypeSymbol owner, MemberSymbol member, EmitContext ctx) => member.Kind switch
     {
         MemberKind.Field => CurrentField(member, ctx),
+        MemberKind.Event => CurrentEvent(member, ctx),
         MemberKind.Property => CurrentPropertyRead(owner, member, ctx),
         _ => string.Empty
     };
@@ -55,6 +56,7 @@ internal static class InstanceMemberAccessHelper
     private static string RenderTargetMemberRead(MemberAccessExpressionNode access, TypeSymbol owner, MemberSymbol member, EmitContext ctx) => member.Kind switch
     {
         MemberKind.Field => $"{ctx.Emitter.Render(access.Target, ctx)}.{member.Name}",
+        MemberKind.Event => $"{ctx.Emitter.Render(access.Target, ctx)}.{NamingConvention.EventBackingName(member)}",
         MemberKind.Property when member.NativePropertyName is not null => $"{ctx.Emitter.Render(access.Target, ctx)}.{member.NativePropertyName}",
         MemberKind.Property => $"{NamingConvention.PropertyGetter(owner, member)}({ctx.Emitter.Render(access.Target, ctx)})",
         _ => string.Empty
@@ -62,6 +64,9 @@ internal static class InstanceMemberAccessHelper
 
     private static string CurrentField(MemberSymbol member, EmitContext ctx) =>
         ctx.IsObjectEventContext || string.IsNullOrEmpty(ctx.SelfName) ? member.Name : $"{ctx.SelfName}.{member.Name}";
+
+    private static string CurrentEvent(MemberSymbol member, EmitContext ctx) =>
+        NamingConvention.InstanceEventBackingName(ctx.SelfName ?? "self", member);
 
     private static string CurrentPropertyRead(TypeSymbol owner, MemberSymbol member, EmitContext ctx)
     {

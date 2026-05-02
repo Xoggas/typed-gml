@@ -37,7 +37,7 @@ internal sealed class ClassEventEmitter
 
     public void EmitCreateInitializers(ClassDeclarationNode declaration, EmitContext ctx)
     {
-        if (ctx.CurrentType is null || !declaration.Members.OfType<FieldDeclarationNode>().Any(HasInstanceInitializer))
+        if (ctx.CurrentType is null || !HasCreateInitializers(declaration))
             return;
 
         EmitEventFile(declaration, GmlEventMap.Resolve("Create"), ctx, _ => { });
@@ -114,12 +114,26 @@ internal sealed class ClassEventEmitter
             eventCtx.FlushTempPrelude();
             eventWriter.WriteLine($"{field.Name} = {value};");
         }
+
+        foreach (var evt in declaration.Members.OfType<EventDeclarationNode>().Where(IsInstanceEvent))
+        {
+            var symbol = eventCtx.CurrentType?.Members.FirstOrDefault(member => member.Kind == MemberKind.Event && member.Name == evt.Name);
+            if (symbol is not null)
+                eventWriter.WriteLine($"{NamingConvention.InstanceEventBackingName("self", symbol)} = [];");
+        }
     }
 
     private static bool HasInstanceInitializer(FieldDeclarationNode field) =>
         field.Initializer is not null &&
         !field.Modifiers.Contains("static", StringComparer.Ordinal) &&
         !field.Modifiers.Contains("const", StringComparer.Ordinal);
+
+    private static bool HasCreateInitializers(ClassDeclarationNode declaration) =>
+        declaration.Members.OfType<FieldDeclarationNode>().Any(HasInstanceInitializer) ||
+        declaration.Members.OfType<EventDeclarationNode>().Any(IsInstanceEvent);
+
+    private static bool IsInstanceEvent(EventDeclarationNode evt) =>
+        !evt.Modifiers.Contains("static", StringComparer.Ordinal);
 
     private static string? DecoratorArg(IReadOnlyList<DecoratorNode> decorators, string name) =>
         decorators.FirstOrDefault(d => d.Name == name)?.Args.FirstOrDefault() is LiteralExpressionNode literal

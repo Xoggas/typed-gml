@@ -34,7 +34,13 @@ internal static class InvocationResolver
         if (QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var owner, out var memberName))
         {
             owner = PrimitiveBclTypeResolver.ResolveMemberOwner(owner, ctx.Symbols);
-            return MemberCandidateFilter.MostDerived(MemberSignatureHelper.Members(owner, memberName, MemberKind.Method)).ToList();
+            var qualifiedMethods = MemberCandidateFilter.MostDerived(MemberSignatureHelper.Members(owner, memberName, MemberKind.Method)).ToList();
+            if (qualifiedMethods.Count > 0)
+                return qualifiedMethods;
+
+            var qualifiedMember = SymbolResolver.FindMember(owner, memberName, out _);
+            delegateInvocation = IsDelegateLike(qualifiedMember, ctx);
+            return [];
         }
 
         var targetTypeRef = ExpressionTypeResolver.Resolve(access.Target, ctx);
@@ -47,7 +53,7 @@ internal static class InvocationResolver
             return methods;
 
         var member = GenericMemberResolver.FindMember(targetType, targetTypeRef, access.MemberName, out _);
-        delegateInvocation = IsDelegateType(member?.ReturnType, ctx);
+        delegateInvocation = IsDelegateLike(member, ctx);
         return [];
     }
 
@@ -82,9 +88,14 @@ internal static class InvocationResolver
         if (methods.Count > 0)
             return methods;
 
-        delegateInvocation = IsDelegateType(identifier.Name, ctx);
+        var member = SymbolResolver.FindMember(ctx.CurrentType, identifier.Name, out _);
+        delegateInvocation = IsDelegateLike(member, ctx) || IsDelegateType(identifier.Name, ctx);
         return [];
     }
+
+    private static bool IsDelegateLike(MemberSymbol? member, VerificationContext ctx) =>
+        member is not null &&
+        (member.Kind == MemberKind.Event || IsDelegateType(member.ReturnType, ctx));
 
     private static bool IsDelegateType(string? typeRef, VerificationContext ctx) =>
         SymbolResolver.TryResolveType(typeRef, ctx, out var symbol) && symbol.Kind == TypeKind.Delegate;

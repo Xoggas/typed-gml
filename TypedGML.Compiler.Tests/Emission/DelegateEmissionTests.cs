@@ -18,6 +18,33 @@ public sealed class DelegateEmissionTests
         GmlAssert.ContainsPattern(CompileInMethod("Callback myDel; myDel(arg1, arg2);", "number arg1, number arg2").GetFile("DelegateHost.gml")!, "__tgml_invoke_delegate(myDel, arg1, arg2);");
 
     [Fact]
+    public void Test_EventInvoke()
+    {
+        var result = CompilerFixture.Compile("""
+            public delegate void Action();
+            public delegate void NumberAction(number value);
+            public delegate void StateAction(EntityState state);
+            public enum EntityState { Idle = 0, Moving = 1 }
+            public class DelegateHost {
+                public event Action OnDeath;
+                public event NumberAction OnDamageTaken;
+                public event StateAction OnStateChanged;
+                public void Run() {
+                    OnDeath();
+                    OnDamageTaken(10);
+                    OnStateChanged(EntityState.Moving);
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
+        var gml = result.GetFile("DelegateHost.gml")!;
+        GmlAssert.ContainsPattern(gml, "__tgml_invoke_delegate(self.__event_OnDeath);");
+        GmlAssert.ContainsPattern(gml, "__tgml_invoke_delegate(self.__event_OnDamageTaken, 10);");
+        GmlAssert.ContainsPattern(gml, "__tgml_invoke_delegate(self.__event_OnStateChanged, EntityState_Moving);");
+    }
+
+    [Fact]
     public void Test_ActionLambdaInitializer()
     {
         var result = CompilerFixture.Compile("public class LambdaHost { public void Run() { Action<number> fn = (number x) => x * 2; } }");

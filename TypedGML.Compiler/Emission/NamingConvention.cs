@@ -49,6 +49,12 @@ public static class NamingConvention
     public static string InstancePropertyBackingName(string selfName, string propertyName) =>
         $"{selfName}.{PropertyBackingName(propertyName)}";
 
+    public static string EventBackingName(MemberSymbol evt) =>
+        $"__event_{evt.Name}";
+
+    public static string InstanceEventBackingName(string selfName, MemberSymbol evt) =>
+        $"{selfName}.{EventBackingName(evt)}";
+
     public static string OperatorName(TypeSymbol type, string op) =>
         $"{TypeName(type)}_op_{OperatorPart(op)}";
 
