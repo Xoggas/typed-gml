@@ -19,7 +19,7 @@ public class Stack<T> : ICollection<T>
 
     public constructor()
     {
-        _items = default(T[]);
+        _items = [];
     }
 
     public number Count
@@ -49,7 +49,7 @@ public class Stack<T> : ICollection<T>
 
     public void Clear()
     {
-        _items = default(T[]);
+        _items = [];
     }
 
     public void Add(T item)

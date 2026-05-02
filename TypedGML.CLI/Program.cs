@@ -96,7 +96,7 @@ try
         new ExpressionStatementEmitter(),
         new BinaryExpressionEmitter(), new UnaryExpressionEmitter(), new TernaryExpressionEmitter(),
         new AssignmentExpressionEmitter(), new MemberAccessExpressionEmitter(),
-        new InvocationExpressionEmitter(), new ObjectCreationExpressionEmitter(),
+        new IndexerAccessExpressionEmitter(), new InvocationExpressionEmitter(), new ObjectCreationExpressionEmitter(),
         new LambdaExpressionEmitter(), new NullCoalescingExpressionEmitter(),
         new NullConditionalExpressionEmitter(), new ArrayLiteralExpressionEmitter(),
         new DictionaryLiteralExpressionEmitter(), new TypeofExpressionEmitter(),

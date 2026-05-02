@@ -64,8 +64,8 @@ internal static class CompilerRegistrations
             new ThrowStatementEmitter(), new VarDeclarationStatementEmitter(), new ExpressionStatementEmitter(),
             new BinaryExpressionEmitter(), new UnaryExpressionEmitter(), new TernaryExpressionEmitter(),
             new AssignmentExpressionEmitter(), new MemberAccessExpressionEmitter(), new InvocationExpressionEmitter(),
-            new ObjectCreationExpressionEmitter(), new LambdaExpressionEmitter(), new NullCoalescingExpressionEmitter(),
-            new NullConditionalExpressionEmitter(), new ArrayLiteralExpressionEmitter(),
+            new IndexerAccessExpressionEmitter(), new ObjectCreationExpressionEmitter(), new LambdaExpressionEmitter(),
+            new NullCoalescingExpressionEmitter(), new NullConditionalExpressionEmitter(), new ArrayLiteralExpressionEmitter(),
             new DictionaryLiteralExpressionEmitter(), new TypeofExpressionEmitter(), new NameofExpressionEmitter(),
             new DefaultExpressionEmitter(),
         ];

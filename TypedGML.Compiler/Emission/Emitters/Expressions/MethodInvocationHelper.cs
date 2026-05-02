@@ -1,6 +1,7 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Symbols;
+using TypedGML.Compiler.Verification;
 
 namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 
@@ -52,14 +53,15 @@ internal static class MethodInvocationHelper
                 receiver = string.Empty;
                 return member is not null;
             case MemberAccessExpressionNode access when ExpressionSymbolHelper.TryResolveTargetType(access.Target, ctx, out var type):
-                owner = type;
-                member = EmissionOverloadResolver.Pick(
-                    type.Members.Where(m => m.Kind == MemberKind.Method && m.Name == access.MemberName).ToList(),
-                    expression.PositionalArgs,
-                    expression.NamedArgs,
-                    ctx)!;
+                var receiverTypeRef = ExpressionTypeLookup.Resolve(access.Target, ctx) ?? type.QualifiedName;
+                if (!TryPickInstanceMethod(type, receiverTypeRef, access.MemberName, expression, ctx, out owner, out member))
+                {
+                    receiver = string.Empty;
+                    return false;
+                }
+
                 receiver = ctx.Emitter.Render(access.Target, ctx);
-                return member is not null;
+                return true;
             default:
                 owner = null!;
                 member = null!;
@@ -67,6 +69,52 @@ internal static class MethodInvocationHelper
                 return false;
         }
     }
+
+    private static bool TryPickInstanceMethod(
+        TypeSymbol type,
+        string receiverTypeRef,
+        string methodName,
+        InvocationExpressionNode expression,
+        EmitContext ctx,
+        out TypeSymbol owner,
+        out MemberSymbol member)
+    {
+        var candidates = MostDerived(InstanceMethodCandidates(type, receiverTypeRef, methodName)).ToList();
+        var picked = EmissionOverloadResolver.Pick(
+            candidates.Select(candidate => candidate.Effective).ToList(),
+            expression.PositionalArgs,
+            expression.NamedArgs,
+            ctx);
+        var selected = candidates.FirstOrDefault(candidate => ReferenceEquals(candidate.Effective, picked));
+
+        owner = selected?.Owner!;
+        member = selected?.Original!;
+        return selected is not null;
+    }
+
+    private static IEnumerable<InstanceMethodCandidate> InstanceMethodCandidates(
+        TypeSymbol type,
+        string receiverTypeRef,
+        string methodName)
+    {
+        for (var current = type; current is not null; current = current.Base)
+        {
+            var map = GenericTypeSubstitution.Map(current, receiverTypeRef);
+            foreach (var member in current.Members.Where(m => m.Kind == MemberKind.Method && m.Name == methodName))
+                yield return new InstanceMethodCandidate(current, member, GenericTypeSubstitution.Substitute(member, map));
+        }
+    }
+
+    private static IEnumerable<InstanceMethodCandidate> MostDerived(IEnumerable<InstanceMethodCandidate> candidates)
+    {
+        var signatures = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var candidate in candidates)
+            if (signatures.Add(SignatureKey(candidate.Effective)))
+                yield return candidate;
+    }
+
+    private static string SignatureKey(MemberSymbol member) =>
+        $"{member.Name}({string.Join(",", member.Parameters.Select(parameter => parameter.TypeRef))})";
 
     private static bool TryResolveCurrentMethod(
         string name,
@@ -93,4 +141,6 @@ internal static class MethodInvocationHelper
         member = null!;
         return false;
     }
+
+    private sealed record InstanceMethodCandidate(TypeSymbol Owner, MemberSymbol Original, MemberSymbol Effective);
 }

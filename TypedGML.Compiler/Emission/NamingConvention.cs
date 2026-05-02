@@ -22,6 +22,12 @@ public static class NamingConvention
     public static string PropertySetter(TypeSymbol type, MemberSymbol prop) =>
         $"{TypeName(type)}_set_{prop.Name}";
 
+    public static string IndexerGetter(TypeSymbol type) =>
+        $"{TypeName(type)}_get_indexer";
+
+    public static string IndexerSetter(TypeSymbol type) =>
+        $"{TypeName(type)}_set_indexer";
+
     public static string StaticMemberName(TypeSymbol type, MemberSymbol member) =>
         $"global.{TypeName(type)}_{member.Name}";
 
