@@ -50,5 +50,17 @@ public class Math
 
     @NativeCall("random_range")
     public static number RandomRange(number minValue, number maxValue) { return default(number); }
+
+    @NativeCall("point_distance")
+    public static number PointDistance(number x1, number y1, number x2, number y2) { return default(number); }
+
+    @NativeCall("point_direction")
+    public static number PointDirection(number x1, number y1, number x2, number y2) { return default(number); }
+
+    @NativeCall("lengthdir_x")
+    public static number LengthDir_x(number len, number dir) { return default(number); }
+
+    @NativeCall("lengthdir_y")
+    public static number LengthDir_y(number len, number dir) { return default(number); }
 }
 
