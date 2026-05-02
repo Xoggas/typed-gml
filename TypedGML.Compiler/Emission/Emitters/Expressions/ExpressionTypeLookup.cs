@@ -18,7 +18,7 @@ internal static class ExpressionTypeLookup
             _ => null
         },
         IdentifierExpressionNode identifier => ResolveIdentifier(identifier, ctx),
-        ObjectCreationExpressionNode creation => creation.TypeRef,
+        ObjectCreationExpressionNode creation => ResolveCreation(creation, ctx),
         CastExpressionNode cast => cast.CastKind == CastKind.Is ? "bool" : cast.TargetType,
         MemberAccessExpressionNode access => MemberExpressionTypeLookup.ResolveMember(access, ctx)?.ReturnType,
         InvocationExpressionNode invocation => ResolveInvocation(invocation, ctx),
@@ -57,6 +57,22 @@ internal static class ExpressionTypeLookup
             ? type.QualifiedName
             : null;
     }
+
+    private static string ResolveCreation(ObjectCreationExpressionNode creation, EmitContext ctx)
+    {
+        var root = ctx.Symbols.TryResolve(creation.TypeRef, creation.TypeArgs.Count, CurrentNamespacePrefix(ctx), ctx.UsingPrefixes, out var type)
+            ? type.QualifiedName
+            : creation.TypeRef;
+
+        return creation.TypeArgs.Count == 0 ? root : $"{root}<{string.Join(", ", creation.TypeArgs)}>";
+    }
+
+    private static string CurrentNamespacePrefix(EmitContext ctx) =>
+        !string.IsNullOrEmpty(ctx.CurrentNamespacePrefix)
+            ? ctx.CurrentNamespacePrefix
+            : ctx.CurrentType is null || !ctx.CurrentType.QualifiedName.Contains('.', StringComparison.Ordinal)
+                ? string.Empty
+                : ctx.CurrentType.QualifiedName[..ctx.CurrentType.QualifiedName.LastIndexOf('.')];
 
     private static string? ResolveInvocation(InvocationExpressionNode invocation, EmitContext ctx)
     {

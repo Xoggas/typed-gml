@@ -144,6 +144,46 @@ public sealed class ObjectEmissionTests
         result.GetFile("obj_Player/CollisionPrefix.gml").Should().BeNull();
     }
 
+    [Fact]
+    public void Test_ObjectConstructorChainAcceptsStructCreationArgument()
+    {
+        var result = Compile("""
+            using TypedGML.GameObjects;
+
+            public struct Stats {
+                public number Health;
+                public number Attack;
+                public number Defense;
+                public number Speed;
+
+                public constructor(number health, number attack, number defense, number speed) {
+                    Health = health;
+                    Attack = attack;
+                    Defense = defense;
+                    Speed = speed;
+                }
+            }
+
+            @Object("obj_Actor")
+            public class Actor : GameObject {
+                public Stats Stats;
+
+                public constructor(number x, number y, string layer, Stats stats) : base(x, y, layer) {
+                    Stats = stats;
+                }
+            }
+
+            @Object("obj_Player")
+            public class Player : Actor {
+                public constructor(number x, number y, string layer) : base(x, y, layer, new Stats(100, 15, 5, 3)) {
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(error => $"{error.Code}: {error.Message}")));
+        GmlAssert.ContainsPattern(result.GetFile("Player.gml")!, "Stats_create(100, 15, 5, 3)");
+    }
+
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);
 
     private static string Normalize(string text) =>

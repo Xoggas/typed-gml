@@ -34,11 +34,8 @@ internal static class TypeReferenceHelper
         if (string.IsNullOrWhiteSpace(targetType) || string.IsNullOrWhiteSpace(sourceType))
             return false;
 
-        if (targetType == sourceType)
-            return true;
-
         if (sourceType == "null")
-            return IsNullable(targetType);
+            return targetType == "null" || IsNullable(targetType);
 
         if (IsNullable(targetType))
             return IsAssignable(UnwrapNullable(targetType), sourceType, ctx);
@@ -51,7 +48,7 @@ internal static class TypeReferenceHelper
 
         if (!SymbolResolver.TryResolveType(targetType, ctx, out var targetSymbol) ||
             !SymbolResolver.TryResolveType(sourceType, ctx, out var sourceSymbol))
-            return false;
+            return targetType == sourceType;
 
         if (targetSymbol == sourceSymbol)
             return true;

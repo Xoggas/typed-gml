@@ -19,7 +19,7 @@ internal static class ExpressionTypeResolver
         },
         IdentifierExpressionNode identifier => ResolveIdentifier(identifier, ctx),
         AssignmentExpressionNode assignment => Resolve(assignment.Target, ctx),
-        ObjectCreationExpressionNode creation => GenericTypeRef(creation.TypeRef, creation.TypeArgs),
+        ObjectCreationExpressionNode creation => ObjectCreationTypeResolver.Resolve(creation, ctx),
         CastExpressionNode cast => cast.CastKind == CastKind.Is ? "bool" : cast.TargetType,
         TypeofExpressionNode or NameofExpressionNode => "string",
         DefaultExpressionNode defaultValue => defaultValue.TypeName,
@@ -139,6 +139,4 @@ internal static class ExpressionTypeResolver
         return symbol.Members.FirstOrDefault(m => m.Kind == MemberKind.Method)?.ReturnType;
     }
 
-    private static string GenericTypeRef(string typeRef, IReadOnlyList<string> typeArgs) =>
-        typeArgs.Count == 0 ? typeRef : $"{typeRef}<{string.Join(", ", typeArgs)}>";
 }

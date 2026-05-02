@@ -1,4 +1,6 @@
+using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Members;
+using TypedGML.Compiler.Ast.Statements;
 using TypedGML.Compiler.Emission.Emitters.Expressions;
 using TypedGML.Compiler.Symbols;
 using TypedGML.Compiler.Utils;
@@ -18,22 +20,33 @@ internal sealed class ObjectConstructorEmitter
             ? NamingConvention.ConstructorName(ctx.CurrentType!)
             : NamingConvention.ConstructorName(ctx.CurrentType!, symbol);
         ctx.Writer.Write($"function {functionName}({parameters})");
-        ctx.Writer.BeginBlock();
-        if (extraParameters.Count == 0)
-            ctx.Writer.WriteLine($"return instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
-        else
+        WithConstructorContext(ctx, constructor.Parameters, symbol, () =>
         {
+            ctx.ResetTempVars();
+            ctx.Writer.BeginBlock();
+            if (!NeedsInstanceBlock(constructor, extraParameters))
+            {
+                ctx.Writer.WriteLine($"return instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
+                ctx.Writer.EndBlock();
+                return;
+            }
+
             ctx.Writer.WriteLine($"var __inst = instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
             ctx.Writer.Write("with (__inst)");
             ctx.Writer.BeginBlock();
-            foreach (var parameter in extraParameters)
-                ctx.Writer.WriteLine($"{TargetName(parameter.Name, ctx)} = {parameter.Name};");
+            ConstructorChainInliner.Emit(constructor, ctx);
+            EmitBodyStatements(constructor.Body, ctx);
+            EmitParameterAssignments(extraParameters, constructor.Body, ctx);
             ctx.Writer.EndBlock();
             ctx.Writer.WriteLine("return __inst;");
-        }
-
-        ctx.Writer.EndBlock();
+            ctx.Writer.EndBlock();
+        });
     }
+
+    private static bool NeedsInstanceBlock(ConstructorDeclarationNode constructor, IReadOnlyList<ParameterNode> extraParameters) =>
+        extraParameters.Count > 0 ||
+        constructor.ChainTarget != ConstructorChainTarget.None ||
+        constructor.Body is BlockStatementNode { Statements.Count: > 0 };
 
     private static string TargetName(string parameterName, EmitContext ctx)
     {
@@ -43,6 +56,29 @@ internal sealed class ObjectConstructorEmitter
             string.Equals(member.Name, parameterName, StringComparison.OrdinalIgnoreCase));
 
         return member?.Name ?? parameterName;
+    }
+
+    private static void EmitBodyStatements(IAstNode body, EmitContext ctx)
+    {
+        if (body is BlockStatementNode block)
+        {
+            foreach (var statement in block.Statements)
+                ctx.Dispatch(statement, ctx);
+            return;
+        }
+
+        ctx.Dispatch(body, ctx);
+    }
+
+    private static void EmitParameterAssignments(IReadOnlyList<ParameterNode> extraParameters, IAstNode body, EmitContext ctx)
+    {
+        var assignedFields = ConstructorFieldAssignmentFinder.Find(body);
+        foreach (var parameter in extraParameters)
+        {
+            var targetName = TargetName(parameter.Name, ctx);
+            if (!assignedFields.Contains(targetName))
+                ctx.Writer.WriteLine($"{targetName} = {parameter.Name};");
+        }
     }
 
     private static MemberSymbol? ResolveSymbol(TypeSymbol type, ConstructorDeclarationNode constructor) =>
@@ -63,4 +99,32 @@ internal sealed class ObjectConstructorEmitter
         symbol is not null && ObjectConstructorSpatialArguments.ParametersSupplyRequiredValues(symbol)
             ? constructor.Parameters.Skip(3).ToList()
             : constructor.Parameters;
+
+    private static void WithConstructorContext(
+        EmitContext ctx,
+        IReadOnlyList<ParameterNode> parameters,
+        MemberSymbol? symbol,
+        Action action)
+    {
+        var previousSelf = ctx.SelfName;
+        var previousMember = ctx.CurrentMember;
+        var previousConstructor = ctx.IsInConstructor;
+        ctx.SelfName = "self";
+        ctx.CurrentMember = symbol;
+        ctx.IsInConstructor = true;
+        ctx.Scope.Push();
+        foreach (var parameter in parameters)
+            ctx.Scope.Declare(parameter.Name, parameter.TypeRef);
+        try
+        {
+            action();
+        }
+        finally
+        {
+            ctx.Scope.Pop();
+            ctx.IsInConstructor = previousConstructor;
+            ctx.CurrentMember = previousMember;
+            ctx.SelfName = previousSelf;
+        }
+    }
 }

@@ -60,10 +60,8 @@ internal static class EmissionOverloadResolver
     {
         if (string.IsNullOrWhiteSpace(targetType) || string.IsNullOrWhiteSpace(sourceType))
             return false;
-        if (targetType == sourceType)
-            return true;
         if (sourceType == "null")
-            return IsNullable(targetType);
+            return targetType == "null" || IsNullable(targetType);
         if (IsNullable(targetType))
             return IsAssignable(UnwrapNullable(targetType), sourceType, ctx);
         if (IsNullable(sourceType))
@@ -72,7 +70,7 @@ internal static class EmissionOverloadResolver
             return true;
         if (!ExpressionSymbolHelper.TryResolveType(ctx, targetType, out var target) ||
             !ExpressionSymbolHelper.TryResolveType(ctx, sourceType, out var source))
-            return false;
+            return targetType == sourceType;
 
         if (target == source)
             return true;
