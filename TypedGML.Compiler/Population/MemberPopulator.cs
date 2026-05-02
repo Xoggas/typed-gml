@@ -121,7 +121,7 @@ public sealed class MemberPopulator(SymbolTable symbolTable, DiagnosticBag diagn
             {
                 Name = member.Name,
                 Kind = MemberKind.Field,
-                ReturnType = "number",
+                ReturnType = qualifiedTypeName,
                 Parameters = [],
                 Modifiers = new HashSet<string>(StringComparer.Ordinal) { "const" }
             });
