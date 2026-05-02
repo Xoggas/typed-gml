@@ -1,6 +1,7 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Symbols;
+using TypedGML.Compiler.Verification;
 
 namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 
@@ -25,12 +26,17 @@ public sealed class NullConditionalExpressionEmitter : INodeEmitter
     private static bool IsSimple(IAstNode node) =>
         node is IdentifierExpressionNode or LiteralExpressionNode;
 
-    private static string RenderMemberRead(NullConditionalExpressionNode expression, string target, EmitContext ctx)
+    internal static string RenderMemberRead(NullConditionalExpressionNode expression, string target, EmitContext ctx)
     {
         if (!ExpressionSymbolHelper.TryResolveTargetType(expression.Target, ctx, out var owner))
             return $"{target}.{expression.MemberName}";
 
-        var member = owner.Members.FirstOrDefault(m => m.Name == expression.MemberName);
+        var member = GenericMemberResolver.FindMember(
+            owner,
+            ExpressionTypeLookup.Resolve(expression.Target, ctx) ?? owner.QualifiedName,
+            expression.MemberName,
+            out var declaringType);
+        owner = declaringType ?? owner;
         return member?.Kind switch
         {
             MemberKind.Property when member.NativePropertyName is not null => $"{target}.{member.NativePropertyName}",

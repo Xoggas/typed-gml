@@ -75,6 +75,76 @@ public sealed class PropertyAccessEmissionTests
     }
 
     [Fact]
+    public void Test_InferredListIndexerVariablePropertyReadsUseGetters()
+    {
+        var result = Compile("""
+            using TypedGML.Collections;
+
+            public class BankAccount {
+                private string _accountNumber;
+                private string _owner;
+                private number _balance;
+
+                public string AccountNumber { get { return _accountNumber; } }
+                public string Owner { get { return _owner; } }
+                public number Balance { get { return _balance; } }
+            }
+
+            public class Bank {
+                private List<BankAccount> _accounts;
+
+                public void ListAccounts() {
+                    var a = this._accounts[0];
+                    var accountNumber = a.AccountNumber;
+                    var owner = a.Owner;
+                    var balance = a.Balance;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var gml = result.GetFile("Bank.gml")!;
+
+        GmlAssert.ContainsPattern(gml, "var accountNumber = BankAccount_get_AccountNumber(a);");
+        GmlAssert.ContainsPattern(gml, "var owner = BankAccount_get_Owner(a);");
+        GmlAssert.ContainsPattern(gml, "var balance = BankAccount_get_Balance(a);");
+        GmlAssert.NotContainsPattern(gml, "a.AccountNumber");
+        GmlAssert.NotContainsPattern(gml, "a.Owner");
+        GmlAssert.NotContainsPattern(gml, "a.Balance");
+    }
+
+    [Fact]
+    public void Test_InheritedPropertyReadFromAsCastVariableUsesDeclaringGetter()
+    {
+        var result = Compile("""
+            public class Account {
+            }
+
+            public class BankAccount : Account {
+                private number _balance;
+
+                public number Balance { get { return _balance; } }
+            }
+
+            public class SavingsAccount : BankAccount {
+            }
+
+            public class Bank {
+                public void WithdrawSavings(Account account) {
+                    var savings = account as SavingsAccount;
+                    var balance = savings.Balance;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var gml = result.GetFile("Bank.gml")!;
+
+        GmlAssert.ContainsPattern(gml, "var balance = BankAccount_get_Balance(savings);");
+        GmlAssert.NotContainsPattern(gml, "savings.Balance");
+    }
+
+    [Fact]
     public void Test_InstancePropertyWritesUseSetters()
     {
         var result = Compile("""

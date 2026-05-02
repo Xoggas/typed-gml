@@ -1,6 +1,7 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Symbols;
+using TypedGML.Compiler.Verification;
 
 namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 
@@ -78,8 +79,12 @@ internal static class InstanceMemberAccessHelper
             case IdentifierExpressionNode identifier when !ctx.Scope.TryResolve(identifier.Name, out _):
                 return TryResolveCurrent(identifier.Name, ctx, out owner, out member);
             case MemberAccessExpressionNode access when ExpressionSymbolHelper.TryResolveTargetType(access.Target, ctx, out var type):
-                member = type.Members.FirstOrDefault(m => m.Name == access.MemberName)!;
-                owner = type;
+                member = GenericMemberResolver.FindMember(
+                    type,
+                    ExpressionTypeLookup.Resolve(access.Target, ctx) ?? type.QualifiedName,
+                    access.MemberName,
+                    out var declaringType)!;
+                owner = declaringType ?? type;
                 return member is not null;
             default:
                 owner = null!;

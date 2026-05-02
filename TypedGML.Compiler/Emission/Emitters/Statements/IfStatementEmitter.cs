@@ -13,7 +13,10 @@ public sealed class IfStatementEmitter : INodeEmitter
         var condition = ctx.RenderWithTempPrelude(statement.Condition);
         ctx.FlushTempPrelude();
         ctx.Writer.Write($"if ({condition})");
-        StatementEmitterHelper.EmitBody(statement.ThenBlock, ctx);
+        EmissionNullNarrowingHelper.WithThenBranch(
+            statement,
+            ctx,
+            () => StatementEmitterHelper.EmitBody(statement.ThenBlock, ctx));
 
         foreach (var clause in statement.ElseIfClauses)
         {
@@ -24,7 +27,10 @@ public sealed class IfStatementEmitter : INodeEmitter
         }
 
         if (statement.ElseBlock is null)
+        {
+            EmissionNullNarrowingHelper.ApplyEarlyExit(statement, ctx);
             return;
+        }
 
         ctx.Writer.Write("else");
         StatementEmitterHelper.EmitBody(statement.ElseBlock, ctx);

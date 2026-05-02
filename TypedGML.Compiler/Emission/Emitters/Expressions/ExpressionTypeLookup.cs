@@ -20,7 +20,7 @@ internal static class ExpressionTypeLookup
         IdentifierExpressionNode identifier => ResolveIdentifier(identifier, ctx),
         ObjectCreationExpressionNode creation => creation.TypeRef,
         CastExpressionNode cast => cast.CastKind == CastKind.Is ? "bool" : cast.TargetType,
-        MemberAccessExpressionNode access => ResolveMember(access, ctx)?.ReturnType,
+        MemberAccessExpressionNode access => MemberExpressionTypeLookup.ResolveMember(access, ctx)?.ReturnType,
         InvocationExpressionNode invocation => ResolveInvocation(invocation, ctx),
         BinaryExpressionNode binary => ResolveBinary(binary, ctx),
         UnaryExpressionNode unary => unary.Op == "not" ? "bool" : Resolve(unary.Operand, ctx),
@@ -31,6 +31,7 @@ internal static class ExpressionTypeLookup
         NullConditionalExpressionNode conditional => Nullable(ResolveNullConditionalAccess(conditional, ctx)?.ReturnType),
         DefaultExpressionNode defaultValue => defaultValue.TypeName,
         TypeofExpressionNode or NameofExpressionNode => "string",
+        IndexerAccessExpressionNode indexer => MemberExpressionTypeLookup.ResolveIndexer(indexer, ctx),
         _ => null
     };
 
@@ -39,7 +40,14 @@ internal static class ExpressionTypeLookup
         if (identifier.Name == "this")
             return ctx.CurrentType?.QualifiedName;
 
-        if (ctx.Scope.TryResolve(identifier.Name, out var typeRef))
+        if (ctx.Scope.TryResolve(identifier.Name, out var scopedType) &&
+            ctx.Narrowing.TryResolve(identifier.Name, out var narrowedType))
+            return TypeSpecificityHelper.MostSpecific(scopedType, narrowedType, ctx);
+
+        if (ctx.Narrowing.TryResolve(identifier.Name, out var typeRef))
+            return typeRef;
+
+        if (ctx.Scope.TryResolve(identifier.Name, out typeRef))
             return typeRef;
 
         if (ctx.CurrentType is not null && TryResolveCurrentMember(identifier.Name, ctx, out _, out var member))
@@ -59,7 +67,7 @@ internal static class ExpressionTypeLookup
             TryResolveCurrentMember(identifier.Name, ctx, out _, out var member))
             return member.ReturnType;
 
-        return ResolveMember(invocation.Target, ctx)?.ReturnType;
+        return MemberExpressionTypeLookup.ResolveMember(invocation.Target, ctx)?.ReturnType;
     }
 
     private static string? ResolveBinary(BinaryExpressionNode binary, EmitContext ctx)
@@ -76,22 +84,6 @@ internal static class ExpressionTypeLookup
             "==" or "!=" or "<" or ">" or "<=" or ">=" or "and" or "or" => "bool",
             _ => Resolve(binary.Left, ctx) ?? Resolve(binary.Right, ctx)
         };
-    }
-
-    private static MemberSymbol? ResolveMember(IAstNode target, EmitContext ctx)
-    {
-        if (target is MemberAccessExpressionNode qualifiedAccess &&
-            QualifiedTypeAccessResolver.TryResolveMember(qualifiedAccess, ctx, out var qualifiedOwner, out var qualifiedMember))
-        {
-            qualifiedOwner = PrimitiveBclTypeResolver.ResolveMemberOwner(qualifiedOwner, ctx.Symbols);
-            return qualifiedOwner.Members.FirstOrDefault(m => m.Name == qualifiedMember);
-        }
-
-        if (target is MemberAccessExpressionNode access &&
-            ExpressionSymbolHelper.TryResolveTargetType(access.Target, ctx, out var owner))
-            return owner.Members.FirstOrDefault(m => m.Name == access.MemberName);
-
-        return null;
     }
 
     private static MemberSymbol? ResolveNullConditionalAccess(NullConditionalExpressionNode conditional, EmitContext ctx) =>

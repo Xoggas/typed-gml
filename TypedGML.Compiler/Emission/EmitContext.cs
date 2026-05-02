@@ -26,6 +26,7 @@ public sealed class EmitContext(
     public IReadOnlyList<string> UsingPrefixes { get; set; } = [];
     public IReadOnlyDictionary<string, IAstNode> TypeDeclarations { get; set; } = new Dictionary<string, IAstNode>(StringComparer.Ordinal);
     public ScopeStack Scope { get; set; } = new();
+    public EmissionNarrowingState Narrowing { get; set; } = new();
     public MemberSymbol? CurrentMember { get; set; }
     public string? SelfName { get; set; }
     public bool IsObjectEventContext { get; set; }
@@ -114,6 +115,7 @@ public sealed class EmitContext(
             UsingPrefixes = UsingPrefixes,
             TypeDeclarations = TypeDeclarations,
             Scope = Scope,
+            Narrowing = Narrowing,
             CurrentMember = CurrentMember,
             SelfName = SelfName,
             IsObjectEventContext = IsObjectEventContext,

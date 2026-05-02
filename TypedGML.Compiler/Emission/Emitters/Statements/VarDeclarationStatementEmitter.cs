@@ -23,8 +23,7 @@ public sealed class VarDeclarationStatementEmitter : INodeEmitter
         ctx.FlushTempPrelude();
         ctx.Writer.WriteLine($"var {statement.Name}{initializer};");
         var typeRef = statement.TypeRef ?? ExpressionTypeLookup.Resolve(statement.Initializer, ctx);
-        if (!string.IsNullOrWhiteSpace(typeRef))
-            ctx.Scope.Declare(statement.Name, typeRef);
+        Declare(statement, typeRef, ctx);
     }
 
     private static string Initializer(VarDeclarationStatementNode statement, EmitContext ctx)
@@ -50,8 +49,7 @@ public sealed class VarDeclarationStatementEmitter : INodeEmitter
         BaseCallInlineRenderer.EmitWithReturnTarget(baseCall, resultName, ctx);
         ctx.Writer.WriteLine($"var {statement.Name} = {resultName};");
         var typeRef = statement.TypeRef ?? ExpressionTypeLookup.Resolve(statement.Initializer, ctx);
-        if (!string.IsNullOrWhiteSpace(typeRef))
-            ctx.Scope.Declare(statement.Name, typeRef);
+        Declare(statement, typeRef, ctx);
         return true;
     }
 
@@ -71,8 +69,18 @@ public sealed class VarDeclarationStatementEmitter : INodeEmitter
         var args = ExpressionCallHelper.JoinConstructorArguments(type, creation.PositionalArgs, creation.NamedArgs, ctx);
         ctx.Writer.WriteLine($"var {statement.Name} = {ConstructorName(type, creation, ctx)}({args});");
         ctx.Writer.WriteLine($"{statement.Name}.__genericArgs = {GenericArgsRenderer.Render(type, creation.TypeArgs, ctx)};");
-        ctx.Scope.Declare(statement.Name, statement.TypeRef ?? creation.TypeRef);
+        Declare(statement, statement.TypeRef ?? creation.TypeRef, ctx);
         return true;
+    }
+
+    private static void Declare(VarDeclarationStatementNode statement, string? typeRef, EmitContext ctx)
+    {
+        if (!string.IsNullOrWhiteSpace(typeRef))
+            ctx.Scope.Declare(statement.Name, typeRef);
+
+        ctx.Narrowing.Clear(statement.Name);
+        if (statement.Initializer is CastExpressionNode { CastKind: CastKind.As } cast)
+            ctx.Narrowing.Narrow(statement.Name, cast.TargetType);
     }
 
     private static string ConstructorName(TypeSymbol type, ObjectCreationExpressionNode creation, EmitContext ctx)

@@ -42,7 +42,8 @@ internal static class ExpressionSymbolHelper
         {
             if (identifier.Name == "this" && ctx.CurrentType is not null) { type = ctx.CurrentType; return true; }
             if (identifier.Name == "base" && ctx.CurrentType?.Base is not null) { type = ctx.CurrentType.Base; return true; }
-            if (ctx.Scope.TryResolve(identifier.Name, out var scopedTypeRef) && TryResolveType(ctx, scopedTypeRef, out type))
+            var resolvedTypeRef = ResolveIdentifierTypeRef(identifier, ctx);
+            if (!string.IsNullOrWhiteSpace(resolvedTypeRef) && TryResolveType(ctx, resolvedTypeRef, out type))
                 return true;
             if (TryResolveCurrentMember(ctx, identifier.Name, out var member))
                 return TryResolveType(ctx, member.ReturnType, out type);
@@ -53,11 +54,11 @@ internal static class ExpressionSymbolHelper
             return false;
         }
 
-        if (target is MemberAccessExpressionNode access && TryResolveTargetType(access.Target, ctx, out var accessType))
+        if (target is MemberAccessExpressionNode access)
         {
-            var member = accessType.Members.FirstOrDefault(m => m.Name == access.MemberName);
-            if (member is not null)
-                return TryResolveType(ctx, member.ReturnType, out type);
+            var memberType = ExpressionTypeLookup.Resolve(access, ctx);
+            if (!string.IsNullOrWhiteSpace(memberType))
+                return TryResolveType(ctx, memberType, out type);
 
             type = null!;
             return false;
@@ -99,6 +100,16 @@ internal static class ExpressionSymbolHelper
     private static bool IsDelegateLike(MemberSymbol member, EmitContext ctx) =>
         member.Kind == MemberKind.Event ||
         TryResolveType(ctx, member.ReturnType, out var type) && type.Kind == TypeKind.Delegate;
+
+    private static string? ResolveIdentifierTypeRef(IdentifierExpressionNode identifier, EmitContext ctx)
+    {
+        var hasScoped = ctx.Scope.TryResolve(identifier.Name, out var scopedTypeRef);
+        var hasNarrowed = ctx.Narrowing.TryResolve(identifier.Name, out var narrowedTypeRef);
+
+        return hasScoped && hasNarrowed
+            ? TypeSpecificityHelper.MostSpecific(scopedTypeRef, narrowedTypeRef, ctx)
+            : hasNarrowed ? narrowedTypeRef : hasScoped ? scopedTypeRef : null;
+    }
 
     private static string CurrentNamespace(EmitContext ctx)
     {
