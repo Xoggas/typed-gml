@@ -1,5 +1,6 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
+using TypedGML.Compiler.Symbols;
 
 namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 
@@ -56,7 +57,16 @@ public sealed class BinaryExpressionEmitter : INodeEmitter
         var rendered = node is BinaryExpressionNode binary
             ? Render(binary, ctx, parent: null, isRight: false)
             : ctx.Emitter.Render(node, ctx);
-        return ExpressionTypeLookup.Resolve(node, ctx) is "number" or "bool" ? $"string({rendered})" : rendered;
+        return NeedsStringConversion(node, ctx) ? $"string({rendered})" : rendered;
+    }
+
+    private static bool NeedsStringConversion(IAstNode node, EmitContext ctx)
+    {
+        var typeRef = ExpressionTypeLookup.Resolve(node, ctx);
+        if (typeRef is "number" or "bool")
+            return true;
+
+        return ExpressionSymbolHelper.TryResolveType(ctx, typeRef, out var type) && type.Kind == TypeKind.Enum;
     }
 
     private static bool NeedsParentheses(BinaryExpressionNode expression, BinaryExpressionNode? parent, bool isRight)

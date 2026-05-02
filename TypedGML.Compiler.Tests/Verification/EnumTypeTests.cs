@@ -54,6 +54,27 @@ public sealed class EnumTypeTests
         }
         """).HasError(DiagnosticCode.TypeMismatch).Should().BeTrue();
 
+    [Fact]
+    public void Test_StringPlusEnum_Valid() => Compile("""
+        public enum BossPhase { Phase1 = 0, Phase2 = 1 }
+        public class Boss {
+            public void Run(BossPhase phase) {
+                string message = "Phase: " + phase;
+            }
+        }
+        """).HasErrors.Should().BeFalse();
+
+    [Fact]
+    public void Test_DebugLogStringPlusEnum_Valid() => Compile("""
+        using TypedGML.Utils;
+        public enum BossPhase { Phase1 = 0, Phase2 = 1 }
+        public class Boss {
+            public void Run(BossPhase phase) {
+                Debug.Log("State: " + phase);
+            }
+        }
+        """).HasErrors.Should().BeFalse();
+
     private static CompileResult Compile(string source) =>
         CompilerFixture.Compile(source);
 }

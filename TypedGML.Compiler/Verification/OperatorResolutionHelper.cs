@@ -9,6 +9,9 @@ internal static class OperatorResolutionHelper
         if (op is "and" or "or" or "==" or "!=")
             return "bool";
 
+        if (IsStringEnumConcat(op, leftType, rightType, ctx))
+            return "string";
+
         return FindBinary(op, leftType, rightType, ctx)?.ReturnType;
     }
 
@@ -41,6 +44,11 @@ internal static class OperatorResolutionHelper
         return Match(owner, op, [operandType!]);
     }
 
+    public static bool IsStringEnumConcat(string op, string? leftType, string? rightType, VerificationContext ctx) =>
+        op == "+" &&
+        ((leftType == "string" && IsEnum(rightType, ctx)) ||
+            (rightType == "string" && IsEnum(leftType, ctx)));
+
     private static MemberSymbol? Match(TypeSymbol owner, string op, IReadOnlyList<string> parameterTypes) =>
         owner.Members.FirstOrDefault(member =>
             member.Kind == MemberKind.Operator &&
@@ -67,4 +75,7 @@ internal static class OperatorResolutionHelper
 
         return ctx.Symbols.TryResolve(bclTypeName, null, [], out type);
     }
+
+    private static bool IsEnum(string? typeRef, VerificationContext ctx) =>
+        SymbolResolver.TryResolveType(typeRef, ctx, out var type) && type.Kind == TypeKind.Enum;
 }

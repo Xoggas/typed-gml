@@ -43,6 +43,9 @@ public sealed class OperatorCheck : ISemanticCheck
         if (OperatorResolutionHelper.FindBinary(binary.Op, leftType, rightType, ctx) is not null)
             return;
 
+        if (OperatorResolutionHelper.IsStringEnumConcat(binary.Op, leftType, rightType, ctx))
+            return;
+
         Report($"Operator '{binary.Op}' cannot be applied to '{leftType ?? "unknown"}' and '{rightType ?? "unknown"}'.", binary.Location, ctx);
     }
 

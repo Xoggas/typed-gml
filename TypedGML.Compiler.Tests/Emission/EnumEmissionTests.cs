@@ -29,4 +29,38 @@ public sealed class EnumEmissionTests
         GmlAssert.ContainsPattern(gml, "State = EntityState_Moving;");
         GmlAssert.ContainsPattern(gml, "case EntityState_Dead:");
     }
+
+    [Fact]
+    public void Test_StringPlusEnumMember_ConvertsEnumWithGmlString()
+    {
+        var result = CompilerFixture.Compile("""
+            public enum BossPhase { Phase1 = 0, Phase2 = 1 }
+            public class Boss {
+                public void Run() {
+                    string message = "Phase: " + BossPhase.Phase1;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var gml = result.GetFile("Boss.gml")!;
+        GmlAssert.ContainsPattern(gml, "\"Phase: \" + string(BossPhase_Phase1)");
+    }
+
+    [Fact]
+    public void Test_StringPlusEnumVariable_ConvertsEnumWithGmlString()
+    {
+        var result = CompilerFixture.Compile("""
+            public enum BossPhase { Phase1 = 0, Phase2 = 1 }
+            public class Boss {
+                public void Run(BossPhase phase) {
+                    string message = "State: " + phase;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var gml = result.GetFile("Boss.gml")!;
+        GmlAssert.ContainsPattern(gml, "\"State: \" + string(phase)");
+    }
 }
