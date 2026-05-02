@@ -34,25 +34,69 @@ internal static class ConstructorChainInliner
 
     private static void EmitBaseConstructor(TypeSymbol type, IReadOnlyList<IAstNode> args, EmitContext ctx)
     {
+        var chain = new List<(TypeSymbol Type, IAstNode? Body)>();
+        CollectBaseChain(type, args, ctx, chain);
+        EmitDefaultInitializers(chain, ctx);
+        EmitBodies(chain, ctx);
+    }
+
+    private static void CollectBaseChain(
+        TypeSymbol type,
+        IReadOnlyList<IAstNode> args,
+        EmitContext ctx,
+        List<(TypeSymbol Type, IAstNode? Body)> chain)
+    {
         var constructor = ResolveConstructor(type, args.Count, ctx);
         if (constructor is null)
         {
-            WithCurrentType(ctx, type, () => ConstructorFieldInitializerEmitter.Emit(type, null, ctx));
+            CollectDefaultInitializerChain(type.Base, chain);
+            chain.Add((type, null));
             return;
         }
 
-        var body = ConstructorParameterSubstituter.Substitute(constructor.Body, constructor.Parameters, args);
-        WithCurrentType(ctx, type, () =>
+        if (constructor.ChainTarget == ConstructorChainTarget.Base && type.Base is not null)
         {
-            if (constructor.ChainTarget == ConstructorChainTarget.Base && type.Base is not null)
-            {
-                var baseArgs = ConstructorParameterSubstituter.Substitute(constructor.ChainArgs, constructor.Parameters, args);
-                EmitBaseConstructor(type.Base, baseArgs, ctx);
-            }
+            var baseArgs = ConstructorParameterSubstituter.Substitute(constructor.ChainArgs, constructor.Parameters, args);
+            CollectBaseChain(type.Base, baseArgs, ctx, chain);
+        }
+        else
+        {
+            CollectDefaultInitializerChain(type.Base, chain);
+        }
 
-            ConstructorFieldInitializerEmitter.Emit(type, body, ctx);
-            EmitBody(body, ctx);
-        });
+        var body = ConstructorParameterSubstituter.Substitute(constructor.Body, constructor.Parameters, args);
+        chain.Add((type, body));
+    }
+
+    private static void CollectDefaultInitializerChain(
+        TypeSymbol? type,
+        List<(TypeSymbol Type, IAstNode? Body)> chain)
+    {
+        if (type is null)
+            return;
+
+        CollectDefaultInitializerChain(type.Base, chain);
+        chain.Add((type, null));
+    }
+
+    private static void EmitDefaultInitializers(
+        IReadOnlyList<(TypeSymbol Type, IAstNode? Body)> chain,
+        EmitContext ctx)
+    {
+        foreach (var frame in chain)
+            WithCurrentType(ctx, frame.Type, () =>
+            {
+                ConstructorFieldInitializerEmitter.EmitAll(frame.Type, ctx);
+                ConstructorAutoPropertyInitializerEmitter.Emit(frame.Type, ctx);
+            });
+    }
+
+    private static void EmitBodies(
+        IReadOnlyList<(TypeSymbol Type, IAstNode? Body)> chain,
+        EmitContext ctx)
+    {
+        foreach (var frame in chain.Where(frame => frame.Body is not null))
+            WithCurrentType(ctx, frame.Type, () => EmitBody(frame.Body!, ctx));
     }
 
     private static ConstructorDeclarationNode? ResolveConstructor(TypeSymbol type, int argumentCount, EmitContext ctx)

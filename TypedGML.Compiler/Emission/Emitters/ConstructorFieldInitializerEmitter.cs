@@ -8,6 +8,9 @@ namespace TypedGML.Compiler.Emission.Emitters;
 
 internal static class ConstructorFieldInitializerEmitter
 {
+    public static void EmitAll(TypeSymbol? type, EmitContext ctx) =>
+        Emit(type, null, ctx);
+
     public static void Emit(TypeSymbol? type, IAstNode? body, EmitContext ctx)
     {
         if (type is null)
