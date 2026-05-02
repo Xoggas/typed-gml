@@ -46,17 +46,18 @@ public sealed class ConstructorCallCheck : ISemanticCheck
         if (type.IsAbstract)
             Report(DiagnosticCode.AbstractClassInstantiation, $"Abstract type '{type.QualifiedName}' cannot be instantiated.", creation.Location, ctx);
 
-        var positionalArgs = creation.PositionalArgs;
         var constructors = type.Members.Where(member => member.Kind == MemberKind.Constructor).ToList();
         if (constructors.Count == 0)
         {
-            if (positionalArgs.Count > 0 || creation.NamedArgs.Count > 0)
+            if (creation.PositionalArgs.Count > 0 || creation.NamedArgs.Count > 0)
                 Report(DiagnosticCode.NoMatchingMethodOverload, $"Type '{type.QualifiedName}' does not have a matching constructor.", creation.Location, ctx);
             return;
         }
 
         var substitutions = GenericTypeSubstitution.Map(type, creation.TypeArgs);
-        var matches = constructors.Where(member => Matches(member, positionalArgs, substitutions, ctx)).ToList();
+        var matches = constructors
+            .Where(member => Matches(member, creation.PositionalArgs, creation.NamedArgs, substitutions, ctx))
+            .ToList();
         if (matches.Count == 0)
         {
             Report(DiagnosticCode.NoMatchingMethodOverload, $"Type '{type.QualifiedName}' does not have a matching constructor.", creation.Location, ctx);
@@ -68,17 +69,30 @@ public sealed class ConstructorCallCheck : ISemanticCheck
             Report(DiagnosticCode.InvalidObjectConstructorArgumentCount, "@Object construction requires x, y, and layer arguments from the constructor parameters or base constructor call.", creation.Location, ctx);
     }
 
-    private static bool Matches(MemberSymbol constructor, IReadOnlyList<IAstNode> args, VerificationContext ctx) =>
-        Matches(constructor, args, new Dictionary<string, string>(StringComparer.Ordinal), ctx);
+    private static bool Matches(MemberSymbol constructor, IReadOnlyList<IAstNode> mixedArgs, VerificationContext ctx) =>
+        Matches(
+            constructor,
+            CallArgumentOrderer.PositionalFromMixed(mixedArgs),
+            CallArgumentOrderer.NamedFromMixed(mixedArgs),
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            ctx);
 
-    private static bool Matches(MemberSymbol constructor, IReadOnlyList<IAstNode> args, IReadOnlyDictionary<string, string> substitutions, VerificationContext ctx)
+    private static bool Matches(
+        MemberSymbol constructor,
+        IReadOnlyList<IAstNode> positionalArgs,
+        IReadOnlyList<NamedArgNode> namedArgs,
+        IReadOnlyDictionary<string, string> substitutions,
+        VerificationContext ctx)
     {
-        if (args.Count > constructor.Parameters.Count || args.Count < MemberSignatureHelper.RequiredParameters(constructor))
+        if (!CallArgumentOrderer.TryBind(constructor, positionalArgs, namedArgs, out var bindings))
             return false;
 
-        for (var i = 0; i < args.Count; i++)
-            if (!TypeReferenceHelper.IsAssignable(GenericTypeSubstitution.Substitute(constructor.Parameters[i].TypeRef, substitutions), ExpressionTypeResolver.Resolve(args[i], ctx), ctx))
+        foreach (var binding in bindings)
+        {
+            var targetType = GenericTypeSubstitution.Substitute(constructor.Parameters[binding.ParameterIndex].TypeRef, substitutions);
+            if (!TypeReferenceHelper.IsAssignable(targetType, ExpressionTypeResolver.Resolve(binding.Value, ctx), ctx))
                 return false;
+        }
 
         return true;
     }

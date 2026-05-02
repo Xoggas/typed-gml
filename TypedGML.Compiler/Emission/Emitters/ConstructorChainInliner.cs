@@ -1,9 +1,9 @@
 using TypedGML.Compiler.Ast;
-using TypedGML.Compiler.Ast.Declarations;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Ast.Statements;
 using TypedGML.Compiler.Emission.Emitters.Expressions;
 using TypedGML.Compiler.Symbols;
+using TypedGML.Compiler.Utils;
 
 namespace TypedGML.Compiler.Emission.Emitters;
 
@@ -19,12 +19,18 @@ internal static class ConstructorChainInliner
 
         if (constructor.ChainTarget == ConstructorChainTarget.This && ctx.CurrentType is not null)
         {
-            var args = string.Join(", ", constructor.ChainArgs.Select(arg => ctx.Emitter.Render(arg, ctx)));
+            var positionalArgs = CallArgumentOrderer.PositionalFromMixed(constructor.ChainArgs);
+            var namedArgs = CallArgumentOrderer.NamedFromMixed(constructor.ChainArgs);
             var symbol = EmissionOverloadResolver.Pick(
                 ctx.CurrentType.Members.Where(member => member.Kind == MemberKind.Constructor).ToList(),
-                constructor.ChainArgs,
-                [],
+                positionalArgs,
+                namedArgs,
                 ctx);
+            var orderedArgs = symbol is not null &&
+                CallArgumentOrderer.TryOrder(symbol, positionalArgs, namedArgs, true, out var ordered)
+                    ? ordered
+                    : positionalArgs.Concat(namedArgs.Select(arg => arg.Value)).ToList();
+            var args = string.Join(", ", orderedArgs.Select(arg => ctx.Emitter.Render(arg, ctx)));
             var name = symbol is null
                 ? NamingConvention.ConstructorName(ctx.CurrentType)
                 : NamingConvention.ConstructorName(ctx.CurrentType, symbol);
@@ -46,7 +52,7 @@ internal static class ConstructorChainInliner
         EmitContext ctx,
         List<(TypeSymbol Type, IAstNode? Body)> chain)
     {
-        var constructor = ResolveConstructor(type, args.Count, ctx);
+        var constructor = ConstructorChainTargetResolver.Resolve(type, args, ctx, out var orderedArgs);
         if (constructor is null)
         {
             CollectDefaultInitializerChain(type.Base, chain);
@@ -56,7 +62,7 @@ internal static class ConstructorChainInliner
 
         if (constructor.ChainTarget == ConstructorChainTarget.Base && type.Base is not null)
         {
-            var baseArgs = ConstructorParameterSubstituter.Substitute(constructor.ChainArgs, constructor.Parameters, args);
+            var baseArgs = ConstructorParameterSubstituter.Substitute(constructor.ChainArgs, constructor.Parameters, orderedArgs);
             CollectBaseChain(type.Base, baseArgs, ctx, chain);
         }
         else
@@ -64,7 +70,7 @@ internal static class ConstructorChainInliner
             CollectDefaultInitializerChain(type.Base, chain);
         }
 
-        var body = ConstructorParameterSubstituter.Substitute(constructor.Body, constructor.Parameters, args);
+        var body = ConstructorParameterSubstituter.Substitute(constructor.Body, constructor.Parameters, orderedArgs);
         chain.Add((type, body));
     }
 
@@ -97,17 +103,6 @@ internal static class ConstructorChainInliner
     {
         foreach (var frame in chain.Where(frame => frame.Body is not null))
             WithCurrentType(ctx, frame.Type, () => EmitBody(frame.Body!, ctx));
-    }
-
-    private static ConstructorDeclarationNode? ResolveConstructor(TypeSymbol type, int argumentCount, EmitContext ctx)
-    {
-        if (!ctx.TypeDeclarations.TryGetValue(TypeDeclarationMapBuilder.Key(type), out var declaration) || declaration is not ClassDeclarationNode @class)
-            return null;
-
-        return @class.Members.OfType<ConstructorDeclarationNode>()
-            .FirstOrDefault(constructor =>
-                argumentCount >= constructor.Parameters.Count(parameter => parameter.DefaultValue is null) &&
-                argumentCount <= constructor.Parameters.Count);
     }
 
     private static void EmitBody(IAstNode body, EmitContext ctx)
