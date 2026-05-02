@@ -132,18 +132,18 @@ public sealed class MiscEmissionTests
             }
             """);
         var gml = result.GetFile("TypedGML_Collections_HashSet1.gml")!;
-        GmlAssert.ContainsPattern(gml, """(("HashSet[" + string(TypedGML_Collections_HashSet1_get_Count(self)) + "]"))""");
+        GmlAssert.ContainsPattern(gml, "\"HashSet[\" + string(TypedGML_Collections_HashSet1_get_Count(self)) + \"]\"");
         GmlAssert.NotContainsPattern(gml, """(("HashSet[" + string(TypedGML_Collections_HashSet1_get_Count(self))) + "]")""");
     }
 
-    [Fact] public void Test_Lambda_Action_NoReturn() { var gml = CompileInMethod("Action<number> fn = (number x) => x * 2;").GetFile("MiscHost.gml")!; GmlAssert.ContainsPattern(gml, "var fn = function(x) { (x * 2); };"); GmlAssert.NotContainsPattern(gml, "return (x * 2);"); }
+    [Fact] public void Test_Lambda_Action_NoReturn() { var gml = CompileInMethod("Action<number> fn = (number x) => x * 2;").GetFile("MiscHost.gml")!; GmlAssert.ContainsPattern(gml, "var fn = function(x) { x * 2; };"); GmlAssert.NotContainsPattern(gml, "return x * 2;"); }
 
     [Fact] public void Test_Lambda_Func_HasReturn_ExprForm() =>
         GmlAssert.ContainsPattern(
             CompileInMethod("Func<number, number> fn = (number x) => x * 2;").GetFile("MiscHost.gml")!,
-            "var fn = function(x) { return (x * 2); };");
+            "var fn = function(x) { return x * 2; };");
 
-    [Fact] public void Test_Lambda_Func_HasReturn_BlockForm() { var gml = CompileInMethod("Func<number, number> fn = (number x) => { var y = x + 1; return y; };").GetFile("MiscHost.gml")!; GmlAssert.ContainsPattern(gml, "var fn = function(x)"); GmlAssert.ContainsPattern(gml, "var y = (x + 1);"); GmlAssert.ContainsPattern(gml, "return y;"); }
+    [Fact] public void Test_Lambda_Func_HasReturn_BlockForm() { var gml = CompileInMethod("Func<number, number> fn = (number x) => { var y = x + 1; return y; };").GetFile("MiscHost.gml")!; GmlAssert.ContainsPattern(gml, "var fn = function(x)"); GmlAssert.ContainsPattern(gml, "var y = x + 1;"); GmlAssert.ContainsPattern(gml, "return y;"); }
 
     [Fact] public void Test_Lambda_Action_NoArgs() { var gml = CompileInMethod("Action fn = () => { var x = 1; };").GetFile("MiscHost.gml")!; GmlAssert.ContainsPattern(gml, "var fn = function()"); GmlAssert.ContainsPattern(gml, "var x = 1;"); }
 

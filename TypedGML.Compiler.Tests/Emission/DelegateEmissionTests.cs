@@ -24,8 +24,8 @@ public sealed class DelegateEmissionTests
 
         result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
         var gml = result.GetFile("LambdaHost.gml")!;
-        GmlAssert.ContainsPattern(gml, "var fn = function(x) { (x * 2); };");
-        GmlAssert.NotContainsPattern(gml, "return (x * 2);");
+        GmlAssert.ContainsPattern(gml, "var fn = function(x) { x * 2; };");
+        GmlAssert.NotContainsPattern(gml, "return x * 2;");
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class DelegateEmissionTests
         result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
         var gml = result.GetFile("LambdaHost.gml")!;
         GmlAssert.ContainsPattern(gml, "var fn = function(x)");
-        GmlAssert.ContainsPattern(gml, "var y = (x + 1);");
+        GmlAssert.ContainsPattern(gml, "var y = x + 1;");
         GmlAssert.ContainsPattern(gml, "return y;");
     }
 

@@ -10,19 +10,33 @@ public sealed class BinaryExpressionEmitter : INodeEmitter
     public void Emit(IAstNode node, EmitContext ctx)
     {
         var expression = (BinaryExpressionNode)node;
-        if (IsStringConcat(expression, ctx))
-        {
-            var depth = CountStringConcatNodes(expression, ctx);
-            ctx.Writer.Write($"{new string('(', depth)}{RenderStringConcat(expression, ctx)}{new string(')', depth)}");
-            return;
-        }
+        ctx.Writer.Write(Render(expression, ctx, null, false));
+    }
 
-        var left = ctx.Emitter.Render(expression.Left, ctx);
-        var right = expression.Op is "and" or "or"
-            ? ctx.RenderWithoutTempPrelude(expression.Right)
-            : ctx.Emitter.Render(expression.Right, ctx);
-        ctx.Writer.Write(
-            $"({left} {ExpressionFormatHelper.BinaryOperator(expression.Op)} {right})");
+    private static string Render(BinaryExpressionNode expression, EmitContext ctx, BinaryExpressionNode? parent, bool isRight)
+    {
+        var rendered = IsStringConcat(expression, ctx)
+            ? RenderStringConcat(expression, ctx)
+            : RenderBinary(expression, ctx);
+
+        return NeedsParentheses(expression, parent, isRight) ? $"({rendered})" : rendered;
+    }
+
+    private static string RenderBinary(BinaryExpressionNode expression, EmitContext ctx)
+    {
+        var left = RenderChild(expression.Left, ctx, expression, false);
+        var right = RenderChild(expression.Right, ctx, expression, true);
+        return $"{left} {ExpressionFormatHelper.BinaryOperator(expression.Op)} {right}";
+    }
+
+    private static string RenderChild(IAstNode node, EmitContext ctx, BinaryExpressionNode parent, bool isRight)
+    {
+        if (node is BinaryExpressionNode binary)
+            return Render(binary, ctx, parent, isRight);
+
+        return parent.Op is "and" or "or" && isRight
+            ? ctx.RenderWithoutTempPrelude(node)
+            : ctx.Emitter.Render(node, ctx);
     }
 
     private static bool IsStringConcat(BinaryExpressionNode expression, EmitContext ctx)
@@ -39,18 +53,35 @@ public sealed class BinaryExpressionEmitter : INodeEmitter
 
     private static string RenderStringConcatPart(IAstNode node, EmitContext ctx)
     {
-        if (node is BinaryExpressionNode binary && IsStringConcat(binary, ctx))
-            return RenderStringConcat(binary, ctx);
-
-        var rendered = ctx.Emitter.Render(node, ctx);
+        var rendered = node is BinaryExpressionNode binary
+            ? Render(binary, ctx, parent: null, isRight: false)
+            : ctx.Emitter.Render(node, ctx);
         return ExpressionTypeLookup.Resolve(node, ctx) is "number" or "bool" ? $"string({rendered})" : rendered;
     }
 
-    private static int CountStringConcatNodes(IAstNode node, EmitContext ctx)
+    private static bool NeedsParentheses(BinaryExpressionNode expression, BinaryExpressionNode? parent, bool isRight)
     {
-        if (node is not BinaryExpressionNode binary || !IsStringConcat(binary, ctx))
-            return 0;
+        if (parent is null)
+            return false;
 
-        return 1 + CountStringConcatNodes(binary.Left, ctx) + CountStringConcatNodes(binary.Right, ctx);
+        var childPrecedence = Precedence(expression.Op);
+        var parentPrecedence = Precedence(parent.Op);
+        if (childPrecedence < parentPrecedence)
+            return true;
+
+        return isRight && childPrecedence == parentPrecedence && !IsAssociative(parent.Op);
     }
+
+    private static int Precedence(string op) => op switch
+    {
+        "*" or "/" or "%" => 6,
+        "+" or "-" => 5,
+        "<" or ">" or "<=" or ">=" => 4,
+        "==" or "!=" => 3,
+        "and" => 2,
+        "or" => 1,
+        _ => 0
+    };
+
+    private static bool IsAssociative(string op) => op is "+" or "*" or "and" or "or";
 }

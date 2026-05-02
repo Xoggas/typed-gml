@@ -59,15 +59,20 @@ public sealed class PrimitiveOperatorTests
         GmlAssert.ContainsPattern(gml, "\"x=\" + string(1)");
     }
 
-    [Fact] public void Test_StringPlusNumberPlusString_FlatChain() { var gml = CompileInMethod("string s = \"a\" + 1 + \"b\";").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, """(("a" + string(1) + "b"))"""); GmlAssert.NotContainsPattern(gml, """(("a" + string(1)) + "b")"""); }
-    [Fact] public void Test_NumberPlusStringPlusNumber_FlatChain() { var gml = CompileInMethod("string s = 1 + \"a\" + 2;").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, """((string(1) + "a" + string(2)))"""); GmlAssert.NotContainsPattern(gml, """((string(1) + "a") + 2)"""); }
-    [Fact] public void Test_BoolPlusStringPlusBool_FlatChain() { var gml = CompileInMethod("string s = true + \"a\" + false;").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, """((string(true) + "a" + string(false)))"""); GmlAssert.NotContainsPattern(gml, """((string(true) + "a") + false)"""); }
+    [Fact] public void Test_StringPlusNumberPlusString_FlatChain() { var gml = CompileInMethod("string s = \"a\" + 1 + \"b\";").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, "\"a\" + string(1) + \"b\""); GmlAssert.NotContainsPattern(gml, """(("a" + string(1)) + "b")"""); }
+    [Fact] public void Test_NumberPlusStringPlusNumber_FlatChain() { var gml = CompileInMethod("string s = 1 + \"a\" + 2;").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, """string(1) + "a" + string(2)"""); GmlAssert.NotContainsPattern(gml, """((string(1) + "a") + 2)"""); }
+    [Fact] public void Test_BoolPlusStringPlusBool_FlatChain() { var gml = CompileInMethod("string s = true + \"a\" + false;").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, """string(true) + "a" + string(false)"""); GmlAssert.NotContainsPattern(gml, """((string(true) + "a") + false)"""); }
     [Fact] public void Test_BoolLogical_NotOperator() { var gml = CompileInMethod("bool b = not true;").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, "!true"); GmlAssert.NotContainsPattern(gml, "not true"); }
+    [Fact] public void Test_StringConcat_NoOuterParens() { var gml = CompileInMethod("""string s = "hello" + " " + "world";""").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, "\"hello\" + \" \" + \"world\""); GmlAssert.NotContainsPattern(gml, """(("hello" + " ") + "world")"""); }
+    [Fact] public void Test_HigherPrecedenceChild_NoParens() { var gml = CompileInMethod("number x = a + b * c;", "number a, number b, number c").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, "a + b * c"); GmlAssert.NotContainsPattern(gml, "a + (b * c)"); }
+    [Fact] public void Test_LowerPrecedenceChild_AddsParens() { var gml = CompileInMethod("number x = (a + b) * c;", "number a, number b, number c").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, "(a + b) * c"); }
+    [Fact] public void Test_NonAssociativeRightChild_AddsParens() { var gml = CompileInMethod("number x = a - (b - c);", "number a, number b, number c").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, "a - (b - c)"); }
+    [Fact] public void Test_LogicalAnd_NoOuterParens() { var gml = CompileInMethod("bool x = a == b and c == d;", "number a, number b, number c, number d").GetFile("OperatorHost.gml")!; GmlAssert.ContainsPattern(gml, "a == b && c == d"); GmlAssert.NotContainsPattern(gml, "((a == b) && (c == d))"); }
 
-    private static CompileResult CompileInMethod(string statement) =>
+    private static CompileResult CompileInMethod(string statement, string parameters = "") =>
         CompilerFixture.Compile($$"""
             public class OperatorHost {
-                public void Run() {
+                public void Run({{parameters}}) {
                     {{statement}}
                 }
             }

@@ -54,7 +54,7 @@ public sealed class BaseCallEmissionTests
 
         result.HasErrors.Should().BeFalse(ErrorText(result));
         var childMethod = FunctionBlock(result.GetFile("FeeAccount.gml")!, "function FeeAccount_Withdraw");
-        GmlAssert.ContainsPattern(childMethod, "if ((amount <= 0))");
+        GmlAssert.ContainsPattern(childMethod, "if (amount <= 0)");
         GmlAssert.ContainsPattern(childMethod, "return false;");
         GmlAssert.ContainsPattern(childMethod, "return true;");
         GmlAssert.NotContainsPattern(childMethod, "(function()");
