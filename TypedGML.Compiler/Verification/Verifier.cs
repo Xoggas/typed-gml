@@ -88,10 +88,12 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
     }
     private void RunChecks(IAstNode node, VerificationContext ctx)
     {
+        var assignmentNarrowing = AssignmentNarrowingHelper.Capture(node, ctx);
         Checks.NullabilityCheck.ClearReassignedVariable(node, ctx);
         foreach (var check in checks)
             if (check.Matches(node))
                 check.Check(node, ctx);
+        AssignmentNarrowingHelper.Apply(assignmentNarrowing, ctx);
     }
     private void WalkChildren(IAstNode node, VerificationContext ctx, string currentNamespace)
     {

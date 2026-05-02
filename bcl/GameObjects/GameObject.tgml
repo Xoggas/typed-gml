@@ -1,7 +1,7 @@
 ﻿namespace TypedGML.GameObjects;
 using TypedGML.Assets;
 
-public class GameObject
+public abstract class GameObject
 {
     // ── Identity (read-only) ─────────────────────────────────────
     @NativeProperty("id")

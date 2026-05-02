@@ -77,6 +77,44 @@ public sealed class NullabilityNarrowingTests
             var label = (x != null) ? "ok" : x.Field;
             """));
 
+    [Fact]
+    public void Test_AssignmentNarrowing_NonNullableParameter_EnablesEventAccess() =>
+        AssertNoNullabilityError(CompilerFixture.Compile("""
+            public delegate void PlayerHandler();
+            public class Player {
+                public event PlayerHandler OnDeath;
+                public event PlayerHandler OnLevelUp;
+            }
+            public class PlayerHost {
+                private Player? _player;
+                public void HandlePlayerDeath() { }
+                public void HandlePlayerLevelUp() { }
+                public void SetPlayer(Player player) {
+                    _player = player;
+                    _player.OnDeath += HandlePlayerDeath;
+                    _player.OnLevelUp += HandlePlayerLevelUp;
+                }
+            }
+            """));
+
+    [Fact]
+    public void Test_AssignmentNarrowing_NullableAssignment_ClearsNarrowing() =>
+        AssertHasNullabilityError(CompilerFixture.Compile("""
+            public delegate void PlayerHandler();
+            public class Player {
+                public event PlayerHandler OnDeath;
+            }
+            public class PlayerHost {
+                private Player? _player;
+                public void HandlePlayerDeath() { }
+                public void SetPlayer(Player player, Player? maybePlayer) {
+                    _player = player;
+                    _player = maybePlayer;
+                    _player.OnDeath += HandlePlayerDeath;
+                }
+            }
+            """));
+
     private static CompileResult CompileRun(string statements) =>
         CompilerFixture.Compile($$"""
             using TypedGML.Core;
