@@ -78,7 +78,7 @@ internal static class ExpressionSymbolHelper
         if (target is DefaultExpressionNode defaultValue)
             return TryResolveType(ctx, defaultValue.TypeName, out type);
 
-        if (target is InvocationExpressionNode or NullConditionalExpressionNode or NullCoalescingExpressionNode or TernaryExpressionNode)
+        if (target is IndexerAccessExpressionNode or InvocationExpressionNode or NullConditionalExpressionNode or NullCoalescingExpressionNode or TernaryExpressionNode)
         {
             var resolvedType = ExpressionTypeLookup.Resolve(target, ctx);
             if (!string.IsNullOrWhiteSpace(resolvedType) && TryResolveType(ctx, resolvedType, out type))
