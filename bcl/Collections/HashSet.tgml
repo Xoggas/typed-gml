@@ -1,0 +1,78 @@
+namespace TypedGML.Collections;
+using TypedGML.Core;
+
+public class HashSet<T> : ICollection<T>
+{
+    private number _map;
+
+    @NativeCall("ds_map_create")
+    private number __create() { return default(number); }
+
+    @NativeCall("ds_map_size")
+    private number __size(number map) { return default(number); }
+
+    @NativeCall("ds_map_set")
+    private void __set(number map, T key, bool val) { }
+
+    @NativeCall("ds_map_delete")
+    private void __delete(number map, T key) { }
+
+    @NativeCall("ds_map_exists")
+    private bool __exists(number map, T key) { return default(bool); }
+
+    @NativeCall("ds_map_clear")
+    private void __clear(number map) { }
+
+    @NativeCall("ds_map_destroy")
+    private void __destroy(number map) { }
+
+    @NativeCall("ds_map_keys_to_array")
+    private T[] __keys(number map) { return default(T[]); }
+
+    public constructor()
+    {
+        _map = __create();
+    }
+
+    public number Count
+    {
+        get { return __size(_map); }
+    }
+
+    public void Add(T item) 
+    {
+        if (Contains(item)) { return; }
+        __set(_map, item, true);
+    }
+
+    public bool Remove(T item)
+    {
+        __delete(_map, item);
+        return true;
+    }
+
+    public bool Contains(T item)
+    {
+        return __exists(_map, item);
+    }
+
+    public void Clear()
+    {
+        __clear(_map);
+    }
+
+    public void Destroy()
+    {
+        __destroy(_map);
+    }
+
+    public T[] ToArray()
+    {
+        return __keys(_map);
+    }
+
+    public override string ToString()
+    {
+        return "HashSet[" + Count + "]";
+    }
+}

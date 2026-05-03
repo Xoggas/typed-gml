@@ -1,0 +1,42 @@
+namespace TypedGML.Collections;
+using TypedGML.Core;
+
+public class ReadOnlyList<T> : IReadOnlyList<T>
+{
+    private List<T> _inner;
+
+    public constructor(List<T> source)
+    {
+        _inner = source;
+    }
+
+    public number Count
+    {
+        get { return _inner.Count; }
+    }
+
+    public T this[number index]
+    {
+        get { return _inner[index]; }
+    }
+
+    public bool Contains(T item)
+    {
+        return _inner.Contains(item);
+    }
+
+    public number IndexOf(T item)
+    {
+        return _inner.IndexOf(item);
+    }
+
+    public T[] ToArray()
+    {
+        return _inner.ToArray();
+    }
+
+    public override string ToString()
+    {
+        return "ReadOnlyList[" + Count + "]";
+    }
+}

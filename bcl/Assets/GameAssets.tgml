@@ -1,0 +1,41 @@
+﻿namespace TypedGML.Assets;
+
+public class Assets
+{
+    @NativeCall("sprite_exists")
+    private static bool __spriteExists(number id) { return default(bool); }
+
+    @NativeCall("object_exists")
+    private static bool __objectExists(number id) { return default(bool); }
+
+    @NativeCall("audio_exists")
+    private static bool __soundExists(number id) { return default(bool); }
+
+    @NativeCall("room_exists")
+    private static bool __roomExists(number id) { return default(bool); }
+
+    @NativeCall("sprite_get_name")
+    private static string __spriteName(number id) { return default(string); }
+
+    @NativeCall("object_get_name")
+    private static string __objectName(number id) { return default(string); }
+
+    @NativeCall("sprite_get_width")
+    private static number __spriteWidth(number id) { return default(number); }
+
+    @NativeCall("sprite_get_height")
+    private static number __spriteHeight(number id) { return default(number); }
+
+    @NativeCall("sprite_get_number")
+    private static number __spriteFrameCount(number id) { return default(number); }
+
+    public static bool SpriteExists(SpriteAsset s) { return __spriteExists(s.id); }
+    public static bool ObjectExists(ObjectAsset o) { return __objectExists(o.id); }
+    public static bool SoundExists(SoundAsset s) { return __soundExists(s.id); }
+    public static bool RoomExists(RoomAsset r) { return __roomExists(r.id); }
+    public static string SpriteName(SpriteAsset s) { return __spriteName(s.id); }
+    public static string ObjectName(ObjectAsset o) { return __objectName(o.id); }
+    public static number SpriteWidth(SpriteAsset s) { return __spriteWidth(s.id); }
+    public static number SpriteHeight(SpriteAsset s) { return __spriteHeight(s.id); }
+    public static number SpriteFrameCount(SpriteAsset s) { return __spriteFrameCount(s.id); }
+}

@@ -1,0 +1,91 @@
+namespace TypedGML.Collections;
+using TypedGML.Core;
+
+public class Queue<T> : ICollection<T>
+{
+    private number _queue;
+
+    @NativeCall("ds_queue_create")
+    private number __create() { return default(number); }
+
+    @NativeCall("ds_queue_size")
+    private number __size(number queue) { return default(number); }
+
+    @NativeCall("ds_queue_enqueue")
+    private void __enqueue(number queue, T item) { }
+
+    @NativeCall("ds_queue_dequeue")
+    private T __dequeue(number queue) { return default(T); }
+
+    @NativeCall("ds_queue_head")
+    private T __head(number queue) { return default(T); }
+
+    @NativeCall("ds_queue_empty")
+    private bool __empty(number queue) { return default(bool); }
+
+    @NativeCall("ds_queue_clear")
+    private void __clear(number queue) { }
+
+    @NativeCall("ds_queue_destroy")
+    private void __destroy(number queue) { }
+
+    public constructor()
+    {
+        _queue = __create();
+    }
+
+    public number Count
+    {
+        get { return __size(_queue); }
+    }
+
+    public void Enqueue(T item)
+    {
+        __enqueue(_queue, item);
+    }
+
+    public T Dequeue()
+    {
+        return __dequeue(_queue);
+    }
+
+    public T Peek()
+    {
+        return __head(_queue);
+    }
+
+    public bool IsEmpty()
+    {
+        return __empty(_queue);
+    }
+
+    public void Clear()
+    {
+        __clear(_queue);
+    }
+
+    public void Destroy()
+    {
+        __destroy(_queue);
+    }
+
+    public bool Contains(T item)
+    {
+        return false;
+    }
+
+    public void Add(T item)
+    {
+        Enqueue(item);
+    }
+
+    public bool Remove(T item)
+    {
+        return false;
+    }
+
+    public override string ToString()
+    {
+        return "Queue[" + Count + "]";
+    }
+}

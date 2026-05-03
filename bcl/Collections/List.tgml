@@ -1,0 +1,114 @@
+namespace TypedGML.Collections;
+using TypedGML.Core;
+
+public class List<T> : IList<T>
+{
+    private T[] _items;
+    private number _size;
+
+    public constructor()
+    {
+        _items = [];
+        _size = 0;
+    }
+
+    @NativeCall("array_length")
+    private number __count(T[] arr) { return default(number); }
+
+    @NativeCall("array_push")
+    private void __push(T[] arr, T item) { }
+
+    @NativeCall("array_insert")
+    private void __insert(T[] arr, number index, T item) { }
+
+    @NativeCall("array_delete")
+    private void __delete(T[] arr, number index, number count) { }
+
+    @NativeCall("array_contains")
+    private bool __contains(T[] arr, T item) { return default(bool); }
+
+    @NativeCall("array_find_index")
+    private number __findIndex(T[] arr, T item) { return default(number); }
+
+    @NativeCall("array_reverse")
+    private void __reverse(T[] arr) { }
+
+    @NativeCall("array_sort")
+    private void __sort(T[] arr, bool ascending) { }
+
+    @NativeCall("array_copy")
+    private T[] __copy(T[] arr) { return default(T[]); }
+
+    public number Count
+    {
+        get { return __count(_items); }
+    }
+
+    public T this[number index]
+    {
+        get { return _items[index]; }
+        set { _items[index] = value; }
+    }
+
+    public void Add(T item)
+    {
+        __push(_items, item);
+        _size += 1;
+    }
+
+    public void Insert(number index, T item)
+    {
+        __insert(_items, index, item);
+        _size += 1;
+    }
+
+    public void RemoveAt(number index)
+    {
+        __delete(_items, index, 1);
+        _size -= 1;
+    }
+
+    public bool Remove(T item)
+    {
+        var idx = IndexOf(item);
+        if (idx < 0) { return false; }
+        RemoveAt(idx);
+        return true;
+    }
+
+    public bool Contains(T item)
+    {
+        return __contains(_items, item);
+    }
+
+    public number IndexOf(T item)
+    {
+        return __findIndex(_items, item);
+    }
+
+    public void Clear()
+    {
+        _items = [];
+        _size = 0;
+    }
+
+    public void Reverse()
+    {
+        __reverse(_items);
+    }
+
+    public void Sort(bool ascending)
+    {
+        __sort(_items, ascending);
+    }
+
+    public T[] ToArray()
+    {
+        return __copy(_items);
+    }
+
+    public override string ToString()
+    {
+        return "List[" + Count + "]";
+    }
+}

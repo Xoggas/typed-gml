@@ -1,0 +1,25 @@
+﻿namespace TypedGML.Core;
+
+public class Bool
+{
+    @NativeCall("__op_eq")
+    public static bool operator ==(bool a, bool b) { return default(bool); }
+
+    @NativeCall("__op_neq")
+    public static bool operator !=(bool a, bool b) { return default(bool); }
+
+    @NativeCall("__op_str_bool_add")
+    public static string operator +(string a, bool b) { return default(string); }
+
+    @NativeCall("__op_bool_str_add")
+    public static string operator +(bool a, string b) { return default(string); }
+
+    @NativeCall("string")
+    public static string ToString(bool value) { return default(string); }
+
+    public static bool Parse(string value)
+    {
+        return value == "true";
+    }
+}
+

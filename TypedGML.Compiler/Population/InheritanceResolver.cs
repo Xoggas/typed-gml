@@ -1,0 +1,150 @@
+using TypedGML.Compiler.Ast;
+using TypedGML.Compiler.Ast.Declarations;
+using TypedGML.Compiler.Diagnostics;
+using TypedGML.Compiler.Symbols;
+
+namespace TypedGML.Compiler.Population;
+
+public sealed class InheritanceResolver(SymbolTable symbolTable, DiagnosticBag diagnostics)
+{
+    internal SymbolTable SymbolTable => symbolTable;
+    internal DiagnosticBag Diagnostics => diagnostics;
+
+    public void Populate(IReadOnlyList<FileNode> files)
+    {
+        foreach (var file in files)
+        {
+            var prefixes = file.TopLevelDeclarations
+                .OfType<UsingDirectiveNode>()
+                .Select(u => u.QualifiedName)
+                .ToList();
+            ResolveNodes(file.TopLevelDeclarations, string.Empty, prefixes);
+        }
+
+        DetectCycles();
+    }
+
+    private void ResolveNodes(IEnumerable<IAstNode> nodes, string currentNamespace, IReadOnlyList<string> usingPrefixes)
+    {
+        foreach (var node in nodes)
+        {
+            switch (node)
+            {
+                case NamespaceDeclarationNode ns:
+                    ResolveNodes(ns.Body, Combine(currentNamespace, ns.Name), usingPrefixes);
+                    break;
+                case ClassDeclarationNode type:
+                    ResolveType(type.BaseTypes, Combine(currentNamespace, type.Name), type.GenericParams.Count, type.Location, false, currentNamespace, usingPrefixes);
+                    ResolveNodes(type.Members, currentNamespace, usingPrefixes);
+                    break;
+                case StructDeclarationNode type:
+                    ResolveType(type.BaseTypes, Combine(currentNamespace, type.Name), type.GenericParams.Count, type.Location, true, currentNamespace, usingPrefixes);
+                    ResolveNodes(type.Members, currentNamespace, usingPrefixes);
+                    break;
+                case InterfaceDeclarationNode type:
+                    ResolveInterfaces(type.BaseTypes, Combine(currentNamespace, type.Name), type.GenericParams.Count, currentNamespace, usingPrefixes);
+                    break;
+            }
+        }
+    }
+
+    private void ResolveType(IReadOnlyList<string> baseTypes, string qualifiedName, int arity, Diagnostics.SourceLocation location, bool isStruct, string currentNamespace, IReadOnlyList<string> usingPrefixes)
+    {
+        if (!symbolTable.TryResolve(qualifiedName, arity, null, [], out var typeSymbol))
+            return;
+
+        if (!symbolTable.TryResolve("object", null, [], out var objectType))
+            objectType = null!;
+
+        typeSymbol.Base = isStruct || typeSymbol.Kind == TypeKind.Class ? objectType : null;
+        typeSymbol.Interfaces.Clear();
+        for (var i = 0; i < baseTypes.Count; i++)
+        {
+            if (!TryResolve(baseTypes[i], location, currentNamespace, usingPrefixes, out var resolved))
+                continue;
+
+            if (isStruct)
+            {
+                if (resolved.Kind != TypeKind.Interface)
+                {
+                    diagnostics.Report(DiagnosticCode.InvalidStructInheritance, DiagnosticSeverity.Error, $"Struct '{qualifiedName}' cannot inherit from '{baseTypes[i]}'.", location);
+                    continue;
+                }
+
+                typeSymbol.Interfaces.Add(resolved);
+                continue;
+            }
+
+            if (i == 0 && resolved.Kind != TypeKind.Interface)
+                typeSymbol.Base = resolved;
+            else
+                typeSymbol.Interfaces.Add(resolved);
+        }
+    }
+
+    private void ResolveInterfaces(IReadOnlyList<string> baseTypes, string qualifiedName, int arity, string currentNamespace, IReadOnlyList<string> usingPrefixes)
+    {
+        if (!symbolTable.TryResolve(qualifiedName, arity, null, [], out var typeSymbol))
+            return;
+
+        typeSymbol.Interfaces.Clear();
+        foreach (var baseType in baseTypes)
+            if (symbolTable.TryResolve(baseType, currentNamespace, usingPrefixes, out var resolved))
+                typeSymbol.Interfaces.Add(resolved);
+    }
+
+    private void DetectCycles()
+    {
+        var states = new Dictionary<TypeSymbol, int>();
+        foreach (var type in symbolTable.AllTypes)
+            Visit(type, states);
+    }
+
+    private void Visit(TypeSymbol type, Dictionary<TypeSymbol, int> states)
+    {
+        if (states.TryGetValue(type, out var state))
+        {
+            if (state == 1)
+                diagnostics.Report(DiagnosticCode.CircularInheritance, DiagnosticSeverity.Error, $"Circular inheritance detected for '{type.QualifiedName}'.", new Diagnostics.SourceLocation(string.Empty, 0, 0));
+            return;
+        }
+
+        states[type] = 1;
+        if (type.Base is not null)
+            Visit(type.Base, states);
+        foreach (var @interface in type.Interfaces)
+            Visit(@interface, states);
+        states[type] = 2;
+    }
+
+    private static string Combine(string currentNamespace, string name) =>
+        string.IsNullOrEmpty(currentNamespace) ? name : $"{currentNamespace}.{name}";
+
+    private bool TryResolve(
+        string typeName,
+        Diagnostics.SourceLocation location,
+        string currentNamespace,
+        IReadOnlyList<string> usingPrefixes,
+        out TypeSymbol resolved)
+    {
+        if (symbolTable.TryResolve(typeName, currentNamespace, usingPrefixes, out resolved))
+            return true;
+
+        var rootName = RootName(typeName);
+        if (rootName != typeName && symbolTable.TryResolve(rootName, currentNamespace, usingPrefixes, out resolved))
+            return false;
+
+        diagnostics.Report(
+            DiagnosticCode.TypeMismatch,
+            DiagnosticSeverity.Error,
+            $"Type '{typeName}' could not be resolved.",
+            location);
+        return false;
+    }
+
+    private static string RootName(string typeName)
+    {
+        var stop = typeName.IndexOfAny(['<', '?', '[']);
+        return stop >= 0 ? typeName[..stop] : typeName;
+    }
+}

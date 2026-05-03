@@ -1,0 +1,13 @@
+﻿namespace TypedGML.Utils;
+
+public class ArrayUtils
+{
+    @NativeCall("array_length")
+    public static number Length(object[] values) { return default(number); }
+
+    public static bool IsEmpty(object[] values)
+    {
+        return ArrayUtils.Length(values) == 0;
+    }
+}
+

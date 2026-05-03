@@ -1,326 +1,188 @@
-# TypedGML — Copilot Instructions
+# AGENTS.md — TypedGML Compiler
 
-## Суть проекта
+## What you are building
 
-TypedGML — статически типизированное надмножество GameMaker Language (GML), транслируемое в GML. Концептуальный аналог TypeScript для JavaScript, но для экосистемы GameMaker. Реализован на C# с использованием ANTLR4.
+A transpiler from **TypedGML** (`.tgml`) to **GML** (GameMaker Language).  
+Implementation language: **C# / .NET 10.0**.  
+Parser and lexer: **ANTLR4** (`Antlr4.Runtime.Standard` NuGet package).
 
-Проект состоит из двух частей:
-- **Язык TypedGML** — синтаксис, система типов, семантика
-- **Транслятор TypedGML → GML** — парсер, семантический анализатор, генератор кода
+The two authoritative documents for this project are:
 
----
+- `TypedGML_Specification.md` — the language spec. Every type system rule, operator, statement, decorator, and code generation rule lives here. When in doubt about language behaviour, this file is the answer.
+- `TypedGML_Architecture.md` — the compiler architecture. Project structure, interfaces, phases, semantic checks, emitters, naming conventions, and wiring. When in doubt about where code goes or how classes relate, this file is the answer.
 
-## Технологии
-
-- **Язык реализации:** C#
-- **Парсер:** ANTLR4 (grammar file: `TypedGML.g4`)
-- **Целевой язык:** GML (GameMaker Language)
-- **Паттерн обхода AST:** Visitor (генерируется ANTLR4)
+Read both documents fully before writing any code.
 
 ---
 
-## Синтаксис TypedGML
+## Non-negotiable rules
 
-TypedGML синтаксически максимально близок к C#. Ключевые особенности:
+These rules apply to every file you write, every PR, every fix. No exceptions.
 
-```csharp
-namespace Game.Systems;
-using Game.Objects;
+### File and class size
 
-public interface IDamageModifier
-{
-    number Apply(number damage, DamageType type);
-    string Name { get; }
-}
+- No class longer than **150 lines**. Hard limit: 200 lines.
+- If a class is growing past 150 lines, split it by responsibility before continuing.
+- One public type per file. File name matches type name exactly.
 
-public class FlatModifier : IDamageModifier
-{
-    private number _bonus;
+### No documentation comments
 
-    public constructor(number bonus)
-    {
-        self._bonus = bonus;
-    }
+- No `///` XML doc comments anywhere in implementation code.
+- No `//` block comments explaining what a method does.
+- Readability comes from naming, not prose. If a name needs a comment to be understood, rename it.
+- Inline comments are allowed **only** for non-obvious GML-specific workarounds or ANTLR quirks.
 
-    public number Apply(number damage, DamageType type) => damage + _bonus;
+### Naming
 
-    public string Name
-    {
-        get => "Flat";
-    }
-}
+- Follow the naming conventions already established in `NamingConvention.cs`. Do not invent GML names anywhere else.
+- C# naming: PascalCase for types and public members, camelCase for locals and parameters, `_camelCase` for private fields.
+- Names must be self-explanatory. `ResolveBaseType`, `EmitPropertyGetter`, `CheckReadonlyAssignment` — not `Process`, `Handle`, `Do`.
 
-@Object("obj_Player")
-public class Player : GameObject
-{
-    private number _health;
+### SOLID
 
-    public constructor(number x, number y, string layer)
-        : base(x, y, layer)
-    {
-        _health = 100;
-    }
+- **SRP:** Every class has one reason to change. `ClassEmitter` emits classes. `NamingConvention` derives names. `DuplicateMemberCheck` checks for duplicate members. Nothing does two jobs.
+- **OCP:** Adding a new semantic check = one new file implementing `ISemanticCheck` + one line in `Program.cs`. Adding a new emitter = one new file implementing `INodeEmitter` + one line in `Program.cs`. No existing files change.
+- **LSP:** Every `ISemanticCheck` implementation must be safely substitutable. `Matches` must be honest — if it returns `true`, `Check` must handle that node without casting errors.
+- **ISP:** Do not add methods to `ISemanticCheck`, `INodeEmitter`, or any other interface without discussion. Keep interfaces at ≤5 members.
+- **DIP:** Orchestrators (`Verifier`, `Emitter`, `Populator`, `CompilerPipeline`) depend on interfaces and abstract lists, never on concrete check or emitter classes directly.
 
-    public override void Step()
-    {
-        with (Enemy enemy)
-        {
-            enemy.TakeDamage(10);
-        }
-    }
-}
-```
+### No static state
 
-### Объявление переменных и полей
+- No mutable static fields anywhere.
+- `NamingConvention`, `GmlEventMap`, `TypeHelper`, `PrimitiveOperationRegistry` may be static classes with pure functions and immutable static data (readonly dictionaries initialized once).
+- Everything else is instantiated and injected.
 
-Аннотации типов — C#-стиль: тип идёт перед именем. Ключевое слово `var` для локальных переменных с выводом типа (если поддерживается), иначе явный тип:
+### Errors never throw
 
-```csharp
-public number Health = 100;
-private number _speed = 5.0;
-public const number MaxHealth = 200;
-public static number TotalKills = 0;
+- Semantic and syntactic errors go through `DiagnosticBag.Report(...)`. Never `throw` for a user-facing error.
+- `throw` is reserved for genuine programmer invariant violations (e.g. a `switch` arm that should be unreachable).
+- After any phase that produces errors, check `DiagnosticBag.HasErrors` and halt before proceeding.
 
-// локальные переменные
-number result = 0;
-```
+### Immutable AST
 
-### Параметры и возвращаемые типы — C#-стиль
-
-```csharp
-public number Add(number a, number b) { return a + b; }
-public bool IsAlive() => _health > 0;
-public void Step() { ... }
-```
-
-### Свойства — C#-стиль с ключевым словом `field`
-
-Свойства объявляются C#-синтаксисом. Ключевое слово `field` внутри геттера/сеттера обращается к автоматически генерируемому backing field — явное поле объявлять не нужно:
-
-```csharp
-// Свойство с backing field через field
-public number Health
-{
-    get => field;
-    set => field = Math.Clamp(value, 0, 100);
-}
-
-// Read-only свойство
-public bool IsAlive
-{
-    get => _health > 0;
-}
-
-// Свойство с телом
-public number HealthPercent
-{
-    get
-    {
-        return (field * 100) / _maxHealth;
-    }
-    set
-    {
-        field = (value * _maxHealth) / 100;
-    }
-}
-```
-
-Транслируется в:
-```js
-function get_Health() { return __backing_Health; }
-function set_Health(value) { __backing_Health = Math_Clamp(value, 0, 100); }
-```
-
-### Generic constraints — через `:`
-
-Единственное место, где `:` используется для типов — ограничения generic-параметров:
-
-```csharp
-public class ModifierList<T : IDamageModifier>
-{
-    private T[] _items = [];
-
-    public void Add(T item) { ... }
-    public T Get(number index) => _items[index];
-}
-```
-
-### Global-свойства
-
-Глобальные переменные объявляются как свойства с модификатором `global`. Опциональный `virtual` разрешает переопределение в потомках.
-
-Пустые геттер/сеттер транслируются в прямой доступ к `global.PropertyName`. Ключевое слово `field` внутри тела геттера/сеттера тоже ссылается на `global.PropertyName` — это позволяет добавить логику поверх глобальной переменной:
-
-```csharp
-// Простой случай — пустое тело
-public global number Score
-{
-    get { }
-    set { }
-}
-
-// С логикой через field — field = global.MasterVolume
-public global virtual number MasterVolume
-{
-    get { return field; }
-    set { field = Math.Clamp(value, 0, 1); }
-}
-
-// Переопределение в потомке
-public override number MasterVolume
-{
-    get { return field * 0.5; }
-    set { field = value; }
-}
-```
-
-Транслируется в:
-```js
-// Score — прямой доступ
-// чтение Score → global.Score
-// запись Score → global.Score = value
-
-// MasterVolume — field = global.MasterVolume
-function get_MasterVolume() { return global.MasterVolume; }
-function set_MasterVolume(value) { global.MasterVolume = Math_Clamp(value, 0, 1); }
-```
-
-**Типы:** `bool`, `number`, `long`, `number`, `string`, `ptr`, `void`  
-**Ассет-типы:** `Sound`, `Sprite`, `Room`, `Font` — несовместимы между собой  
-**Массивы:** `number[]`, `T[]`  
-**Декораторы:** `@Object("name")`, `@NativeProperty("name")`, `@NativeEvent("name")`  
-**Нативные директивы:** строки с `#` — только в методах с модификатором `nocheck`
+- All AST node types are `record` types. Do not add mutable state to AST nodes.
+- AST nodes are never modified after construction. Passes that need to annotate nodes use separate data structures (e.g. `DecoratorAnnotations`, `SymbolTable`).
 
 ---
 
-## Трансляция в GML
+## Phase order
 
-### Скриптовые классы → GML-структуры
+Always implement and verify in this order. Do not start Emission until Verification passes on a meaningful set of test inputs.
 
-```csharp
-public class Vec2 { public number X; public number Y; }
-```
-```js
-function Vec2() constructor { self.X = 0; self.Y = 0; }
-```
-
-### Наследование → инлайн-разворачивание
-
-GML не поддерживает наследование структур. Транслятор копирует все поля и методы родителя в потомка. `base.Method()` заменяется инлайн-вставкой тела родительского метода.
-
-### Игровые объекты (@Object)
-
-```csharp
-Enemy e = new Enemy(100, 200, "Instances", 50);
-```
-```js
-var e = instance_create_layer(100, 200, "Instances", obj_Enemy);
-obj_Enemy_Init(e, 50);
-```
-
-Поля конструктора → событие Create. Переопределённые события → отдельные файлы событий GameMaker.
-
-### with
-
-```csharp
-with (Enemy enemy) { enemy.TakeDamage(10); }
-```
-```js
-with (obj_Enemy) { TakeDamage(other.damage); }
-```
-
-### Пространства имён → префикс
-
-`Game.Objects.Player` → `Game_Objects_Player`
+1. **AST node definitions** (`Ast/`) — all records, no logic.
+2. **`AstBuilder`** — ANTLR visitor → AST. Wire `ParseErrorListener` to `DiagnosticBag`.
+3. **`SymbolTable` + `TypeSymbol` + `MemberSymbol`** — data structures only.
+4. **Population phase** — `NamespacePopulator` → `TypePopulator` → `MemberPopulator` → `InheritanceResolver` → `GenericParameterBinder`, in that order.
+5. **Verification phase** — implement checks one category at a time. Start with: type assignability, member access, control flow. Then add the rest.
+6. **Emission phase** — implement emitters bottom-up: expressions first, then statements, then members, then types.
+7. **BCL** — integrate BCL `.tgml` files last, after the core pipeline works end-to-end on a minimal test case.
 
 ---
 
-## Система типов в рантайме
+## Semantic checks
 
-### `__types` — проверка `is`/`as`
+Every check lives in `Verification/Checks/` and implements `ISemanticCheck`.
 
-Каждый класс получает поле `__types` — структура-множество с целочисленными ID всех классов и интерфейсов по цепочке наследования:
-
-```js
-// #macro __TYPE_Enemy 3
-// #macro __TYPE_UnitBase 1
-// #macro __TYPE_IDamageModifier 4
-__types = { 3: true, 1: true, 4: true }
-```
-
-`obj is IDamageModifier` →
-```js
-is_struct(obj) && variable_struct_exists(obj.__types, __TYPE_IDamageModifier)
-```
-
-Транслятор генерирует макросы `#macro __TYPE_ClassName N` для всех типов.
-
-### `__genericArgs` — реификация обобщений
-
-```js
-// new ModifierList<FlatModifier>()
-var list = new ModifierList(__TYPE_FlatModifier);
-
-function ModifierList(__t0) constructor {
-    __types = { 5: true }       // __TYPE_ModifierList
-    __genericArgs = [__t0]
+```csharp
+interface ISemanticCheck
+{
+    bool Matches(IAstNode node);
+    void Check(IAstNode node, VerificationContext ctx);
 }
 ```
 
-`obj is ModifierList<FlatModifier>` →
-```js
-is_struct(obj)
-&& variable_struct_exists(obj.__types, __TYPE_ModifierList)
-&& obj.__genericArgs[0] == __TYPE_FlatModifier
-```
+Rules:
+- `Matches` must be a simple type check (`node is SomeNode`) or a type check plus a flag (`node is AssignmentExpressionNode a && a.Operator == "="`). No heavy logic in `Matches`.
+- `Check` receives the node already cast-safe (cast it immediately at the top).
+- All errors reported via `ctx.Diagnostics.Report(...)` with the correct `DiagnosticCode`, `SourceLocation`, and a clear English message.
+- A check must never modify the AST or the `SymbolTable`.
+- A check may read and update `VerificationContext` flags (`IsInLoop`, `IsInConstructor`, etc.) when it enters/exits a scope — but must restore them before returning.
 
-Вложенные обобщения хранятся рекурсивно: `__genericArgs = [[__TYPE_ModifierList, [__TYPE_FlatModifier]]]`. Проверка через `__CheckGenericArgs(args, expected)` из стандартной библиотеки.
-
----
-
-## Структура транслятора
-
-```
-TypedGML.g4              — ANTLR4 грамматика
-├── Lexer / Parser       — генерируется ANTLR4
-├── AST Visitor          — обход дерева, генерируется ANTLR4
-├── SemanticAnalyzer     — проверка типов, контрактов, областей видимости
-│   ├── TypeTable        — реестр всех типов с их ID
-│   ├── SymbolTable      — таблица символов (переменные, методы)
-│   └── InheritanceResolver — разворачивание цепочек наследования
-└── CodeGenerator        — генерация GML-кода
-    ├── ScriptClassEmitter   — скриптовые классы → GML-структуры
-    ├── GameObjectEmitter    — @Object классы → события GameMaker
-    └── TypeMacroEmitter     — генерация #macro __TYPE_* и __CheckGenericArgs
-```
+The full list of required checks and their rules is in `TypedGML_Architecture.md §7`. Implement every check listed there. Do not skip any.
 
 ---
 
-## Важные семантические правила
+## Emitters
 
-- Модификаторы доступа обязательны везде кроме членов интерфейса
-- `abstract` методы — нет тела, `;` вместо блока; потомок обязан переопределить
-- `sealed` — запрещает наследование на уровне транслятора, в GML не отражается
-- `nocheck` — отключает проверку возвращаемого значения, разрешает `#`-директивы
-- `null` транслируется в `undefined`
-- `bool` несовместим с `number`, неявное приведение только `number` → `number`
-- Статические поля → `global.ClassName_FieldName`
-- `self` внутри события игрового объекта транслируется неявно (без префикса)
-- `base` внутри события игрового объекта → `event_inherited()`
-- `base.Method()` внутри скриптового класса → инлайн тела родителя
-- `__types` для игровых объектов инициализируется в событии Create
-- `field` в геттере/сеттере обычного свойства → `__backing_PropertyName`
-- `field` в геттере/сеттере `global`-свойства → `global.PropertyName`
-- `global` свойство с пустым телом → прямой доступ к `global.PropertyName`; `virtual` разрешает переопределение геттера/сеттера в потомках, при этом `field` у всех потомков ссылается на ту же глобальную переменную
+Every emitter lives in `Emission/Emitters/` (or its `Statements/` / `Expressions/` subdirectory) and implements `INodeEmitter`.
+
+```csharp
+interface INodeEmitter
+{
+    bool Matches(IAstNode node);
+    void Emit(IAstNode node, EmitContext ctx);
+}
+```
+
+Rules:
+- `Matches` implementations must be non-overlapping across all registered emitters. `ClassEmitter` handles all `ClassDeclarationNode` — the `@Object` vs script branch is an internal `if`, not a second emitter.
+- Emitters do not resolve types. All type information is already in `SymbolTable`. Read it; do not recompute it.
+- All GML name derivation goes through `ctx.Naming` (which is `NamingConvention`). Never concatenate GML names manually in an emitter.
+- Write GML output through `ctx.Writer` only. Do not write to disk directly from an emitter.
+- `FileOrganizer` decides where output goes. Call `ctx.Files.GetScriptPath(type)` or `ctx.Files.GetEventPath(type, eventName)` — never hardcode paths.
 
 ---
 
-## Чего НЕ существует в TypedGML
+## GML output expectations
 
-- Nullable типы (`T?`) — отсутствуют
-- `foreach` — отсутствует, есть `for` и `with`
-- `?.` и `??` операторы — отсутствуют
-- `sizeof` — отсутствует (GML не поддерживает)
-- Мономорфизация обобщений — только стирание типов + реификация через `__genericArgs`
-- `instanceof` — заменён единым механизмом `__types`
-- Аннотации типов через `:` — только в generic constraints (`<T : IFoo>`), везде остальное C#-стиль
+- GML uses `var` for local variable declarations.
+- GML functions are declared as `function name(params) { }` at the global scope.
+- GML struct literals use `{ field: value }`.
+- `#macro NAME value` is used for `const` fields and `enum` members.
+- `global.*` is used for ALL static members — methods, fields, properties. There are no top-level GML script functions for static members.
+- Static methods emit as `global.ClassName_Method = function(...) { };` inside `ClassName_static_ctor`.
+- Static fields emit as `global.ClassName_Field = value;` inside `ClassName_static_ctor`.
+- Static properties emit getter/setter lambdas: `global.ClassName_get_Prop = function() { ... };`.
+- `gml_pragma("global", "ClassName_static_ctor()")` is always emitted immediately after the static ctor function, in the same output file.
+- The `global` keyword does not exist in TypedGML — use `static` instead.
+- `ds_map_create()` / `ds_map_add()` / `ds_map_destroy()` are used for `Dictionary<K,V>` literals and BCL methods.
+- Dictionary brace literals `{"key": value}` emit as an IIFE wrapping `ds_map_create` + `ds_map_add` calls — see `TypedGML_Specification.md §3.2`.
+- Brace literals are only valid as the RHS of a `Dictionary<K,V>` variable. Any other target type is a compile error.
+- Do not emit TypeScript, do not emit C#-style syntax. When unsure what valid GML looks like for a construct, check `TypedGML_Specification.md §19`.
+
+---
+
+## BCL integration
+
+- BCL `.tgml` files are located in a `bcl/` folder alongside the compiled executable.
+- `BclLoader` finds this folder via `Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)`.
+- BCL files are prepended to the file list before user files. Population processes them first.
+- Primitive types (`number`, `string`, `bool`, `void`, `null`, `object`) are registered in `BuiltinTypeRegistry` in C# code — they do not come from BCL files.
+- Primitive **operators** (`+`, `-`, `==`, etc.) are NOT hardcoded in the compiler. They are defined in `bcl/Number.tgml`, `bcl/String.tgml`, `bcl/Bool.tgml` as `static operator` declarations. `OperatorCheck` resolves them via `SymbolTable` like any other operator overload. `PrimitiveOperationRegistry` must not exist.
+- `and`, `or`, `not` are the only compiler-intrinsic logical operations — they always require `bool` and cannot be defined or overridden in BCL.
+- `@NativeCall("__op_*")` names are compiler-intrinsic shims that emit GML infix operators. See `TypedGML_Specification.md §19.12` for the full table.
+- `Exception` is defined in a BCL `.tgml` file but is also known to the compiler by name for `throw`/`catch` checks.
+
+---
+
+## Method overloading
+
+- Methods may share a name if their parameter type lists differ.
+- GML name suffix: `TypeName_MethodName__TypeA_TypeB`. If a method has no overload siblings, no suffix is appended.
+- Overload resolution in `MethodCallCheck`: filter by name → filter by argument count within [required, total] → filter by assignable types → error if zero or multiple candidates remain.
+- `DuplicateMemberCheck` only fires when two methods share name **and** identical parameter type lists.
+
+---
+
+## GML event mapping
+
+`@NativeEvent` takes a logical name. The mapping to GML file names lives entirely in `GmlEventMap`. If a logical name is not in the map, emit `TGML0035`. Do not let the string pass through unvalidated.
+
+---
+
+## Project layout
+
+Follow the directory structure in `TypedGML_Architecture.md §2` exactly. Do not reorganize it. Do not add new top-level folders without a clear reason.
+
+---
+
+## What not to do
+
+- Do not add a dependency injection framework. Wiring is explicit in `Program.cs`.
+- Do not use `dynamic` or reflection-based dispatch for checks or emitters.
+- Do not share mutable state between checks. Each check is self-contained.
+- Do not write integration logic inside an emitter. Emitters emit; they do not coordinate other emitters.
+- Do not add `static` mutable fields to any class.
+- Do not silently swallow errors. Every error path must call `ctx.Diagnostics.Report`.
+- Do not generate GML that is not valid GML 2.3+.
+- Do not add features not described in `TypedGML_Specification.md`. If something is unclear, re-read the spec before inventing behaviour.

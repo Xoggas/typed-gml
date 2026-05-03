@@ -1,0 +1,69 @@
+namespace TypedGML.Collections;
+using TypedGML.Core;
+
+public class Stack<T> : ICollection<T>
+{
+    private T[] _items;
+
+    @NativeCall("array_push")
+    private void __push(T[] arr, T item) { }
+
+    @NativeCall("array_pop")
+    private T __pop(T[] arr) { return default(T); }
+
+    @NativeCall("array_contains")
+    private bool __contains(T[] arr, T item) { return default(bool); }
+
+    @NativeCall("array_length")
+    private number __length(T[] arr) { return default(number); }
+
+    public constructor()
+    {
+        _items = [];
+    }
+
+    public number Count
+    {
+        get { return __length(_items); }
+    }
+
+    public void Push(T item)
+    {
+        __push(_items, item);
+    }
+
+    public T Pop()
+    {
+        return __pop(_items);
+    }
+
+    public T Peek()
+    {
+        return _items[Count - 1];
+    }
+
+    public bool Contains(T item)
+    {
+        return __contains(_items, item);
+    }
+
+    public void Clear()
+    {
+        _items = [];
+    }
+
+    public void Add(T item)
+    {
+        Push(item);
+    }
+
+    public bool Remove(T item)
+    {
+        return false;
+    }
+
+    public override string ToString()
+    {
+        return "Stack[" + Count + "]";
+    }
+}

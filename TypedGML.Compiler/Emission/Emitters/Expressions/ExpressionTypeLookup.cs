@@ -1,0 +1,147 @@
+using TypedGML.Compiler.Ast;
+using TypedGML.Compiler.Ast.Expressions;
+using TypedGML.Compiler.Symbols;
+
+namespace TypedGML.Compiler.Emission.Emitters.Expressions;
+
+internal static class ExpressionTypeLookup
+{
+    public static string? Resolve(IAstNode? node, EmitContext ctx) => node switch
+    {
+        null => null,
+        LiteralExpressionNode literal => literal.Kind switch
+        {
+            LiteralKind.Number => "number",
+            LiteralKind.String => "string",
+            LiteralKind.Bool => "bool",
+            LiteralKind.Null => "null",
+            _ => null
+        },
+        IdentifierExpressionNode identifier => ResolveIdentifier(identifier, ctx),
+        ObjectCreationExpressionNode creation => ResolveCreation(creation, ctx),
+        CastExpressionNode cast => cast.CastKind == CastKind.Is ? "bool" : cast.TargetType,
+        MemberAccessExpressionNode access => MemberExpressionTypeLookup.ResolveMember(access, ctx)?.ReturnType,
+        InvocationExpressionNode invocation => ResolveInvocation(invocation, ctx),
+        BinaryExpressionNode binary => ResolveBinary(binary, ctx),
+        UnaryExpressionNode unary => unary.Op == "not" ? "bool" : Resolve(unary.Operand, ctx),
+        TernaryExpressionNode ternary => Resolve(ternary.ThenExpr, ctx) == Resolve(ternary.ElseExpr, ctx)
+            ? Resolve(ternary.ThenExpr, ctx)
+            : null,
+        NullCoalescingExpressionNode coalescing => Resolve(coalescing.Left, ctx) ?? Resolve(coalescing.Right, ctx),
+        NullConditionalExpressionNode conditional => Nullable(ResolveNullConditionalAccess(conditional, ctx)?.ReturnType),
+        DefaultExpressionNode defaultValue => defaultValue.TypeName,
+        TypeofExpressionNode or NameofExpressionNode => "string",
+        IndexerAccessExpressionNode indexer => MemberExpressionTypeLookup.ResolveIndexer(indexer, ctx),
+        _ => null
+    };
+
+    private static string? ResolveIdentifier(IdentifierExpressionNode identifier, EmitContext ctx)
+    {
+        if (identifier.Name == "this")
+            return ctx.CurrentType?.QualifiedName;
+
+        if (ctx.Scope.TryResolve(identifier.Name, out var scopedType) &&
+            ctx.Narrowing.TryResolve(identifier.Name, out var narrowedType))
+            return TypeSpecificityHelper.MostSpecific(scopedType, narrowedType, ctx);
+
+        if (ctx.Narrowing.TryResolve(identifier.Name, out var typeRef))
+            return typeRef;
+
+        if (ctx.Scope.TryResolve(identifier.Name, out typeRef))
+            return typeRef;
+
+        if (ctx.CurrentType is not null && TryResolveCurrentMember(identifier.Name, ctx, out _, out var member))
+            return member.ReturnType;
+
+        return ExpressionSymbolHelper.TryResolveType(ctx, identifier.Name, out var type)
+            ? type.QualifiedName
+            : null;
+    }
+
+    private static string ResolveCreation(ObjectCreationExpressionNode creation, EmitContext ctx)
+    {
+        var root = ctx.Symbols.TryResolve(creation.TypeRef, creation.TypeArgs.Count, CurrentNamespacePrefix(ctx), ctx.UsingPrefixes, out var type)
+            ? type.QualifiedName
+            : creation.TypeRef;
+
+        return creation.TypeArgs.Count == 0 ? root : $"{root}<{string.Join(", ", creation.TypeArgs)}>";
+    }
+
+    private static string CurrentNamespacePrefix(EmitContext ctx) =>
+        !string.IsNullOrEmpty(ctx.CurrentNamespacePrefix)
+            ? ctx.CurrentNamespacePrefix
+            : ctx.CurrentType is null || !ctx.CurrentType.QualifiedName.Contains('.', StringComparison.Ordinal)
+                ? string.Empty
+                : ctx.CurrentType.QualifiedName[..ctx.CurrentType.QualifiedName.LastIndexOf('.')];
+
+    private static string? ResolveInvocation(InvocationExpressionNode invocation, EmitContext ctx)
+    {
+        if (invocation.Target is NullConditionalExpressionNode conditional)
+            return Nullable(ResolveNullConditionalInvocation(conditional, invocation, ctx)?.ReturnType);
+
+        if (invocation.Target is IdentifierExpressionNode identifier &&
+            TryResolveCurrentMember(identifier.Name, ctx, out _, out var member))
+            return member.ReturnType;
+
+        return MemberExpressionTypeLookup.ResolveMember(invocation.Target, ctx)?.ReturnType;
+    }
+
+    private static string? ResolveBinary(BinaryExpressionNode binary, EmitContext ctx)
+    {
+        if (binary.Op == "+")
+        {
+            var left = Resolve(binary.Left, ctx);
+            var right = Resolve(binary.Right, ctx);
+            return left == "string" || right == "string" ? "string" : left ?? right;
+        }
+
+        return binary.Op switch
+        {
+            "==" or "!=" or "<" or ">" or "<=" or ">=" or "and" or "or" => "bool",
+            _ => Resolve(binary.Left, ctx) ?? Resolve(binary.Right, ctx)
+        };
+    }
+
+    private static MemberSymbol? ResolveNullConditionalAccess(NullConditionalExpressionNode conditional, EmitContext ctx) =>
+        ExpressionSymbolHelper.TryResolveTargetType(conditional.Target, ctx, out var owner)
+            ? owner.Members.FirstOrDefault(m => m.Name == conditional.MemberName)
+            : null;
+
+    private static MemberSymbol? ResolveNullConditionalInvocation(
+        NullConditionalExpressionNode conditional,
+        InvocationExpressionNode invocation,
+        EmitContext ctx) =>
+        ExpressionSymbolHelper.TryResolveTargetType(conditional.Target, ctx, out var owner)
+            ? EmissionOverloadResolver.Pick(
+                owner.Members.Where(m => m.Kind == MemberKind.Method && m.Name == conditional.MemberName).ToList(),
+                invocation.PositionalArgs,
+                invocation.NamedArgs,
+                ctx)
+            : null;
+
+    private static string? Nullable(string? typeRef) =>
+        string.IsNullOrWhiteSpace(typeRef) || typeRef == "void"
+            ? typeRef
+            : typeRef.EndsWith("?", StringComparison.Ordinal) ? typeRef : $"{typeRef}?";
+
+    private static bool TryResolveCurrentMember(
+        string name,
+        EmitContext ctx,
+        out TypeSymbol owner,
+        out MemberSymbol member)
+    {
+        for (var current = ctx.CurrentType; current is not null; current = current.Base)
+        {
+            member = current.Members.FirstOrDefault(m => m.Name == name)!;
+            if (member is null)
+                continue;
+
+            owner = current;
+            return true;
+        }
+
+        owner = null!;
+        member = null!;
+        return false;
+    }
+}
