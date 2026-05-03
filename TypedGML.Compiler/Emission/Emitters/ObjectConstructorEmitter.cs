@@ -48,15 +48,12 @@ internal sealed class ObjectConstructorEmitter
         constructor.ChainTarget != ConstructorChainTarget.None ||
         constructor.Body is BlockStatementNode { Statements.Count: > 0 };
 
-    private static string TargetName(string parameterName, EmitContext ctx)
-    {
-        var member = ctx.CurrentType?.Members.FirstOrDefault(member =>
+    private static string? TargetName(string parameterName, EmitContext ctx) =>
+        ctx.CurrentType?.Members.FirstOrDefault(member =>
             member.Kind is MemberKind.Field or MemberKind.Property &&
             !member.Modifiers.Contains("static", StringComparer.Ordinal) &&
-            string.Equals(member.Name, parameterName, StringComparison.OrdinalIgnoreCase));
-
-        return member?.Name ?? parameterName;
-    }
+            !string.Equals(member.Name, parameterName, StringComparison.Ordinal) &&
+            string.Equals(member.Name, parameterName, StringComparison.OrdinalIgnoreCase))?.Name;
 
     private static void EmitBodyStatements(IAstNode body, EmitContext ctx)
     {
@@ -76,7 +73,7 @@ internal sealed class ObjectConstructorEmitter
         foreach (var parameter in extraParameters)
         {
             var targetName = TargetName(parameter.Name, ctx);
-            if (!assignedFields.Contains(targetName))
+            if (targetName is not null && !assignedFields.Contains(targetName))
                 ctx.Writer.WriteLine($"{targetName} = {parameter.Name};");
         }
     }
