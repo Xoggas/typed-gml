@@ -6,6 +6,55 @@ namespace TypedGML.Compiler.Tests.Emission;
 public sealed class ConstructorBaseInitializationEmissionTests
 {
     [Fact]
+    public void Test_BaseConstructorComplexArgumentIsEvaluatedOnce()
+    {
+        var result = CompilerFixture.Compile("""
+            public class Stats {
+                public number MaxHp;
+                public number Attack;
+                public number Defense;
+                public number Speed;
+
+                public constructor(number maxHp, number attack, number defense, number speed) {
+                    MaxHp = maxHp;
+                    Attack = attack;
+                    Defense = defense;
+                    Speed = speed;
+                }
+            }
+
+            public class Entity {
+                public Stats BaseStats { get; }
+                public number MaxHp { get; }
+                public number MoveSpeed { get; }
+                public number CurrentHp { get; set; }
+
+                public constructor(number x, number y, string layer, Stats stats) {
+                    BaseStats = stats;
+                    MaxHp = stats.MaxHp;
+                    CurrentHp = stats.MaxHp;
+                    MoveSpeed = stats.Speed;
+                }
+            }
+
+            public class Player : Entity {
+                public constructor(number x, number y, string layer) : base(x, y, layer, new Stats(100, 15, 5, 3)) {
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var playerCtor = FunctionBlock(result.GetFile("Player.gml")!, "function Player_create");
+
+        GmlAssert.ContainsLine(playerCtor, "var __arg_stats = Stats_create(100, 15, 5, 3);");
+        GmlAssert.ContainsLine(playerCtor, "self.__backing_BaseStats = __arg_stats;");
+        GmlAssert.ContainsLine(playerCtor, "self.__backing_MaxHp = __arg_stats.MaxHp;");
+        GmlAssert.ContainsLine(playerCtor, "Entity_set_CurrentHp(self, __arg_stats.MaxHp);");
+        GmlAssert.ContainsLine(playerCtor, "self.__backing_MoveSpeed = __arg_stats.Speed;");
+        playerCtor.Split("Stats_create(100, 15, 5, 3)", StringSplitOptions.None).Length.Should().Be(2);
+    }
+
+    [Fact]
     public void Test_DerivedConstructorEmitsBaseAutoPropertyDefaultsBeforeBaseBody()
     {
         var result = CompilerFixture.Compile("""

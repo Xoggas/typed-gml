@@ -13,6 +13,13 @@ internal static class ConstructorParameterSubstituter
         IReadOnlyList<IAstNode> arguments) =>
         Replace(node, Map(parameters, arguments));
 
+    public static IAstNode SubstituteWithTemps(
+        IAstNode node,
+        IReadOnlyList<ParameterNode> parameters,
+        IReadOnlyList<IAstNode> arguments,
+        out IReadOnlyList<ConstructorArgumentTemp> temps) =>
+        Replace(node, MapWithTemps(parameters, arguments, out temps));
+
     public static IReadOnlyList<IAstNode> Substitute(
         IReadOnlyList<IAstNode> nodes,
         IReadOnlyList<ParameterNode> parameters,
@@ -32,6 +39,37 @@ internal static class ConstructorParameterSubstituter
 
     private static IAstNode? ArgumentValue(ParameterNode parameter, int index, IReadOnlyList<IAstNode> arguments) =>
         index < arguments.Count ? arguments[index] : parameter.DefaultValue;
+
+    private static IReadOnlyDictionary<string, IAstNode> MapWithTemps(
+        IReadOnlyList<ParameterNode> parameters,
+        IReadOnlyList<IAstNode> arguments,
+        out IReadOnlyList<ConstructorArgumentTemp> temps)
+    {
+        var result = new Dictionary<string, IAstNode>(StringComparer.Ordinal);
+        var tempList = new List<ConstructorArgumentTemp>();
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            var value = ArgumentValue(parameters[i], i, arguments);
+            if (value is null)
+                continue;
+
+            if (IsTrivial(value))
+            {
+                result[parameters[i].Name] = value;
+                continue;
+            }
+
+            var tempName = $"__arg_{parameters[i].Name}";
+            tempList.Add(new ConstructorArgumentTemp(tempName, parameters[i], value));
+            result[parameters[i].Name] = new IdentifierExpressionNode(tempName, value.Location);
+        }
+
+        temps = tempList;
+        return result;
+    }
+
+    private static bool IsTrivial(IAstNode node) =>
+        node is IdentifierExpressionNode or LiteralExpressionNode;
 
     private static IAstNode Replace(IAstNode node, IReadOnlyDictionary<string, IAstNode> map) => node switch
     {

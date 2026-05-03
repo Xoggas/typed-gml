@@ -40,9 +40,10 @@ internal static class ConstructorChainInliner
 
     private static void EmitBaseConstructor(TypeSymbol type, IReadOnlyList<IAstNode> args, EmitContext ctx)
     {
-        var chain = new List<(TypeSymbol Type, IAstNode? Body)>();
+        var chain = new List<ConstructorInlineFrame>();
         CollectBaseChain(type, args, ctx, chain);
         EmitDefaultInitializers(chain, ctx);
+        EmitArgumentTemps(chain, ctx);
         EmitBodies(chain, ctx);
     }
 
@@ -50,16 +51,21 @@ internal static class ConstructorChainInliner
         TypeSymbol type,
         IReadOnlyList<IAstNode> args,
         EmitContext ctx,
-        List<(TypeSymbol Type, IAstNode? Body)> chain)
+        List<ConstructorInlineFrame> chain)
     {
         var constructor = ConstructorChainTargetResolver.Resolve(type, args, ctx, out var orderedArgs);
         if (constructor is null)
         {
             CollectDefaultInitializerChain(type.Base, chain);
-            chain.Add((type, null));
+            chain.Add(new ConstructorInlineFrame(type, null, []));
             return;
         }
 
+        var body = ConstructorParameterSubstituter.SubstituteWithTemps(
+            constructor.Body,
+            constructor.Parameters,
+            orderedArgs,
+            out var temps);
         if (constructor.ChainTarget == ConstructorChainTarget.Base && type.Base is not null)
         {
             var baseArgs = ConstructorParameterSubstituter.Substitute(constructor.ChainArgs, constructor.Parameters, orderedArgs);
@@ -70,23 +76,22 @@ internal static class ConstructorChainInliner
             CollectDefaultInitializerChain(type.Base, chain);
         }
 
-        var body = ConstructorParameterSubstituter.Substitute(constructor.Body, constructor.Parameters, orderedArgs);
-        chain.Add((type, body));
+        chain.Add(new ConstructorInlineFrame(type, body, temps));
     }
 
     private static void CollectDefaultInitializerChain(
         TypeSymbol? type,
-        List<(TypeSymbol Type, IAstNode? Body)> chain)
+        List<ConstructorInlineFrame> chain)
     {
         if (type is null)
             return;
 
         CollectDefaultInitializerChain(type.Base, chain);
-        chain.Add((type, null));
+        chain.Add(new ConstructorInlineFrame(type, null, []));
     }
 
     private static void EmitDefaultInitializers(
-        IReadOnlyList<(TypeSymbol Type, IAstNode? Body)> chain,
+        IReadOnlyList<ConstructorInlineFrame> chain,
         EmitContext ctx)
     {
         foreach (var frame in chain)
@@ -97,8 +102,19 @@ internal static class ConstructorChainInliner
             });
     }
 
+    private static void EmitArgumentTemps(
+        IReadOnlyList<ConstructorInlineFrame> chain,
+        EmitContext ctx)
+    {
+        foreach (var temp in chain.SelectMany(frame => frame.Temps))
+        {
+            ctx.Scope.Declare(temp.Name, temp.Parameter.TypeRef);
+            ctx.Writer.WriteLine($"var {temp.Name} = {ctx.RenderWithExpected(temp.Value, temp.Parameter.TypeRef)};");
+        }
+    }
+
     private static void EmitBodies(
-        IReadOnlyList<(TypeSymbol Type, IAstNode? Body)> chain,
+        IReadOnlyList<ConstructorInlineFrame> chain,
         EmitContext ctx)
     {
         foreach (var frame in chain.Where(frame => frame.Body is not null))
