@@ -14,6 +14,7 @@ public sealed class StaticCtorEmitter
         var staticFields = members.OfType<FieldDeclarationNode>().Where(IsStatic).ToList();
         var staticProperties = members.OfType<PropertyDeclarationNode>().Where(IsStatic).ToList();
         var staticConstructor = members.OfType<StaticConstructorDeclarationNode>().FirstOrDefault();
+        var assignedStaticFields = StaticCtorAssignmentFinder.FindAssignedFields(type, staticConstructor);
         if (staticMethods.Count == 0 && staticFields.Count == 0 && staticProperties.Count == 0 && staticConstructor is null)
             return;
 
@@ -21,7 +22,7 @@ public sealed class StaticCtorEmitter
         ctx.ResetTempVars();
         ctx.Writer.BeginBlock();
         staticMethods.ForEach(method => EmitMethod(type, method, ctx));
-        staticFields.ForEach(field => EmitField(type, field, ctx));
+        staticFields.Where(field => !assignedStaticFields.Contains(field.Name)).ToList().ForEach(field => EmitField(type, field, ctx));
         staticProperties.ForEach(property => EmitProperty(type, property, ctx));
         if (staticConstructor is not null)
             EmitBody(staticConstructor.Body, ctx);
