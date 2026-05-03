@@ -2,6 +2,7 @@ using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Symbols;
 using TypedGML.Compiler.Utils;
+using TypedGML.Compiler.Verification;
 
 namespace TypedGML.Compiler.Emission.Emitters.Expressions;
 
@@ -23,7 +24,11 @@ internal static class ExpressionSymbolHelper
         if (target is not MemberAccessExpressionNode access || !TryResolveTargetType(access.Target, ctx, out var type))
             return false;
 
-        member = type.Members.FirstOrDefault(m => m.Name == access.MemberName)!;
+        member = GenericMemberResolver.FindMember(
+            type,
+            ExpressionTypeLookup.Resolve(access.Target, ctx) ?? type.QualifiedName,
+            access.MemberName,
+            out _)!;
         return member is not null && IsDelegateLike(member, ctx);
     }
 

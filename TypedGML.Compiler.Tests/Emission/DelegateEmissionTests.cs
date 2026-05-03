@@ -104,16 +104,27 @@ public sealed class DelegateEmissionTests
     public void Test_EventSubscribe_UsesArrayAppendAndBoundMethod()
     {
         var result = CompilerFixture.Compile("""
-            public delegate void Action();
-            public class Player {
+            public class Entity {
                 public event Action OnDeath;
+                public event Action<number> OnDamageTaken;
+            }
+            public class Player : Entity {
+                public event Action<number> OnLevelUp;
+            }
+            public class Enemy : Entity {
             }
             public class GameController {
                 private Player _player;
                 public void HandlePlayerDeath() { }
+                public void HandlePlayerLevelUp(number level) { }
+                public void HandlePlayerDamage(number amount) { }
                 public void HandleEnemyDeath() { }
-                public void Run(Player enemy) {
+                public void RegisterPlayer() {
                     _player.OnDeath += HandlePlayerDeath;
+                    _player.OnLevelUp += HandlePlayerLevelUp;
+                    _player.OnDamageTaken += HandlePlayerDamage;
+                }
+                public void RegisterEnemy(Enemy enemy) {
                     enemy.OnDeath += HandleEnemyDeath;
                 }
             }
@@ -122,6 +133,8 @@ public sealed class DelegateEmissionTests
         result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
         var gml = result.GetFile("GameController.gml")!;
         GmlAssert.ContainsPattern(gml, "self._player.__event_OnDeath[array_length(self._player.__event_OnDeath)] = method(self, GameController_HandlePlayerDeath);");
+        GmlAssert.ContainsPattern(gml, "self._player.__event_OnLevelUp[array_length(self._player.__event_OnLevelUp)] = method(self, GameController_HandlePlayerLevelUp);");
+        GmlAssert.ContainsPattern(gml, "self._player.__event_OnDamageTaken[array_length(self._player.__event_OnDamageTaken)] = method(self, GameController_HandlePlayerDamage);");
         GmlAssert.ContainsPattern(gml, "enemy.__event_OnDeath[array_length(enemy.__event_OnDeath)] = method(self, GameController_HandleEnemyDeath);");
     }
 
