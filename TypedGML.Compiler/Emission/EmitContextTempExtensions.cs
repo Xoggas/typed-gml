@@ -13,6 +13,9 @@ internal static class EmitContextTempExtensions
     public static string NextTempVarName(this EmitContext ctx) =>
         $"__tmp_{ctx.TempVarCounter++}";
 
+    public static string NextArgumentTempVarName(this EmitContext ctx) =>
+        $"__arg_{ctx.TempVarCounter++}";
+
     public static void AddTempPreludeLine(this EmitContext ctx, string line) =>
         ctx.TempVariables.Prelude.Add(line);
 

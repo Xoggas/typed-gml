@@ -46,12 +46,65 @@ public sealed class ConstructorBaseInitializationEmissionTests
         result.HasErrors.Should().BeFalse();
         var playerCtor = FunctionBlock(result.GetFile("Player.gml")!, "function Player_create");
 
-        GmlAssert.ContainsLine(playerCtor, "var __arg_stats = Stats_create(100, 15, 5, 3);");
-        GmlAssert.ContainsLine(playerCtor, "self.__backing_BaseStats = __arg_stats;");
-        GmlAssert.ContainsLine(playerCtor, "self.__backing_MaxHp = __arg_stats.MaxHp;");
-        GmlAssert.ContainsLine(playerCtor, "Entity_set_CurrentHp(self, __arg_stats.MaxHp);");
-        GmlAssert.ContainsLine(playerCtor, "self.__backing_MoveSpeed = __arg_stats.Speed;");
+        GmlAssert.ContainsLine(playerCtor, "var __arg_0 = Stats_create(100, 15, 5, 3);");
+        GmlAssert.ContainsLine(playerCtor, "self.__backing_BaseStats = __arg_0;");
+        GmlAssert.ContainsLine(playerCtor, "self.__backing_MaxHp = __arg_0.MaxHp;");
+        GmlAssert.ContainsLine(playerCtor, "Entity_set_CurrentHp(self, __arg_0.MaxHp);");
+        GmlAssert.ContainsLine(playerCtor, "self.__backing_MoveSpeed = __arg_0.Speed;");
         playerCtor.Split("Stats_create(100, 15, 5, 3)", StringSplitOptions.None).Length.Should().Be(2);
+    }
+
+    [Fact]
+    public void Test_BaseConstructorComplexArgumentSharedAcrossInlineChain()
+    {
+        var result = CompilerFixture.Compile("""
+            public class Stats {
+                public number MaxHp;
+                public number Attack;
+                public number Defense;
+                public number Speed;
+
+                public constructor(number maxHp, number attack, number defense, number speed) {
+                    MaxHp = maxHp;
+                    Attack = attack;
+                    Defense = defense;
+                    Speed = speed;
+                }
+            }
+
+            public class Entity {
+                public Stats BaseStats { get; }
+                public number MaxHp { get; }
+
+                public constructor(Stats stats) {
+                    BaseStats = stats;
+                    MaxHp = stats.MaxHp;
+                }
+            }
+
+            public class Enemy : Entity {
+                public number Attack { get; }
+
+                public constructor(Stats stats) : base(stats) {
+                    Attack = stats.Attack;
+                }
+            }
+
+            public class Boss : Enemy {
+                public constructor() : base(new Stats(500, 40, 20, 2)) {
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var bossCtor = FunctionBlock(result.GetFile("Boss.gml")!, "function Boss_create");
+
+        bossCtor.Split("var __arg_0 = Stats_create(500, 40, 20, 2);", StringSplitOptions.None).Length.Should().Be(2);
+        bossCtor.Split("Stats_create(500, 40, 20, 2)", StringSplitOptions.None).Length.Should().Be(2);
+        bossCtor.Split("var __arg_", StringSplitOptions.None).Length.Should().Be(2);
+        GmlAssert.ContainsLine(bossCtor, "self.__backing_BaseStats = __arg_0;");
+        GmlAssert.ContainsLine(bossCtor, "self.__backing_MaxHp = __arg_0.MaxHp;");
+        GmlAssert.ContainsLine(bossCtor, "self.__backing_Attack = __arg_0.Attack;");
     }
 
     [Fact]

@@ -13,12 +13,8 @@ internal static class ConstructorParameterSubstituter
         IReadOnlyList<IAstNode> arguments) =>
         Replace(node, Map(parameters, arguments));
 
-    public static IAstNode SubstituteWithTemps(
-        IAstNode node,
-        IReadOnlyList<ParameterNode> parameters,
-        IReadOnlyList<IAstNode> arguments,
-        out IReadOnlyList<ConstructorArgumentTemp> temps) =>
-        Replace(node, MapWithTemps(parameters, arguments, out temps));
+    public static IAstNode Substitute(IAstNode node, IReadOnlyDictionary<string, IAstNode> map) =>
+        Replace(node, map);
 
     public static IReadOnlyList<IAstNode> Substitute(
         IReadOnlyList<IAstNode> nodes,
@@ -28,6 +24,18 @@ internal static class ConstructorParameterSubstituter
         var map = Map(parameters, arguments);
         return nodes.Select(node => Replace(node, map)).ToList();
     }
+
+    public static IReadOnlyList<IAstNode> Substitute(
+        IReadOnlyList<IAstNode> nodes,
+        IReadOnlyDictionary<string, IAstNode> map) =>
+        nodes.Select(node => Replace(node, map)).ToList();
+
+    public static IReadOnlyDictionary<string, IAstNode> CreateTempMap(
+        IReadOnlyList<ParameterNode> parameters,
+        IReadOnlyList<IAstNode> arguments,
+        Func<string> nextTempName,
+        out IReadOnlyList<ConstructorArgumentTemp> temps) =>
+        MapWithTemps(parameters, arguments, nextTempName, out temps);
 
     private static IReadOnlyDictionary<string, IAstNode> Map(
         IReadOnlyList<ParameterNode> parameters,
@@ -43,6 +51,7 @@ internal static class ConstructorParameterSubstituter
     private static IReadOnlyDictionary<string, IAstNode> MapWithTemps(
         IReadOnlyList<ParameterNode> parameters,
         IReadOnlyList<IAstNode> arguments,
+        Func<string> nextTempName,
         out IReadOnlyList<ConstructorArgumentTemp> temps)
     {
         var result = new Dictionary<string, IAstNode>(StringComparer.Ordinal);
@@ -59,7 +68,7 @@ internal static class ConstructorParameterSubstituter
                 continue;
             }
 
-            var tempName = $"__arg_{parameters[i].Name}";
+            var tempName = nextTempName();
             tempList.Add(new ConstructorArgumentTemp(tempName, parameters[i], value));
             result[parameters[i].Name] = new IdentifierExpressionNode(tempName, value.Location);
         }

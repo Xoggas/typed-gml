@@ -65,14 +65,15 @@ internal static class ConstructorChainInliner
             return;
         }
 
-        var body = ConstructorParameterSubstituter.SubstituteWithTemps(
-            constructor.Body,
+        var substitutions = ConstructorParameterSubstituter.CreateTempMap(
             constructor.Parameters,
             orderedArgs,
+            ctx.NextArgumentTempVarName,
             out var temps);
+        var body = ConstructorParameterSubstituter.Substitute(constructor.Body, substitutions);
         if (constructor.ChainTarget == ConstructorChainTarget.Base && type.Base is not null)
         {
-            var baseArgs = ConstructorParameterSubstituter.Substitute(constructor.ChainArgs, constructor.Parameters, orderedArgs);
+            var baseArgs = ConstructorParameterSubstituter.Substitute(constructor.ChainArgs, substitutions);
             CollectBaseChain(type.Base, baseArgs, ctx, chain);
         }
         else
