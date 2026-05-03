@@ -31,7 +31,7 @@ public sealed class ClassEmissionTests
     }
 
     [Fact]
-    public void Test_AutoProperty_BackingFieldInitialized()
+    public void Test_AutoProperty_DefaultBackingFieldSkippedWhenAssigned()
     {
         var result = Compile("""
             public class T {
@@ -49,9 +49,11 @@ public sealed class ClassEmissionTests
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("/T.gml")!;
 
-        GmlAssert.ContainsPattern(gml, "self.__backing_Value = 0;");
+        GmlAssert.NotContainsPattern(gml, "self.__backing_Value = 0;");
         GmlAssert.ContainsPattern(gml, "self.__backing_Name = undefined;");
-        GmlAssert.ContainsPattern(gml, "self.__backing_Active = false;");
+        GmlAssert.NotContainsPattern(gml, "self.__backing_Active = false;");
+        GmlAssert.ContainsPattern(gml, "T_set_Value(self, value);");
+        GmlAssert.ContainsPattern(gml, "T_set_Active(self, active);");
     }
 
     [Fact]

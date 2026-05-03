@@ -13,7 +13,7 @@ internal static class ConstructorChainInliner
     {
         if (constructor.ChainTarget == ConstructorChainTarget.Base && ctx.CurrentType?.Base is not null)
         {
-            EmitBaseConstructor(ctx.CurrentType.Base, constructor.ChainArgs, ctx);
+            EmitBaseConstructor(ctx.CurrentType.Base, constructor.ChainArgs, constructor.Body, ctx);
             return;
         }
 
@@ -38,11 +38,15 @@ internal static class ConstructorChainInliner
         }
     }
 
-    private static void EmitBaseConstructor(TypeSymbol type, IReadOnlyList<IAstNode> args, EmitContext ctx)
+    private static void EmitBaseConstructor(
+        TypeSymbol type,
+        IReadOnlyList<IAstNode> args,
+        IAstNode currentBody,
+        EmitContext ctx)
     {
         var chain = new List<ConstructorInlineFrame>();
         CollectBaseChain(type, args, ctx, chain);
-        EmitDefaultInitializers(chain, ctx);
+        ConstructorMemberInitializerEmitter.EmitChainDefaults(chain, currentBody, ctx);
         EmitArgumentTemps(chain, ctx);
         EmitBodies(chain, ctx);
     }
@@ -88,18 +92,6 @@ internal static class ConstructorChainInliner
 
         CollectDefaultInitializerChain(type.Base, chain);
         chain.Add(new ConstructorInlineFrame(type, null, []));
-    }
-
-    private static void EmitDefaultInitializers(
-        IReadOnlyList<ConstructorInlineFrame> chain,
-        EmitContext ctx)
-    {
-        foreach (var frame in chain)
-            WithCurrentType(ctx, frame.Type, () =>
-            {
-                ConstructorFieldInitializerEmitter.EmitAll(frame.Type, ctx);
-                ConstructorAutoPropertyInitializerEmitter.Emit(frame.Type, ctx);
-            });
     }
 
     private static void EmitArgumentTemps(

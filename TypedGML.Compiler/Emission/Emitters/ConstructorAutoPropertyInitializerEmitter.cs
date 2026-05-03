@@ -8,13 +8,19 @@ namespace TypedGML.Compiler.Emission.Emitters;
 
 internal static class ConstructorAutoPropertyInitializerEmitter
 {
-    public static void Emit(TypeSymbol? type, EmitContext ctx)
+    public static void Emit(TypeSymbol? type, EmitContext ctx) =>
+        Emit(type, new HashSet<string>(StringComparer.Ordinal), ctx);
+
+    public static void Emit(TypeSymbol? type, IReadOnlySet<string> assignedProperties, EmitContext ctx)
     {
         if (type is null)
             return;
 
         foreach (var property in AutoProperties(type, ctx))
         {
+            if (assignedProperties.Contains(property.Name))
+                continue;
+
             var target = NamingConvention.InstancePropertyBackingName("self", property.Name);
             var value = DefaultValueRenderer.Render(new DefaultExpressionNode(property.TypeRef, property.Location), ctx);
             ctx.Writer.WriteLine($"{target} = {value};");

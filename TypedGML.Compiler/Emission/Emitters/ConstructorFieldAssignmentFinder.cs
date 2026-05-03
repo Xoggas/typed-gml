@@ -6,7 +6,7 @@ namespace TypedGML.Compiler.Emission.Emitters;
 
 internal static class ConstructorFieldAssignmentFinder
 {
-    public static HashSet<string> Find(IAstNode body)
+    public static HashSet<string> Find(IAstNode? body)
     {
         var fields = new HashSet<string>(StringComparer.Ordinal);
         Collect(body, fields);

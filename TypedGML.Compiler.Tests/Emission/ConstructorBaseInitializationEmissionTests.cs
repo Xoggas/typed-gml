@@ -55,7 +55,7 @@ public sealed class ConstructorBaseInitializationEmissionTests
     }
 
     [Fact]
-    public void Test_DerivedConstructorEmitsBaseAutoPropertyDefaultsBeforeBaseBody()
+    public void Test_DerivedConstructorSkipsBaseAutoPropertyDefaultsAssignedByChain()
     {
         var result = CompilerFixture.Compile("""
             public class BankAccount {
@@ -84,11 +84,16 @@ public sealed class ConstructorBaseInitializationEmissionTests
         result.HasErrors.Should().BeFalse();
         var savingsCtor = FunctionBlock(result.GetFile("SavingsAccount.gml")!, "function SavingsAccount_create");
 
-        IndexOf(savingsCtor, "self.__backing_Owner = undefined;").Should().BeLessThan(IndexOf(savingsCtor, "BankAccount_set_Owner(self, owner);"));
-        IndexOf(savingsCtor, "self.__backing_AccountNumber = undefined;").Should().BeLessThan(IndexOf(savingsCtor, "BankAccount_set_Owner(self, owner);"));
-        IndexOf(savingsCtor, "self.__backing_Balance = 0;").Should().BeLessThan(IndexOf(savingsCtor, "BankAccount_set_Owner(self, owner);"));
-        IndexOf(savingsCtor, "self.__backing_HasTransaction = false;").Should().BeLessThan(IndexOf(savingsCtor, "BankAccount_set_Owner(self, owner);"));
-        IndexOf(savingsCtor, "self.__backing_WithdrawalLimit = 0;").Should().BeGreaterThan(IndexOf(savingsCtor, "BankAccount_set_Owner(self, owner);"));
+        GmlAssert.NotContainsPattern(savingsCtor, "self.__backing_Owner = undefined;");
+        GmlAssert.NotContainsPattern(savingsCtor, "self.__backing_AccountNumber = undefined;");
+        GmlAssert.NotContainsPattern(savingsCtor, "self.__backing_Balance = 0;");
+        GmlAssert.NotContainsPattern(savingsCtor, "self.__backing_HasTransaction = false;");
+        GmlAssert.NotContainsPattern(savingsCtor, "self.__backing_WithdrawalLimit = 0;");
+        GmlAssert.ContainsPattern(savingsCtor, "BankAccount_set_Owner(self, owner);");
+        GmlAssert.ContainsPattern(savingsCtor, "self.__backing_AccountNumber = accountNumber;");
+        GmlAssert.ContainsPattern(savingsCtor, "BankAccount_set_Balance(self, 0);");
+        GmlAssert.ContainsPattern(savingsCtor, "BankAccount_set_HasTransaction(self, false);");
+        GmlAssert.ContainsPattern(savingsCtor, "SavingsAccount_set_WithdrawalLimit(self, 100);");
     }
 
     private static string FunctionBlock(string gml, string prefix)

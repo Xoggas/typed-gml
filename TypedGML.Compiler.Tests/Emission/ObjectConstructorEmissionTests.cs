@@ -45,6 +45,43 @@ public sealed class ObjectConstructorEmissionTests
         GmlAssert.NotContainsPattern(enemy, "y = y;");
     }
 
+    [Fact]
+    public void Test_ObjectConstructor_InlinedBaseBodySkipsAssignedBackingPropertyDefault()
+    {
+        var result = CompilerFixture.Compile("""
+            using TypedGML.GameObjects;
+
+            public struct Stats {
+                public number Health;
+
+                public constructor(number health) {
+                    Health = health;
+                }
+            }
+
+            @Object("obj_Entity")
+            public class Entity : GameObject {
+                public Stats BaseStats { get; }
+
+                public constructor(number x, number y, string layer, Stats stats) : base(x, y, layer) {
+                    BaseStats = stats;
+                }
+            }
+
+            @Object("obj_Enemy")
+            public class Enemy : Entity {
+                public constructor(number x, number y, string layer, Stats stats) : base(x, y, layer, stats) {
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(Errors(result));
+        var enemy = result.GetFile("Enemy.gml")!;
+
+        GmlAssert.NotContainsPattern(enemy, "self.__backing_BaseStats = Stats_create();");
+        GmlAssert.ContainsPattern(enemy, "self.__backing_BaseStats = stats;");
+    }
+
     private static string Errors(CompileResult result) =>
         string.Join(Environment.NewLine, result.Errors.Select(error => $"{error.Code}: {error.Message}"));
 }

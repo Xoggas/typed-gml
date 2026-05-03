@@ -8,17 +8,16 @@ namespace TypedGML.Compiler.Emission.Emitters;
 
 internal static class ConstructorFieldInitializerEmitter
 {
-    public static void EmitAll(TypeSymbol? type, EmitContext ctx) =>
-        Emit(type, null, ctx);
-
     public static void Emit(TypeSymbol? type, IAstNode? body, EmitContext ctx)
+    {
+        var assignedFields = ConstructorFieldAssignmentFinder.Find(body);
+        Emit(type, assignedFields, ctx);
+    }
+
+    public static void Emit(TypeSymbol? type, IReadOnlySet<string> assignedFields, EmitContext ctx)
     {
         if (type is null)
             return;
-
-        var assignedFields = body is null
-            ? new HashSet<string>(StringComparer.Ordinal)
-            : ConstructorFieldAssignmentFinder.Find(body);
 
         foreach (var field in Fields(type, ctx))
         {
