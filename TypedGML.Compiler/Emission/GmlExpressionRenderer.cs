@@ -22,7 +22,7 @@ internal static class GmlExpressionRenderer
         ArrayLiteralExpressionNode n => ListLiteralRenderer.TryRender(n, ctx, out var listLiteral)
             ? listLiteral
             : $"[{string.Join(", ", n.Elements.Select(e => Render(e, ctx)))}]",
-        AssignmentExpressionNode n => $"{Render(n.Target, ctx)} {n.Op} {Render(n.Value, ctx)}",
+        AssignmentExpressionNode n => AssignmentExpressionEmitter.Render(n, ctx),
         BaseAccessExpressionNode n => n.MemberName,
         BaseCallExpressionNode n => BaseCallInlineRenderer.Render(n, ctx),
         BinaryExpressionNode n => $"({Render(n.Left, ctx)} {n.Op} {Render(n.Right, ctx)})",

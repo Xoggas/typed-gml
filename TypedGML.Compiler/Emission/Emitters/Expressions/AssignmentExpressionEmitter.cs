@@ -9,40 +9,45 @@ public sealed class AssignmentExpressionEmitter : INodeEmitter
 
     public void Emit(IAstNode node, EmitContext ctx)
     {
-        var expression = (AssignmentExpressionNode)node;
+        ctx.Writer.Write(Render((AssignmentExpressionNode)node, ctx));
+    }
+
+    internal static string Render(AssignmentExpressionNode expression, EmitContext ctx)
+    {
         if (IndexerAccessRenderer.TryRenderAssignment(expression, ctx, out var indexerAssignment))
         {
-            ctx.Writer.Write(indexerAssignment);
-            return;
+            return indexerAssignment;
+        }
+
+        var targetType = ExpressionTypeLookup.Resolve(expression.Target, ctx);
+        if (ExpressionSymbolHelper.IsDelegateTarget(expression.Target, ctx) &&
+            expression.Op is "+=" or "-=")
+        {
+            var target = ctx.Emitter.Render(expression.Target, ctx);
+            return RenderDelegateAssignment(expression, target, ctx);
         }
 
         if (InstanceMemberAccessHelper.TryRenderAssignment(expression, ctx, out var instanceAssignment))
         {
-            ctx.Writer.Write(instanceAssignment);
-            return;
+            return instanceAssignment;
         }
 
         if (StaticMemberAccessHelper.TryRenderAssignment(expression, ctx, out var staticAssignment))
         {
-            ctx.Writer.Write(staticAssignment);
-            return;
+            return staticAssignment;
         }
 
-        var target = ctx.Emitter.Render(expression.Target, ctx);
-        var targetType = ExpressionTypeLookup.Resolve(expression.Target, ctx);
-        if (!ExpressionSymbolHelper.IsDelegateTarget(expression.Target, ctx) ||
-            expression.Op is not "+=" and not "-=")
-        {
-            var renderedValue = ctx.RenderWithExpected(expression.Value, targetType);
-            ctx.Writer.Write($"{target} {expression.Op} {renderedValue}");
-            UpdateNarrowing(expression, ctx);
-            return;
-        }
+        var renderedValue = ctx.RenderWithExpected(expression.Value, targetType);
+        UpdateNarrowing(expression, ctx);
+        return $"{ctx.Emitter.Render(expression.Target, ctx)} {expression.Op} {renderedValue}";
+    }
 
+    private static string RenderDelegateAssignment(AssignmentExpressionNode expression, string target, EmitContext ctx)
+    {
         var value = DelegateHandlerReferenceRenderer.Render(expression.Value, ctx);
-        ctx.Writer.Write(expression.Op == "+="
+        return expression.Op == "+="
             ? $"{target}[array_length({target})] = {value}"
-            : $"{target} = __tgml_delegate_remove({target}, {value})");
+            : $"{target} = __tgml_delegate_remove({target}, {value})";
     }
 
     private static void UpdateNarrowing(AssignmentExpressionNode expression, EmitContext ctx)

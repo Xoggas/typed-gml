@@ -38,8 +38,8 @@ public sealed class DelegateSignatureCheck : ISemanticCheck
 
         if (assignment.Value is IdentifierExpressionNode identifier)
         {
-            var method = MemberSignatureHelper.Members(ctx.CurrentType, identifier.Name, MemberKind.Method).FirstOrDefault();
-            if (method is null || method.ReturnType != returnType || !method.Parameters.Select(p => p.TypeRef).SequenceEqual(parameterTypes))
+            var method = ResolveCurrentHandlerMethod(identifier.Name, returnType, parameterTypes, ctx);
+            if (method is null)
                 Report("Method does not match the target delegate signature.", assignment.Location, ctx);
         }
     }
@@ -81,6 +81,16 @@ public sealed class DelegateSignatureCheck : ISemanticCheck
     private static bool MatchesLambda(LambdaExpressionNode lambda, string returnType, IReadOnlyList<string> parameterTypes) =>
         lambda.Parameters.Count == parameterTypes.Count &&
         lambda.Parameters.Zip(parameterTypes).All(pair => string.IsNullOrEmpty(pair.First.TypeRef) || pair.First.TypeRef == pair.Second);
+
+    private static MemberSymbol? ResolveCurrentHandlerMethod(
+        string name,
+        string returnType,
+        IReadOnlyList<string> parameterTypes,
+        VerificationContext ctx) =>
+        MemberSignatureHelper.Members(ctx.CurrentType, name, MemberKind.Method)
+            .FirstOrDefault(method =>
+                method.ReturnType == returnType &&
+                method.Parameters.Select(parameter => parameter.TypeRef).SequenceEqual(parameterTypes, StringComparer.Ordinal));
 
     private static void Report(string message, SourceLocation location, VerificationContext ctx) =>
         ctx.Diagnostics.Report(DiagnosticCode.DelegateSignatureMismatch, DiagnosticSeverity.Error, message, location);

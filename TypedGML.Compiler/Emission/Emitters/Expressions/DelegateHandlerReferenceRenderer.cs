@@ -10,7 +10,7 @@ internal static class DelegateHandlerReferenceRenderer
     {
         if (handler is IdentifierExpressionNode identifier &&
             TryResolveCurrentMethod(identifier.Name, ctx, out var owner, out var method))
-            return NamingConvention.MethodName(owner, method);
+            return BindToSelf(NamingConvention.MethodName(owner, method), ctx);
 
         if (handler is MemberAccessExpressionNode access &&
             ExpressionSymbolHelper.TryResolveTargetType(access.Target, ctx, out var type))
@@ -18,11 +18,14 @@ internal static class DelegateHandlerReferenceRenderer
             var member = type.Members.FirstOrDefault(member =>
                 member.Kind == MemberKind.Method && member.Name == access.MemberName);
             if (member is not null)
-                return NamingConvention.MethodName(type, member);
+                return $"method({ctx.Emitter.Render(access.Target, ctx)}, {NamingConvention.MethodName(type, member)})";
         }
 
         return ctx.Emitter.Render(handler, ctx);
     }
+
+    private static string BindToSelf(string functionName, EmitContext ctx) =>
+        $"method({ctx.SelfName ?? "self"}, {functionName})";
 
     private static bool TryResolveCurrentMethod(string name, EmitContext ctx, out TypeSymbol owner, out MemberSymbol method)
     {
