@@ -37,14 +37,14 @@ internal sealed class CompilerPipelineRunner
 
         var symbols = Populate(files, diagnostics);
         if (diagnostics.HasErrors)
-            return Result(diagnostics, new InMemoryGmlOutputSink());
+            return Result(diagnostics, new InMemoryGmlOutputSink(), symbols);
 
         Verify(files, symbols, diagnostics);
         if (diagnostics.HasErrors)
-            return Result(diagnostics, new InMemoryGmlOutputSink());
+            return Result(diagnostics, new InMemoryGmlOutputSink(), symbols);
 
         var output = Emit(files, symbols, diagnostics, tempDirectory);
-        return Result(diagnostics, output);
+        return Result(diagnostics, output, symbols);
     }
 
     private static IReadOnlyList<FileNode> BuildAst(string sourcePath, DiagnosticBag diagnostics)
@@ -88,8 +88,11 @@ internal sealed class CompilerPipelineRunner
         return output;
     }
 
-    private static CompileResult Result(DiagnosticBag diagnostics, InMemoryGmlOutputSink output) =>
-        new(diagnostics.Errors, diagnostics.Warnings, output.Output);
+    private static CompileResult Result(
+        DiagnosticBag diagnostics,
+        InMemoryGmlOutputSink output,
+        SymbolTable? symbols = null) =>
+        new(diagnostics.Errors, diagnostics.Warnings, output.Output, symbols is null ? [] : NamespaceResultBuilder.Build(symbols));
 
     private static string FindBclPath()
     {

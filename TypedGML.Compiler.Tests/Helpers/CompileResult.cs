@@ -8,11 +8,13 @@ public sealed class CompileResult
     public CompileResult(
         IReadOnlyList<Diagnostic> errors,
         IReadOnlyList<Diagnostic> warnings,
-        IReadOnlyDictionary<string, string> output)
+        IReadOnlyDictionary<string, string> output,
+        IReadOnlyList<string>? namespaces = null)
     {
         Errors = errors;
         Warnings = warnings;
         Output = output;
+        Namespaces = namespaces ?? [];
     }
 
     public bool HasErrors => Errors.Count > 0;
@@ -24,6 +26,8 @@ public sealed class CompileResult
     public IReadOnlyList<Diagnostic> Warnings { get; }
 
     public IReadOnlyDictionary<string, string> Output { get; }
+
+    public IReadOnlyList<string> Namespaces { get; }
 
     public bool HasError(DiagnosticCode code) =>
         Errors.Any(error => error.Code == code);

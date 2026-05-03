@@ -48,7 +48,11 @@ internal sealed class PopulationPipelineRunner
             new InheritanceResolver(symbols, diagnostics),
             new GenericParameterBinder(symbols, diagnostics));
         populator.Populate(files);
-        return (new CompileResult(diagnostics.Errors, diagnostics.Warnings, new Dictionary<string, string>()), symbols);
+        return (new CompileResult(
+            diagnostics.Errors,
+            diagnostics.Warnings,
+            new Dictionary<string, string>(),
+            NamespaceResultBuilder.Build(symbols)), symbols);
     }
 
     private static IReadOnlyList<FileNode> BuildAst(string sourcePath, DiagnosticBag diagnostics)

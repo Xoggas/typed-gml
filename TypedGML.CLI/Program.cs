@@ -1,4 +1,4 @@
-using TypedGML.Compiler;
+using TypedGML.CLI;
 using TypedGML.Compiler.Bcl;
 using TypedGML.Compiler.Diagnostics;
 using TypedGML.Compiler.Emission;
@@ -14,7 +14,7 @@ using TypedGML.Compiler.Verification.Checks;
 
 try
 {
-    var options = CompilerOptions.Parse(args);
+    var options = CliOptions.Parse(args);
     var diagnostics = new DiagnosticBag();
 
     var bclFiles = new BclLoader(options.BclPath).GetFiles();
@@ -82,7 +82,9 @@ try
     verifier.Verify(fileNodes, symbolTable);
     if (diagnostics.HasErrors) return PrintAndExit(diagnostics);
 
-    var fileOrganizer = new FileOrganizer(options.OutputPath);
+    var outputRoot = options.OutputPath ?? Path.Combine(Path.GetTempPath(), "TypedGML.CLI", Guid.NewGuid().ToString("N"));
+    var outputSink = new CollectingGmlOutputSink(options.OutputPath is not null);
+    var fileOrganizer = new FileOrganizer(outputRoot);
     var staticCtorEmitter = new StaticCtorEmitter();
     var nodeEmitters = new INodeEmitter[]
     {
@@ -104,28 +106,35 @@ try
         new NameofExpressionEmitter(), new DefaultExpressionEmitter(),
     };
 
-    var emitter = new Emitter(nodeEmitters, new DecoratorProcessor(), fileOrganizer, symbolTable, diagnostics);
+    var emitter = new Emitter(nodeEmitters, new DecoratorProcessor(), fileOrganizer, symbolTable, diagnostics, outputSink);
     emitter.Emit(fileNodes);
 
     PrintDiagnostics(diagnostics);
-    return diagnostics.HasErrors ? 1 : 0;
+    if (diagnostics.HasErrors)
+        return 1;
+
+    if (options.GmProjectPath is not null)
+    {
+        if (!File.Exists(options.GmProjectPath))
+        {
+            Console.Error.WriteLine($"GameMaker project file not found: {options.GmProjectPath}");
+            return 1;
+        }
+
+        var metadata = CompileMetadataBuilder.Build(fileNodes, symbolTable);
+        var compileResult = CliCompileResult.FromOutput(outputSink.Output, outputRoot, metadata);
+        new GameMakerProjectWriter().Write(compileResult, options.GmProjectPath);
+    }
+
+    return 0;
 }
-catch (ArgumentException ex)
-{
-    Console.Error.WriteLine(ex.Message);
-    return 1;
-}
-catch (DirectoryNotFoundException ex)
+catch (Exception ex) when (ex is ArgumentException or DirectoryNotFoundException)
 {
     Console.Error.WriteLine(ex.Message);
     return 1;
 }
 
-static int PrintAndExit(DiagnosticBag diagnostics)
-{
-    PrintDiagnostics(diagnostics);
-    return 1;
-}
+static int PrintAndExit(DiagnosticBag diagnostics) { PrintDiagnostics(diagnostics); return 1; }
 
 static void PrintDiagnostics(DiagnosticBag diagnostics)
 {
