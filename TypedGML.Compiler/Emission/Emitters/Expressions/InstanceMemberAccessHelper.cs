@@ -74,7 +74,7 @@ internal static class InstanceMemberAccessHelper
             return member.NativePropertyName;
         if (member.NativePropertyName is not null && ctx.SelfName is not null)
             return $"{ctx.SelfName}.{member.NativePropertyName}";
-        return $"{NamingConvention.PropertyGetter(owner, member)}({ctx.SelfName})";
+        return $"{NamingConvention.PropertyGetter(owner, member)}({ctx.SelfName ?? "self"})";
     }
 
     private static bool TryResolve(IAstNode node, EmitContext ctx, out TypeSymbol owner, out MemberSymbol member)

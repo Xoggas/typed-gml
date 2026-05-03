@@ -55,10 +55,11 @@ internal static class PropertyAssignmentRenderer
             return $"{member.NativePropertyName} {op} {value}";
         if (member.NativePropertyName is not null && ctx.SelfName is not null)
             return $"{ctx.SelfName}.{member.NativePropertyName} {op} {value}";
+        var selfName = ctx.SelfName ?? "self";
         if (op == "=")
-            return $"{NamingConvention.PropertySetter(owner, member)}({ctx.SelfName}, {value})";
-        var read = $"{NamingConvention.PropertyGetter(owner, member)}({ctx.SelfName})";
-        return $"{NamingConvention.PropertySetter(owner, member)}({ctx.SelfName}, {read} {op[..^1]} {value})";
+            return $"{NamingConvention.PropertySetter(owner, member)}({selfName}, {value})";
+        var read = $"{NamingConvention.PropertyGetter(owner, member)}({selfName})";
+        return $"{NamingConvention.PropertySetter(owner, member)}({selfName}, {read} {op[..^1]} {value})";
     }
 
     private static string BackingTarget(IAstNode target, string propertyName, EmitContext ctx)

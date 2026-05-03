@@ -20,7 +20,7 @@ public sealed class MethodEmitter : INodeEmitter
 
         var symbol = ResolveSymbol(ctx.CurrentType, method);
         var functionName = symbol is null ? $"{NamingConvention.TypeName(ctx.CurrentType)}_{method.Name}" : NamingConvention.MethodName(ctx.CurrentType, symbol);
-        var selfName = ctx.CurrentType.ObjectAssetName is null ? "self" : null;
+        var selfName = "self";
         var parameters = string.Join(", ", ParameterNames(method, selfName));
         var nativeCall = DecoratorArg(method.Decorators, "NativeCall");
         WithMemberContext(ctx, symbol, selfName, method.Parameters, () =>

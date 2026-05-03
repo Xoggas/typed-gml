@@ -87,7 +87,7 @@ internal sealed class ClassEventEmitter
         var eventWriter = new GmlWriter();
         var eventCtx = ctx.WithWriter(eventWriter);
         eventCtx.IsObjectEventContext = true;
-        eventCtx.SelfName = null;
+        eventCtx.SelfName = "self";
         eventCtx.ResetTempVars();
         eventCtx.Scope.Push();
         EmitCreateInitializers(declaration, resolvedEvent, eventWriter, eventCtx);
