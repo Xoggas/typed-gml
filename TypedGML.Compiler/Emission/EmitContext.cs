@@ -30,6 +30,7 @@ public sealed class EmitContext(
     public MemberSymbol? CurrentMember { get; set; }
     public string? SelfName { get; set; }
     public bool IsObjectEventContext { get; set; }
+    public bool IsInObjectMethod { get; set; }
     public bool IsInConstructor { get; set; }
 
     public int TempVarCounter
@@ -119,6 +120,7 @@ public sealed class EmitContext(
             CurrentMember = CurrentMember,
             SelfName = SelfName,
             IsObjectEventContext = IsObjectEventContext,
+            IsInObjectMethod = IsInObjectMethod,
             IsInConstructor = IsInConstructor,
             SubstitutionFrames = SubstitutionFrames,
             BaseCallLookupType = BaseCallLookupType,

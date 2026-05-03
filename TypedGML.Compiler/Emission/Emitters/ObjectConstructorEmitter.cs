@@ -109,9 +109,11 @@ internal sealed class ObjectConstructorEmitter
         var previousSelf = ctx.SelfName;
         var previousMember = ctx.CurrentMember;
         var previousConstructor = ctx.IsInConstructor;
+        var previousObjectMethod = ctx.IsInObjectMethod;
         ctx.SelfName = "self";
         ctx.CurrentMember = symbol;
         ctx.IsInConstructor = true;
+        ctx.IsInObjectMethod = true;
         ctx.Scope.Push();
         foreach (var parameter in parameters)
             ctx.Scope.Declare(parameter.Name, parameter.TypeRef);
@@ -123,6 +125,7 @@ internal sealed class ObjectConstructorEmitter
         {
             ctx.Scope.Pop();
             ctx.IsInConstructor = previousConstructor;
+            ctx.IsInObjectMethod = previousObjectMethod;
             ctx.CurrentMember = previousMember;
             ctx.SelfName = previousSelf;
         }

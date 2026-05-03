@@ -57,7 +57,7 @@ internal static class InstanceMemberAccessHelper
     {
         MemberKind.Field => $"{ctx.Emitter.Render(access.Target, ctx)}.{member.Name}",
         MemberKind.Event => $"{ctx.Emitter.Render(access.Target, ctx)}.{NamingConvention.EventBackingName(member)}",
-        MemberKind.Property when member.NativePropertyName is not null => $"{ctx.Emitter.Render(access.Target, ctx)}.{member.NativePropertyName}",
+        MemberKind.Property when member.NativePropertyName is not null && IsCurrentObjectTarget(access.Target, ctx) => member.NativePropertyName,
         MemberKind.Property => $"{NamingConvention.PropertyGetter(owner, member)}({ctx.Emitter.Render(access.Target, ctx)})",
         _ => string.Empty
     };
@@ -70,12 +70,18 @@ internal static class InstanceMemberAccessHelper
 
     private static string CurrentPropertyRead(TypeSymbol owner, MemberSymbol member, EmitContext ctx)
     {
-        if (ctx.IsObjectEventContext && member.NativePropertyName is not null)
+        if (IsDirectNativeContext(ctx) && member.NativePropertyName is not null)
             return member.NativePropertyName;
-        if (member.NativePropertyName is not null && ctx.SelfName is not null)
-            return $"{ctx.SelfName}.{member.NativePropertyName}";
         return $"{NamingConvention.PropertyGetter(owner, member)}({ctx.SelfName ?? "self"})";
     }
+
+    private static bool IsCurrentObjectTarget(IAstNode target, EmitContext ctx) =>
+        IsDirectNativeContext(ctx) &&
+        (target is ThisExpressionNode ||
+         target is IdentifierExpressionNode { Name: "this" });
+
+    private static bool IsDirectNativeContext(EmitContext ctx) =>
+        ctx.IsObjectEventContext || ctx.IsInObjectMethod;
 
     private static bool TryResolve(IAstNode node, EmitContext ctx, out TypeSymbol owner, out MemberSymbol member)
     {

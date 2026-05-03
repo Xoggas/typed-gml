@@ -23,7 +23,7 @@ public sealed class MethodEmitter : INodeEmitter
         var selfName = "self";
         var parameters = string.Join(", ", ParameterNames(method, selfName));
         var nativeCall = DecoratorArg(method.Decorators, "NativeCall");
-        WithMemberContext(ctx, symbol, selfName, method.Parameters, () =>
+        WithMemberContext(ctx, symbol, selfName, method.Parameters, ctx.CurrentType.ObjectAssetName is not null, () =>
         {
             ctx.ResetTempVars();
             ctx.Writer.Write($"function {functionName}({parameters})");
@@ -72,12 +72,15 @@ public sealed class MethodEmitter : INodeEmitter
         MemberSymbol? symbol,
         string? selfName,
         IReadOnlyList<ParameterNode> parameters,
+        bool isObjectMethod,
         Action action)
     {
         var previousMember = ctx.CurrentMember;
         var previousSelf = ctx.SelfName;
+        var previousObjectMethod = ctx.IsInObjectMethod;
         ctx.CurrentMember = symbol;
         ctx.SelfName = selfName;
+        ctx.IsInObjectMethod = isObjectMethod;
         ctx.Scope.Push();
         foreach (var parameter in parameters)
             ctx.Scope.Declare(parameter.Name, parameter.TypeRef);
@@ -90,6 +93,7 @@ public sealed class MethodEmitter : INodeEmitter
             ctx.Scope.Pop();
             ctx.SelfName = previousSelf;
             ctx.CurrentMember = previousMember;
+            ctx.IsInObjectMethod = previousObjectMethod;
         }
     }
 

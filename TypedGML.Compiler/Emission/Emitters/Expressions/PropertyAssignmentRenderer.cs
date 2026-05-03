@@ -23,8 +23,8 @@ internal static class PropertyAssignmentRenderer
 
         var access = (MemberAccessExpressionNode)expression.Target;
         var target = ctx.Emitter.Render(access.Target, ctx);
-        if (member.NativePropertyName is not null)
-            return $"{target}.{member.NativePropertyName} {expression.Op} {value}";
+        if (member.NativePropertyName is not null && IsCurrentObjectTarget(access.Target, ctx))
+            return $"{member.NativePropertyName} {expression.Op} {value}";
         if (expression.Op == "=")
             return $"{NamingConvention.PropertySetter(owner, member)}({target}, {value})";
         var op = expression.Op[..^1];
@@ -51,10 +51,8 @@ internal static class PropertyAssignmentRenderer
 
     private static string WriteCurrentProperty(string op, TypeSymbol owner, MemberSymbol member, string value, EmitContext ctx)
     {
-        if (ctx.IsObjectEventContext && member.NativePropertyName is not null)
+        if (IsDirectNativeContext(ctx) && member.NativePropertyName is not null)
             return $"{member.NativePropertyName} {op} {value}";
-        if (member.NativePropertyName is not null && ctx.SelfName is not null)
-            return $"{ctx.SelfName}.{member.NativePropertyName} {op} {value}";
         var selfName = ctx.SelfName ?? "self";
         if (op == "=")
             return $"{NamingConvention.PropertySetter(owner, member)}({selfName}, {value})";
@@ -98,4 +96,12 @@ internal static class PropertyAssignmentRenderer
 
     private static bool IsCompilerBacked(MemberSymbol member) =>
         member.NativePropertyName is null && member.AssetName is null;
+
+    private static bool IsCurrentObjectTarget(IAstNode target, EmitContext ctx) =>
+        IsDirectNativeContext(ctx) &&
+        (target is ThisExpressionNode ||
+         target is IdentifierExpressionNode { Name: "this" });
+
+    private static bool IsDirectNativeContext(EmitContext ctx) =>
+        ctx.IsObjectEventContext || ctx.IsInObjectMethod;
 }

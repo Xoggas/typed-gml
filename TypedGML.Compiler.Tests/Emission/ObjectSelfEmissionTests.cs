@@ -59,6 +59,56 @@ public sealed class ObjectSelfEmissionTests
         GmlAssert.NotContainsPattern(gml, "Entity_UpdateState();");
     }
 
+    [Fact]
+    public void Test_ObjectClassMethod_NativePropertiesUseInstanceVariables()
+    {
+        var result = Compile("""
+            using TypedGML.GameObjects;
+
+            @Object("obj_Entity")
+            public class Entity : GameObject {
+                public void MoveTo(number targetX, number targetY) {
+                    Direction = X + Y;
+                    Speed = Direction;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(ErrorSummary(result));
+        var gml = result.GetFile("Entity.gml")!;
+
+        GmlAssert.ContainsPattern(gml, "direction = x + y;");
+        GmlAssert.ContainsPattern(gml, "speed = direction;");
+        GmlAssert.NotContainsPattern(gml, "TypedGML_GameObjects_GameObject_get_X");
+        GmlAssert.NotContainsPattern(gml, "TypedGML_GameObjects_GameObject_get_Y");
+        GmlAssert.NotContainsPattern(gml, "TypedGML_GameObjects_GameObject_set_Direction");
+        GmlAssert.NotContainsPattern(gml, "TypedGML_GameObjects_GameObject_set_Speed");
+        GmlAssert.NotContainsPattern(gml, "self.x");
+        GmlAssert.NotContainsPattern(gml, "self.direction");
+    }
+
+    [Fact]
+    public void Test_ObjectConstructor_NativePropertiesUseInstanceVariables()
+    {
+        var result = Compile("""
+            using TypedGML.GameObjects;
+
+            @Object("obj_Entity")
+            public class Entity : GameObject {
+                public constructor(number x, number y, string layer, number targetX) {
+                    X = targetX;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(ErrorSummary(result));
+        var gml = result.GetFile("Entity.gml")!;
+
+        GmlAssert.ContainsPattern(gml, "x = targetX;");
+        GmlAssert.NotContainsPattern(gml, "TypedGML_GameObjects_GameObject_set_X");
+        GmlAssert.NotContainsPattern(gml, "self.x = targetX;");
+    }
+
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);
 
     private static string ErrorSummary(CompileResult result) =>
