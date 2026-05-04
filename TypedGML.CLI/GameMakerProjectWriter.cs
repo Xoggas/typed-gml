@@ -12,8 +12,8 @@ internal sealed class GameMakerProjectWriter
     {
         var yypFullPath = Path.GetFullPath(yypPath);
         var gmRoot = Path.GetDirectoryName(yypFullPath)!;
-        var yypFileName = Path.GetFileName(yypFullPath);
         var projectName = Path.GetFileNameWithoutExtension(yypFullPath);
+        var yypFileName = Path.GetFileName(yypFullPath);
         var folders = FolderBuilder.Build(compileResult.Namespaces, projectName, yypFileName);
 
         WriteScripts(compileResult, gmRoot, folders);
@@ -23,8 +23,6 @@ internal sealed class GameMakerProjectWriter
             compileResult.Scripts.Keys.ToList(),
             compileResult.Objects.Select(obj => obj.Name).ToList(),
             folders);
-
-        Console.WriteLine($"TypedGML: {compileResult.Scripts.Count} scripts, {compileResult.Objects.Count} objects \u2192 {yypFileName}");
     }
 
     private static void WriteScripts(
