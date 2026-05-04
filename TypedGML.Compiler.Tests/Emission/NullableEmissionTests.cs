@@ -81,7 +81,7 @@ public sealed class NullableEmissionTests
         result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(e => $"{e.Code}: {e.Message}")));
         var gml = result.GetFile("NullableHost.gml")!;
         gml.Split("Bank_FindAccount", StringSplitOptions.None).Length.Should().Be(2);
-        GmlAssert.ContainsPattern(gml, "var __tmp_0 = Bank_FindAccount(self._bank, \"ACC-001\");");
+        GmlAssert.ContainsPattern(gml, "var __tmp_0 = Bank_FindAccount(inst._bank, \"ACC-001\");");
         GmlAssert.ContainsPattern(gml, "var __tmp_1 = (__tmp_0 != undefined ? BankAccount_get_Owner(__tmp_0) : undefined);");
         GmlAssert.ContainsPattern(gml, "var owner = (__tmp_1 != undefined ? __tmp_1 : \"unknown\");");
     }

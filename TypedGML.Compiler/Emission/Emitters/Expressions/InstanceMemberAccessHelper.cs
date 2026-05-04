@@ -66,13 +66,13 @@ internal static class InstanceMemberAccessHelper
         ctx.IsObjectEventContext || string.IsNullOrEmpty(ctx.SelfName) ? member.Name : $"{ctx.SelfName}.{member.Name}";
 
     private static string CurrentEvent(MemberSymbol member, EmitContext ctx) =>
-        NamingConvention.InstanceEventBackingName(ctx.SelfName ?? "self", member);
+        NamingConvention.InstanceEventBackingName(ctx.SelfName ?? EmitContext.InstParam, member);
 
     private static string CurrentPropertyRead(TypeSymbol owner, MemberSymbol member, EmitContext ctx)
     {
         if (IsDirectNativeContext(ctx) && member.NativePropertyName is not null)
             return member.NativePropertyName;
-        return $"{NamingConvention.PropertyGetter(owner, member)}({ctx.SelfName ?? "self"})";
+        return $"{NamingConvention.PropertyGetter(owner, member)}({ctx.SelfName ?? EmitContext.InstParam})";
     }
 
     private static bool IsCurrentObjectTarget(IAstNode target, EmitContext ctx) =>

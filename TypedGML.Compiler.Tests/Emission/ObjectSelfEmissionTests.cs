@@ -6,7 +6,7 @@ namespace TypedGML.Compiler.Tests.Emission;
 public sealed class ObjectSelfEmissionTests
 {
     [Fact]
-    public void Test_ObjectClassMethod_HasSelfParameter()
+    public void Test_ObjectClassMethod_HasInstParameter()
     {
         var result = Compile("""
             using TypedGML.GameObjects;
@@ -23,12 +23,12 @@ public sealed class ObjectSelfEmissionTests
         result.HasErrors.Should().BeFalse(ErrorSummary(result));
         var gml = result.GetFile("Entity.gml")!;
 
-        GmlAssert.ContainsPattern(gml, "function Entity_TakeDamage(self, amount)");
-        GmlAssert.ContainsPattern(gml, "Entity_set_CurrentHp(self, Entity_get_CurrentHp(self) - amount);");
-        GmlAssert.ContainsPattern(gml, "function Entity_get_CurrentHp(self)");
-        GmlAssert.ContainsPattern(gml, "return self.__backing_CurrentHp;");
-        GmlAssert.ContainsPattern(gml, "function Entity_set_CurrentHp(self, value)");
-        GmlAssert.ContainsPattern(gml, "self.__backing_CurrentHp = value;");
+        GmlAssert.ContainsPattern(gml, "function Entity_TakeDamage(inst, amount)");
+        GmlAssert.ContainsPattern(gml, "Entity_set_CurrentHp(inst, Entity_get_CurrentHp(inst) - amount);");
+        GmlAssert.ContainsPattern(gml, "function Entity_get_CurrentHp(inst)");
+        GmlAssert.ContainsPattern(gml, "return inst.__backing_CurrentHp;");
+        GmlAssert.ContainsPattern(gml, "function Entity_set_CurrentHp(inst, value)");
+        GmlAssert.ContainsPattern(gml, "inst.__backing_CurrentHp = value;");
         GmlAssert.NotContainsPattern(gml, "Entity_set_CurrentHp(,");
     }
 

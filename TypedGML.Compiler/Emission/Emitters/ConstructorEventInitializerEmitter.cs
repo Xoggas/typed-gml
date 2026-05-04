@@ -16,7 +16,7 @@ internal static class ConstructorEventInitializerEmitter
         {
             var symbol = type.Members.FirstOrDefault(member => member.Kind == MemberKind.Event && member.Name == evt.Name);
             if (symbol is not null)
-                ctx.Writer.WriteLine($"{NamingConvention.InstanceEventBackingName("self", symbol)} = [];");
+                ctx.Writer.WriteLine($"{NamingConvention.InstanceEventBackingName(ctx.SelfName ?? EmitContext.InstParam, symbol)} = [];");
         }
     }
 

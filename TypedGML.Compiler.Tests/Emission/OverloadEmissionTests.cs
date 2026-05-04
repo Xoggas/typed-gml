@@ -13,8 +13,8 @@ public sealed class OverloadEmissionTests
 
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("/T.gml")!;
-        GmlAssert.ContainsPattern(gml, "T_Foo__number(self, 42);");
-        GmlAssert.NotContainsPattern(gml, "T_Foo__string(self, 42);");
+        GmlAssert.ContainsPattern(gml, "T_Foo__number(inst, 42);");
+        GmlAssert.NotContainsPattern(gml, "T_Foo__string(inst, 42);");
     }
 
     [Fact]
@@ -24,8 +24,8 @@ public sealed class OverloadEmissionTests
 
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("/T.gml")!;
-        GmlAssert.ContainsPattern(gml, """T_Foo__string(self, "hello");""");
-        GmlAssert.NotContainsPattern(gml, """T_Foo__number(self, "hello");""");
+        GmlAssert.ContainsPattern(gml, """T_Foo__string(inst, "hello");""");
+        GmlAssert.NotContainsPattern(gml, """T_Foo__number(inst, "hello");""");
     }
 
     [Fact]

@@ -30,7 +30,7 @@ public sealed class PropertyEmitter : INodeEmitter
     private static void EmitAccessor(EmitContext ctx, PropertyDeclarationNode property, MemberSymbol symbol, AccessorNode accessor)
     {
         var target = PropertyTarget(property);
-        var selfName = "self";
+        var selfName = EmitContext.InstParam;
         if (accessor.Kind == AccessorKind.Get)
         {
             ctx.Writer.Write($"function {NamingConvention.PropertyGetter(ctx.CurrentType!, symbol)}({ParameterList(selfName)})");

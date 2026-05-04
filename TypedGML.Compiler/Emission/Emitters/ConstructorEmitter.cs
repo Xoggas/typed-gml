@@ -16,9 +16,9 @@ public sealed class ConstructorEmitter : INodeEmitter
         {
             ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
-            ctx.Writer.WriteLine("var self = {};");
+            ctx.Writer.WriteLine($"var {EmitContext.InstParam} = {{}};");
             ConstructorMemberInitializerEmitter.EmitDefaults(type, (IAstNode?)null, ctx);
-            ctx.Writer.WriteLine("return self;");
+            ctx.Writer.WriteLine($"return {EmitContext.InstParam};");
             ctx.Writer.EndBlock();
         });
     }
@@ -39,11 +39,11 @@ public sealed class ConstructorEmitter : INodeEmitter
         {
             ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
-            ctx.Writer.WriteLine("var self = {};");
+            ctx.Writer.WriteLine($"var {EmitContext.InstParam} = {{}};");
             ConstructorChainInliner.Emit(constructor, ctx);
             ConstructorMemberInitializerEmitter.EmitDefaults(ctx.CurrentType, constructor.Body, ctx);
             EmitBodyStatements(constructor.Body, ctx);
-            ctx.Writer.WriteLine("return self;");
+            ctx.Writer.WriteLine($"return {EmitContext.InstParam};");
             ctx.Writer.EndBlock();
         });
     }
@@ -73,7 +73,7 @@ public sealed class ConstructorEmitter : INodeEmitter
         var previousSelf = ctx.SelfName;
         var previousMember = ctx.CurrentMember;
         var previousConstructor = ctx.IsInConstructor;
-        ctx.SelfName = "self";
+        ctx.SelfName = EmitContext.InstParam;
         ctx.CurrentMember = symbol;
         ctx.IsInConstructor = true;
         ctx.Scope.Push();

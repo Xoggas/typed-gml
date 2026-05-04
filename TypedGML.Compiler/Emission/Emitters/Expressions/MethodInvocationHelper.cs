@@ -40,7 +40,7 @@ internal static class MethodInvocationHelper
         switch (expression.Target)
         {
             case IdentifierExpressionNode identifier:
-                receiver = ctx.SelfName ?? "self";
+                receiver = ctx.SelfName ?? EmitContext.InstParam;
                 return TryResolveCurrentMethod(identifier.Name, expression, ctx, out owner, out member);
             case MemberAccessExpressionNode access when QualifiedTypeAccessResolver.TryResolveMember(access, ctx, out var qualifiedType, out var qualifiedMember):
                 qualifiedType = PrimitiveBclTypeResolver.ResolveMemberOwner(qualifiedType, ctx.Symbols);

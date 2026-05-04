@@ -21,7 +21,7 @@ internal static class ConstructorAutoPropertyInitializerEmitter
             if (assignedProperties.Contains(property.Name))
                 continue;
 
-            var target = NamingConvention.InstancePropertyBackingName("self", property.Name);
+            var target = NamingConvention.InstancePropertyBackingName(ctx.SelfName ?? EmitContext.InstParam, property.Name);
             var value = DefaultValueRenderer.Render(new DefaultExpressionNode(property.TypeRef, property.Location), ctx);
             ctx.Writer.WriteLine($"{target} = {value};");
         }

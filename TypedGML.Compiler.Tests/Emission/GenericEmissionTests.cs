@@ -40,7 +40,7 @@ public sealed class GenericEmissionTests
 
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("Box1.gml")!;
-        GmlAssert.ContainsPattern(gml, "return self.__genericArgs.T;");
+        GmlAssert.ContainsPattern(gml, "return inst.__genericArgs.T;");
     }
 
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);

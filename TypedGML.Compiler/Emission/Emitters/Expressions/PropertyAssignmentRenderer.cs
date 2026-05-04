@@ -53,7 +53,7 @@ internal static class PropertyAssignmentRenderer
     {
         if (IsDirectNativeContext(ctx) && member.NativePropertyName is not null)
             return $"{member.NativePropertyName} {op} {value}";
-        var selfName = ctx.SelfName ?? "self";
+        var selfName = ctx.SelfName ?? EmitContext.InstParam;
         if (op == "=")
             return $"{NamingConvention.PropertySetter(owner, member)}({selfName}, {value})";
         var read = $"{NamingConvention.PropertyGetter(owner, member)}({selfName})";

@@ -46,7 +46,7 @@ internal static class GmlExpressionRenderer
         NullConditionalExpressionNode n => RenderNullConditional(n, ctx),
         ObjectCreationExpressionNode n => $"{ResolveConstructorName(n.TypeRef, n.TypeArgs.Count, ctx)}({JoinArgs(n.PositionalArgs, n.NamedArgs, ctx)})",
         TernaryExpressionNode n => $"({Render(n.Condition, ctx)} ? {Render(n.ThenExpr, ctx)} : {Render(n.ElseExpr, ctx)})",
-        ThisExpressionNode => ctx.SelfName ?? "self",
+        ThisExpressionNode => ctx.SelfName ?? EmitContext.InstParam,
         TypeofExpressionNode n => RenderTypeof(n, ctx),
         UnaryExpressionNode n => ExpressionFormatHelper.Unary(n, ctx),
         _ => string.Empty

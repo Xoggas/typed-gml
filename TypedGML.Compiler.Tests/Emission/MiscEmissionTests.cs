@@ -78,8 +78,8 @@ public sealed class MiscEmissionTests
                 }
             }
             """).GetFile("MiscHost.gml")!;
-        GmlAssert.ContainsPattern(gml, "self._accounts = TypedGML_Collections_List1_create();");
-        GmlAssert.NotContainsPattern(gml, "self._accounts = [];");
+        GmlAssert.ContainsPattern(gml, "inst._accounts = TypedGML_Collections_List1_create();");
+        GmlAssert.NotContainsPattern(gml, "inst._accounts = [];");
     }
 
     [Fact]
@@ -132,8 +132,8 @@ public sealed class MiscEmissionTests
             }
             """);
         var gml = result.GetFile("TypedGML_Collections_HashSet1.gml")!;
-        GmlAssert.ContainsPattern(gml, "\"HashSet[\" + string(TypedGML_Collections_HashSet1_get_Count(self)) + \"]\"");
-        GmlAssert.NotContainsPattern(gml, """(("HashSet[" + string(TypedGML_Collections_HashSet1_get_Count(self))) + "]")""");
+        GmlAssert.ContainsPattern(gml, "\"HashSet[\" + string(TypedGML_Collections_HashSet1_get_Count(inst)) + \"]\"");
+        GmlAssert.NotContainsPattern(gml, """(("HashSet[" + string(TypedGML_Collections_HashSet1_get_Count(inst))) + "]")""");
     }
 
     [Fact] public void Test_Lambda_Action_NoReturn() { var gml = CompileInMethod("Action<number> fn = (number x) => x * 2;").GetFile("MiscHost.gml")!; GmlAssert.ContainsPattern(gml, "var fn = function(x) { x * 2; };"); GmlAssert.NotContainsPattern(gml, "return x * 2;"); }

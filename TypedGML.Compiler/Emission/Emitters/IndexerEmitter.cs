@@ -32,7 +32,7 @@ public sealed class IndexerEmitter : INodeEmitter
         MemberSymbol symbol,
         EmitContext ctx)
     {
-        var selfName = "self";
+        var selfName = EmitContext.InstParam;
         var name = accessor.Kind == AccessorKind.Get
             ? NamingConvention.IndexerGetter(ctx.CurrentType!)
             : NamingConvention.IndexerSetter(ctx.CurrentType!);

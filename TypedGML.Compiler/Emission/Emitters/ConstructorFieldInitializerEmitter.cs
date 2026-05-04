@@ -25,12 +25,12 @@ internal static class ConstructorFieldInitializerEmitter
             {
                 var value = ctx.RenderWithExpectedTempPrelude(field.Initializer, field.TypeRef);
                 ctx.FlushTempPrelude();
-                ctx.Writer.WriteLine($"self.{field.Name} = {value};");
+                ctx.Writer.WriteLine($"{ctx.SelfName ?? EmitContext.InstParam}.{field.Name} = {value};");
                 continue;
             }
 
             if (!assignedFields.Contains(field.Name))
-                ctx.Writer.WriteLine($"self.{field.Name} = {DefaultValueRenderer.Render(new DefaultExpressionNode(field.TypeRef, field.Location), ctx)};");
+                ctx.Writer.WriteLine($"{ctx.SelfName ?? EmitContext.InstParam}.{field.Name} = {DefaultValueRenderer.Render(new DefaultExpressionNode(field.TypeRef, field.Location), ctx)};");
         }
     }
 

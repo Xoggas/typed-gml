@@ -38,7 +38,7 @@ public sealed class ConstructorCallTests
 
         result.HasError(DiagnosticCode.NoMatchingMethodOverload).Should().BeFalse(Errors(result));
         result.HasErrors.Should().BeFalse(Errors(result));
-        GmlAssert.ContainsPattern(result.GetFile("/Enemy.gml")!, "self.AggroRange = 150;");
+        GmlAssert.ContainsPattern(result.GetFile("/Enemy.gml")!, "inst.AggroRange = 150;");
     }
 
     private static string Errors(CompileResult result) =>

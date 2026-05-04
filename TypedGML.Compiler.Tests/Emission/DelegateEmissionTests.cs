@@ -7,11 +7,11 @@ public sealed class DelegateEmissionTests
 {
     [Fact]
     public void Test_DelegateSubscribe() =>
-        GmlAssert.ContainsPattern(CompileInMethod("Callback myDel; myDel += Handler;").GetFile("DelegateHost.gml")!, "myDel[array_length(myDel)] = method(self, DelegateHost_Handler);");
+        GmlAssert.ContainsPattern(CompileInMethod("Callback myDel; myDel += Handler;").GetFile("DelegateHost.gml")!, "myDel[array_length(myDel)] = method(inst, DelegateHost_Handler);");
 
     [Fact]
     public void Test_DelegateUnsubscribe() =>
-        GmlAssert.ContainsPattern(CompileInMethod("Callback myDel; myDel -= Handler;").GetFile("DelegateHost.gml")!, "myDel = __tgml_delegate_remove(myDel, method(self, DelegateHost_Handler));");
+        GmlAssert.ContainsPattern(CompileInMethod("Callback myDel; myDel -= Handler;").GetFile("DelegateHost.gml")!, "myDel = __tgml_delegate_remove(myDel, method(inst, DelegateHost_Handler));");
 
     [Fact]
     public void Test_DelegateInvoke() =>
@@ -39,9 +39,9 @@ public sealed class DelegateEmissionTests
 
         result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
         var gml = result.GetFile("DelegateHost.gml")!;
-        GmlAssert.ContainsPattern(gml, "__tgml_invoke_delegate(self.__event_OnDeath);");
-        GmlAssert.ContainsPattern(gml, "__tgml_invoke_delegate(self.__event_OnDamageTaken, 10);");
-        GmlAssert.ContainsPattern(gml, "__tgml_invoke_delegate(self.__event_OnStateChanged, EntityState_Moving);");
+        GmlAssert.ContainsPattern(gml, "__tgml_invoke_delegate(inst.__event_OnDeath);");
+        GmlAssert.ContainsPattern(gml, "__tgml_invoke_delegate(inst.__event_OnDamageTaken, 10);");
+        GmlAssert.ContainsPattern(gml, "__tgml_invoke_delegate(inst.__event_OnStateChanged, EntityState_Moving);");
     }
 
     [Fact]
@@ -95,8 +95,8 @@ public sealed class DelegateEmissionTests
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("/T.gml")!;
         GmlAssert.ContainsPattern(gml, "var h = [];");
-        GmlAssert.ContainsPattern(gml, "h[array_length(h)] = method(self, T_SomeFunc);");
-        GmlAssert.ContainsPattern(gml, "h = __tgml_delegate_remove(h, method(self, T_SomeFunc));");
+        GmlAssert.ContainsPattern(gml, "h[array_length(h)] = method(inst, T_SomeFunc);");
+        GmlAssert.ContainsPattern(gml, "h = __tgml_delegate_remove(h, method(inst, T_SomeFunc));");
         GmlAssert.ContainsPattern(gml, "__tgml_invoke_delegate(h, 42);");
     }
 
@@ -132,10 +132,10 @@ public sealed class DelegateEmissionTests
 
         result.HasErrors.Should().BeFalse(string.Join(Environment.NewLine, result.Errors.Select(error => error.Message)));
         var gml = result.GetFile("GameController.gml")!;
-        GmlAssert.ContainsPattern(gml, "self._player.__event_OnDeath[array_length(self._player.__event_OnDeath)] = method(self, GameController_HandlePlayerDeath);");
-        GmlAssert.ContainsPattern(gml, "self._player.__event_OnLevelUp[array_length(self._player.__event_OnLevelUp)] = method(self, GameController_HandlePlayerLevelUp);");
-        GmlAssert.ContainsPattern(gml, "self._player.__event_OnDamageTaken[array_length(self._player.__event_OnDamageTaken)] = method(self, GameController_HandlePlayerDamage);");
-        GmlAssert.ContainsPattern(gml, "enemy.__event_OnDeath[array_length(enemy.__event_OnDeath)] = method(self, GameController_HandleEnemyDeath);");
+        GmlAssert.ContainsPattern(gml, "inst._player.__event_OnDeath[array_length(inst._player.__event_OnDeath)] = method(inst, GameController_HandlePlayerDeath);");
+        GmlAssert.ContainsPattern(gml, "inst._player.__event_OnLevelUp[array_length(inst._player.__event_OnLevelUp)] = method(inst, GameController_HandlePlayerLevelUp);");
+        GmlAssert.ContainsPattern(gml, "inst._player.__event_OnDamageTaken[array_length(inst._player.__event_OnDamageTaken)] = method(inst, GameController_HandlePlayerDamage);");
+        GmlAssert.ContainsPattern(gml, "enemy.__event_OnDeath[array_length(enemy.__event_OnDeath)] = method(inst, GameController_HandleEnemyDeath);");
     }
 
     private static CompileResult CompileInMethod(string statement, string parameters = "") =>

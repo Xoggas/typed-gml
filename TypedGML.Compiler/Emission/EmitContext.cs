@@ -13,6 +13,8 @@ public sealed class EmitContext(
     DiagnosticBag diagnostics,
     Action<TypedGML.Compiler.Ast.IAstNode, EmitContext> dispatch)
 {
+    public const string InstParam = "inst";
+
     public SymbolTable Symbols { get; } = symbols;
     public NodeEmitterFacade Emitter { get; } = new(dispatch);
     public GmlWriter Writer { get; } = writer;

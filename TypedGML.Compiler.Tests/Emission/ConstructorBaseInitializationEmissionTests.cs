@@ -47,10 +47,10 @@ public sealed class ConstructorBaseInitializationEmissionTests
         var playerCtor = FunctionBlock(result.GetFile("Player.gml")!, "function Player_create");
 
         GmlAssert.ContainsLine(playerCtor, "var __arg_0 = Stats_create(100, 15, 5, 3);");
-        GmlAssert.ContainsLine(playerCtor, "self.__backing_BaseStats = __arg_0;");
-        GmlAssert.ContainsLine(playerCtor, "self.__backing_MaxHp = __arg_0.MaxHp;");
-        GmlAssert.ContainsLine(playerCtor, "Entity_set_CurrentHp(self, __arg_0.MaxHp);");
-        GmlAssert.ContainsLine(playerCtor, "self.__backing_MoveSpeed = __arg_0.Speed;");
+        GmlAssert.ContainsLine(playerCtor, "inst.__backing_BaseStats = __arg_0;");
+        GmlAssert.ContainsLine(playerCtor, "inst.__backing_MaxHp = __arg_0.MaxHp;");
+        GmlAssert.ContainsLine(playerCtor, "Entity_set_CurrentHp(inst, __arg_0.MaxHp);");
+        GmlAssert.ContainsLine(playerCtor, "inst.__backing_MoveSpeed = __arg_0.Speed;");
         playerCtor.Split("Stats_create(100, 15, 5, 3)", StringSplitOptions.None).Length.Should().Be(2);
     }
 
@@ -102,9 +102,9 @@ public sealed class ConstructorBaseInitializationEmissionTests
         bossCtor.Split("var __arg_0 = Stats_create(500, 40, 20, 2);", StringSplitOptions.None).Length.Should().Be(2);
         bossCtor.Split("Stats_create(500, 40, 20, 2)", StringSplitOptions.None).Length.Should().Be(2);
         bossCtor.Split("var __arg_", StringSplitOptions.None).Length.Should().Be(2);
-        GmlAssert.ContainsLine(bossCtor, "self.__backing_BaseStats = __arg_0;");
-        GmlAssert.ContainsLine(bossCtor, "self.__backing_MaxHp = __arg_0.MaxHp;");
-        GmlAssert.ContainsLine(bossCtor, "self.__backing_Attack = __arg_0.Attack;");
+        GmlAssert.ContainsLine(bossCtor, "inst.__backing_BaseStats = __arg_0;");
+        GmlAssert.ContainsLine(bossCtor, "inst.__backing_MaxHp = __arg_0.MaxHp;");
+        GmlAssert.ContainsLine(bossCtor, "inst.__backing_Attack = __arg_0.Attack;");
     }
 
     [Fact]
@@ -137,16 +137,16 @@ public sealed class ConstructorBaseInitializationEmissionTests
         result.HasErrors.Should().BeFalse();
         var savingsCtor = FunctionBlock(result.GetFile("SavingsAccount.gml")!, "function SavingsAccount_create");
 
-        GmlAssert.NotContainsPattern(savingsCtor, "self.__backing_Owner = undefined;");
-        GmlAssert.NotContainsPattern(savingsCtor, "self.__backing_AccountNumber = undefined;");
-        GmlAssert.NotContainsPattern(savingsCtor, "self.__backing_Balance = 0;");
-        GmlAssert.NotContainsPattern(savingsCtor, "self.__backing_HasTransaction = false;");
-        GmlAssert.NotContainsPattern(savingsCtor, "self.__backing_WithdrawalLimit = 0;");
-        GmlAssert.ContainsPattern(savingsCtor, "BankAccount_set_Owner(self, owner);");
-        GmlAssert.ContainsPattern(savingsCtor, "self.__backing_AccountNumber = accountNumber;");
-        GmlAssert.ContainsPattern(savingsCtor, "BankAccount_set_Balance(self, 0);");
-        GmlAssert.ContainsPattern(savingsCtor, "BankAccount_set_HasTransaction(self, false);");
-        GmlAssert.ContainsPattern(savingsCtor, "SavingsAccount_set_WithdrawalLimit(self, 100);");
+        GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_Owner = undefined;");
+        GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_AccountNumber = undefined;");
+        GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_Balance = 0;");
+        GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_HasTransaction = false;");
+        GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_WithdrawalLimit = 0;");
+        GmlAssert.ContainsPattern(savingsCtor, "BankAccount_set_Owner(inst, owner);");
+        GmlAssert.ContainsPattern(savingsCtor, "inst.__backing_AccountNumber = accountNumber;");
+        GmlAssert.ContainsPattern(savingsCtor, "BankAccount_set_Balance(inst, 0);");
+        GmlAssert.ContainsPattern(savingsCtor, "BankAccount_set_HasTransaction(inst, false);");
+        GmlAssert.ContainsPattern(savingsCtor, "SavingsAccount_set_WithdrawalLimit(inst, 100);");
     }
 
     private static string FunctionBlock(string gml, string prefix)

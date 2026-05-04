@@ -70,8 +70,8 @@ public sealed class PropertyAccessEmissionTests
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("AccountHolder.gml")!;
 
-        GmlAssert.ContainsPattern(gml, "return TypedGML_Collections_List1_get_Count(self._accounts);");
-        GmlAssert.NotContainsPattern(gml, "self._accounts.Count");
+        GmlAssert.ContainsPattern(gml, "return TypedGML_Collections_List1_get_Count(inst._accounts);");
+        GmlAssert.NotContainsPattern(gml, "inst._accounts.Count");
     }
 
     [Fact]

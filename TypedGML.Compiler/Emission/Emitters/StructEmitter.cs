@@ -38,18 +38,18 @@ public sealed class StructEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEm
                 .Where(f => !f.Modifiers.Contains("const", StringComparer.Ordinal) && !f.Modifiers.Contains("static", StringComparer.Ordinal))
                 .ToList();
 
-            ctx.Writer.WriteLine("var self = {};");
+            ctx.Writer.WriteLine($"var {EmitContext.InstParam} = {{}};");
             if (constructor is null)
             {
                 foreach (var field in fields)
-                    ctx.Writer.WriteLine($"self.{field.Name} = {FormatValue(field.Initializer)};");
+                    ctx.Writer.WriteLine($"{ctx.SelfName}.{field.Name} = {FormatValue(field.Initializer)};");
             }
             else
             {
                 EmitConstructorStatements(constructor.Body, ctx);
             }
 
-            ctx.Writer.WriteLine("return self;");
+            ctx.Writer.WriteLine($"return {EmitContext.InstParam};");
             ctx.Writer.EndBlock();
         });
     }
@@ -84,7 +84,7 @@ public sealed class StructEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEm
     private static void WithConstructorContext(EmitContext ctx, IReadOnlyList<ParameterNode> parameters, Action action)
     {
         var previousSelf = ctx.SelfName;
-        ctx.SelfName = "self";
+        ctx.SelfName = EmitContext.InstParam;
         ctx.Scope.Push();
         foreach (var parameter in parameters)
             ctx.Scope.Declare(parameter.Name, parameter.TypeRef);

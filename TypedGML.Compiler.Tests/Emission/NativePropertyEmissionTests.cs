@@ -26,10 +26,10 @@ public sealed class NativePropertyEmissionTests
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("NativeBacked.gml")!;
 
-        GmlAssert.ContainsPattern(gml, "return NativeBacked_get_Value(self);");
-        GmlAssert.ContainsPattern(gml, "NativeBacked_set_Value(self, value);");
-        GmlAssert.ContainsPattern(gml, "return self.native_value;");
-        GmlAssert.ContainsPattern(gml, "self.native_value = value;");
+        GmlAssert.ContainsPattern(gml, "return NativeBacked_get_Value(inst);");
+        GmlAssert.ContainsPattern(gml, "NativeBacked_set_Value(inst, value);");
+        GmlAssert.ContainsPattern(gml, "return inst.native_value;");
+        GmlAssert.ContainsPattern(gml, "inst.native_value = value;");
     }
 
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);

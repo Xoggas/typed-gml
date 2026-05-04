@@ -26,8 +26,8 @@ public sealed class ClassEmissionTests
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("A.gml")!;
 
-        GmlAssert.ContainsPattern(gml, "self._value = \"Hello, World!\";");
-        GmlAssert.ContainsPattern(gml, "self._count = 0;");
+        GmlAssert.ContainsPattern(gml, "inst._value = \"Hello, World!\";");
+        GmlAssert.ContainsPattern(gml, "inst._count = 0;");
     }
 
     [Fact]
@@ -49,11 +49,11 @@ public sealed class ClassEmissionTests
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("/T.gml")!;
 
-        GmlAssert.NotContainsPattern(gml, "self.__backing_Value = 0;");
-        GmlAssert.ContainsPattern(gml, "self.__backing_Name = undefined;");
-        GmlAssert.NotContainsPattern(gml, "self.__backing_Active = false;");
-        GmlAssert.ContainsPattern(gml, "T_set_Value(self, value);");
-        GmlAssert.ContainsPattern(gml, "T_set_Active(self, active);");
+        GmlAssert.NotContainsPattern(gml, "inst.__backing_Value = 0;");
+        GmlAssert.ContainsPattern(gml, "inst.__backing_Name = undefined;");
+        GmlAssert.NotContainsPattern(gml, "inst.__backing_Active = false;");
+        GmlAssert.ContainsPattern(gml, "T_set_Value(inst, value);");
+        GmlAssert.ContainsPattern(gml, "T_set_Active(inst, active);");
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class ClassEmissionTests
 
         GmlAssert.HasFunction(gml, "BankAccount_get_Owner");
         GmlAssert.NotContainsPattern(gml, "BankAccount_set_Owner");
-        GmlAssert.ContainsPattern(gml, "self.__backing_Owner = owner;");
+        GmlAssert.ContainsPattern(gml, "inst.__backing_Owner = owner;");
     }
 
     [Fact]
@@ -158,9 +158,9 @@ public sealed class ClassEmissionTests
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("Animal.gml")!;
 
-        GmlAssert.NotContainsPattern(gml, "self._name = undefined;");
-        GmlAssert.ContainsPattern(gml, "self._name = name;");
-        GmlAssert.ContainsPattern(gml, "self.Score = 0;");
+        GmlAssert.NotContainsPattern(gml, "inst._name = undefined;");
+        GmlAssert.ContainsPattern(gml, "inst._name = name;");
+        GmlAssert.ContainsPattern(gml, "inst.Score = 0;");
     }
 
     [Fact]
@@ -185,8 +185,8 @@ public sealed class ClassEmissionTests
         var dogCtor = FunctionBlock(result.GetFile("Dog.gml")!, "function Dog_create");
 
         GmlAssert.NotContainsPattern(dogCtor, "Animal_create(");
-        GmlAssert.ContainsPattern(dogCtor, "self.Name = name;");
-        GmlAssert.ContainsPattern(dogCtor, "self.Breed = breed;");
+        GmlAssert.ContainsPattern(dogCtor, "inst.Name = name;");
+        GmlAssert.ContainsPattern(dogCtor, "inst.Breed = breed;");
     }
 
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);

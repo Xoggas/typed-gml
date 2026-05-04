@@ -16,10 +16,10 @@ public sealed class StructEmissionTests
             }
             """).GetFile("Point.gml")!;
         GmlAssert.HasFunction(gml, "Point_create");
-        GmlAssert.ContainsPattern(gml, "var self = {};");
-        GmlAssert.ContainsPattern(gml, "self.X = x;");
-        GmlAssert.ContainsPattern(gml, "self.Y = y;");
-        GmlAssert.ContainsPattern(gml, "return self;");
+        GmlAssert.ContainsPattern(gml, "var inst = {};");
+        GmlAssert.ContainsPattern(gml, "inst.X = x;");
+        GmlAssert.ContainsPattern(gml, "inst.Y = y;");
+        GmlAssert.ContainsPattern(gml, "return inst;");
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class StructEmissionTests
             }
             """).GetFile("Point.gml")!;
         GmlAssert.HasFunction(gml, "Point_ToString");
-        GmlAssert.ContainsPattern(gml, "function Point_ToString(self)");
+        GmlAssert.ContainsPattern(gml, "function Point_ToString(inst)");
     }
 
     [Fact]

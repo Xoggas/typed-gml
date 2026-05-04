@@ -25,7 +25,7 @@ internal static class DelegateHandlerReferenceRenderer
     }
 
     private static string BindToSelf(string functionName, EmitContext ctx) =>
-        $"method({ctx.SelfName ?? "self"}, {functionName})";
+        $"method({ctx.SelfName ?? EmitContext.InstParam}, {functionName})";
 
     private static bool TryResolveCurrentMethod(string name, EmitContext ctx, out TypeSymbol owner, out MemberSymbol method)
     {
