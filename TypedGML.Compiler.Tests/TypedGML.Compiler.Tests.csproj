@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TypedGML.Compiler\TypedGML.Compiler.csproj" />
+    <ProjectReference Include="..\TypedGML.CLI\TypedGML.CLI.csproj" />
   </ItemGroup>
 
 </Project>

@@ -97,9 +97,9 @@ internal static class EventTypeMap
         out EventEntry entry)
     {
         if (gmlFileName.StartsWith(prefix, StringComparison.Ordinal) &&
-            int.TryParse(gmlFileName[prefix.Length..], out var enumb))
+            int.TryParse(gmlFileName[prefix.Length..], out var eventNum))
         {
-            entry = new EventEntry(eventType, enumb, false, null);
+            entry = new EventEntry(eventType, eventNum, false, null);
             return true;
         }
 
@@ -109,7 +109,7 @@ internal static class EventTypeMap
 
     public record EventEntry(
         int EventType,
-        int Enumb,
+        int EventNum,
         bool IsCollision,
         string? CollisionTargetName);
 }

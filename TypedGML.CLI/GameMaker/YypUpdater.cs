@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace TypedGML.CLI.GameMaker;
 
-internal class YypUpdater
+internal sealed class YypUpdater
 {
     public void Update(
         string yypFilePath,
@@ -13,44 +13,35 @@ internal class YypUpdater
         IReadOnlyList<string> objectNames,
         IReadOnlyList<FolderEntry> folders)
     {
-        var root = LoadProject(yypFilePath);
-        UpdateResources(GetOrCreateArray(root, "resources"), scriptNames, objectNames);
-        UpdateFolders(GetOrCreateArray(root, "Folders", "folders"), folders);
-        SaveProject(yypFilePath, root);
+        _ = folders;
+        var originalText = LoadProjectText(yypFilePath);
+        var resources = LoadResources(originalText);
+        UpdateResources(resources, scriptNames, objectNames);
+        SaveProject(yypFilePath, ReplaceResources(originalText, resources));
     }
 
-    private static JsonObject LoadProject(string yypFilePath)
+    private static string LoadProjectText(string yypFilePath)
     {
-        if (!File.Exists(yypFilePath))
-            return CreateSkeleton(yypFilePath);
+        if (File.Exists(yypFilePath))
+            return File.ReadAllText(yypFilePath).ReplaceLineEndings("\n");
 
-        var text = File.ReadAllText(yypFilePath);
-        var cleaned = Regex.Replace(text, @",(\s*[}\]])", "$1");
-        using var document = JsonDocument.Parse(cleaned);
-        return JsonNode.Parse(document.RootElement.GetRawText()) as JsonObject
-            ?? CreateSkeleton(yypFilePath);
-    }
-
-    private static JsonObject CreateSkeleton(string yypFilePath) => new()
-    {
-        ["resourceType"] = "GMProject",
-        ["resourceVersion"] = "1.0",
-        ["name"] = Path.GetFileNameWithoutExtension(yypFilePath),
-        ["resources"] = new JsonArray(),
-        ["Folders"] = new JsonArray()
-    };
-
-    private static JsonArray GetOrCreateArray(JsonObject root, params string[] propertyNames)
-    {
-        foreach (var propertyName in propertyNames)
+        var projectName = Path.GetFileNameWithoutExtension(yypFilePath);
+        return $$"""
         {
-            if (root[propertyName] is JsonArray existing)
-                return existing;
+          "name":"{{Escape(projectName)}}",
+          "resources":[],
+          "resourceType":"GMProject",
+          "resourceVersion":"2.0",
         }
+        """.ReplaceLineEndings("\n");
+    }
 
-        var created = new JsonArray();
-        root[propertyNames[0]] = created;
-        return created;
+    private static JsonArray LoadResources(string projectText)
+    {
+        var cleaned = Regex.Replace(projectText, @",(\s*[}\]])", "$1");
+        using var document = JsonDocument.Parse(cleaned);
+        var root = JsonNode.Parse(document.RootElement.GetRawText()) as JsonObject;
+        return root?["resources"] as JsonArray ?? [];
     }
 
     private static void UpdateResources(
@@ -59,74 +50,58 @@ internal class YypUpdater
         IReadOnlyList<string> objectNames)
     {
         var generatedNames = scriptNames.Concat(objectNames).ToHashSet(StringComparer.Ordinal);
-        RemoveGeneratedResources(resources, generatedNames);
-        foreach (var scriptName in scriptNames.Distinct(StringComparer.Ordinal))
-            resources.Add(CreateResource(scriptName, "scripts"));
-        foreach (var objectName in objectNames.Distinct(StringComparer.Ordinal))
-            resources.Add(CreateResource(objectName, "objects"));
+        var retainedResources = resources
+            .Where(resource => ShouldKeepResource(resource, generatedNames))
+            .Select(ResourceEntry.FromJson)
+            .OfType<ResourceEntry>()
+            .ToList();
+        var generatedResources = scriptNames
+            .Distinct(StringComparer.Ordinal)
+            .Select(name => ResourceEntry.Script(name))
+            .Concat(objectNames.Distinct(StringComparer.Ordinal).Select(ResourceEntry.Object));
+
+        resources.Clear();
+        foreach (var resource in retainedResources.Concat(generatedResources).OrderBy(resource => resource.Name, StringComparer.Ordinal))
+            resources.Add(resource.ToJson());
     }
 
-    private static void UpdateFolders(JsonArray folderArray, IReadOnlyList<FolderEntry> folders)
+    private static bool ShouldKeepResource(JsonNode? resource, HashSet<string> generatedNames)
     {
-        for (var i = folderArray.Count - 1; i >= 0; i--)
-            if (StringValue(folderArray[i]?["folderPath"])?.StartsWith("folders/TypedGML", StringComparison.Ordinal) == true)
-                folderArray.RemoveAt(i);
+        var name = StringValue(resource?["id"]?["name"]);
+        var path = StringValue(resource?["id"]?["path"]);
+        if (name is null || path is null)
+            return true;
 
-        foreach (var folder in folders)
-            folderArray.Add(CreateFolder(folder));
+        return !generatedNames.Contains(name) ||
+            (!path.StartsWith("scripts/", StringComparison.Ordinal) &&
+             !path.StartsWith("objects/", StringComparison.Ordinal));
     }
 
-    private static void RemoveGeneratedResources(JsonArray resources, HashSet<string> generatedNames)
+    private static string ReplaceResources(string projectText, JsonArray resources)
     {
-        for (var i = resources.Count - 1; i >= 0; i--)
-        {
-            var name = StringValue(resources[i]?["id"]?["name"]);
-            var path = StringValue(resources[i]?["id"]?["path"]);
-            if (name is null || path is null)
-                continue;
+        var replacement = new YypResourceArrayWriter().Write(resources);
+        if (YypResourceArraySpan.TryFind(projectText, out var span))
+            return projectText[..span.Start] + replacement + projectText[(span.End + 1)..];
 
-            if ((path.StartsWith("scripts/", StringComparison.Ordinal) && generatedNames.Contains(name)) ||
-                (path.StartsWith("objects/", StringComparison.Ordinal) && generatedNames.Contains(name)))
-                resources.RemoveAt(i);
-        }
+        var insertionPoint = projectText.LastIndexOf('}');
+        if (insertionPoint < 0)
+            return $"{{\n  \"resources\":{replacement},\n}}\n";
+
+        var prefix = projectText[..insertionPoint].TrimEnd();
+        return $"{prefix}\n  \"resources\":{replacement},\n{projectText[insertionPoint..]}";
     }
 
-    private static JsonObject CreateResource(string name, string resourceFolder) => new()
-    {
-        ["id"] = new JsonObject
-        {
-            ["name"] = name,
-            ["path"] = $"{resourceFolder}/{name}/{name}.yy"
-        },
-        ["order"] = 0
-    };
-
-    private static JsonObject CreateFolder(FolderEntry folder) => new()
-    {
-        ["resourceType"] = "GMFolder",
-        ["resourceVersion"] = "1.0",
-        ["name"] = folder.Name,
-        ["folderPath"] = NormalizePath(folder.FolderPath),
-        ["order"] = 0,
-        ["parent"] = new JsonObject
-        {
-            ["name"] = folder.ParentName,
-            ["path"] = NormalizePath(folder.ParentPath)
-        },
-        ["tags"] = new JsonArray()
-    };
-
-    private static void SaveProject(string yypFilePath, JsonObject root)
+    private static void SaveProject(string yypFilePath, string content)
     {
         var tmpPath = $"{yypFilePath}.tmp";
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(yypFilePath))!);
-        var content = new TrailingCommaJsonWriter().Write(root);
-        File.WriteAllText(tmpPath, content, new UTF8Encoding(false));
+        File.WriteAllText(tmpPath, content.ReplaceLineEndings("\n"), new UTF8Encoding(false));
         File.Move(tmpPath, yypFilePath, true);
     }
 
-    private static string NormalizePath(string path) =>
-        path.Replace('\\', '/');
+    private static string Escape(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
 
     private static string? StringValue(JsonNode? node) =>
         node?.GetValue<string>();
