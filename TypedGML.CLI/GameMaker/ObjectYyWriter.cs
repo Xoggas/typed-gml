@@ -9,18 +9,23 @@ internal sealed class ObjectYyWriter
         string gmProjectRoot,
         IReadOnlyList<string> eventFileStems,
         string projectName,
-        string yypFileName)
+        string yypFileName,
+        string? gmFolder = null)
     {
         var path = Path.Combine(gmProjectRoot, "objects", objectName, $"{objectName}.yy");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, BuildContent(objectName, eventFileStems, projectName, yypFileName), new UTF8Encoding(false));
+        File.WriteAllText(path, BuildContent(objectName, eventFileStems, projectName, yypFileName, gmFolder), new UTF8Encoding(false));
     }
 
     private static string BuildContent(
         string objectName,
         IReadOnlyList<string> eventFileStems,
         string projectName,
-        string yypFileName) =>
+        string yypFileName,
+        string? gmFolder)
+    {
+        var parent = GameMakerFolderPath.AssetParent(gmFolder, projectName, yypFileName);
+        return
         $$"""
         {
           "$GMObject":"",
@@ -30,8 +35,8 @@ internal sealed class ObjectYyWriter
           "name":"{{Escape(objectName)}}",
           "overriddenProperties":[],
           "parent":{
-            "name":"{{Escape(projectName)}}",
-            "path":"{{Escape(NormalizePath(yypFileName))}}",
+            "name":"{{Escape(parent.Name)}}",
+            "path":"{{Escape(NormalizePath(parent.Path))}}",
           },
           "parentObjectId":null,
           "persistent":false,
@@ -56,6 +61,7 @@ internal sealed class ObjectYyWriter
           "visible":true,
         }
         """.ReplaceLineEndings("\n");
+    }
 
     private static string BuildEvents(IReadOnlyList<string> eventFileStems)
     {

@@ -31,7 +31,7 @@ public sealed class GameMakerBclFolderTests
     }
 
     [Fact]
-    public void YypUpdater_RebuildsTypedGmlManagedFolders()
+    public void YypUpdater_RebuildsCurrentBclFolder()
     {
         using var project = new TempGameMakerProject();
         var yypPath = Path.Combine(project.Root, "Test.yyp");
@@ -60,11 +60,17 @@ public sealed class GameMakerBclFolderTests
               ],
               "Folders":[
                 {"folderPath":"folders/Custom.yy"},
+                {"folderPath":"folders/TypedGML/Old.yy"},
                 {
                   "$GMFolder":"",
                   "%Name":"BCL",
                   "folderPath":"folders/BCL.yy",
                   "name":"BCL",
+                  "order":0,
+                  "parent":{
+                    "name":"Test",
+                    "path":"Test.yyp",
+                  },
                   "resourceType":"GMFolder",
                   "resourceVersion":"2.0",
                 },

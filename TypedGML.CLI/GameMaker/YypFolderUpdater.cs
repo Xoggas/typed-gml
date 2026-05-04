@@ -12,17 +12,24 @@ internal sealed class YypFolderUpdater
         string yypFilePath)
     {
         var originalFolders = YypArrayLoader.Load(originalText, "Folders");
-        var retainedFolders = originalFolders.Where(ShouldKeepFolder).ToList();
         var generatedFolders = BuildGeneratedFolders(bclScriptNames, folders, yypFilePath)
+            .ToList();
+        var currentFolderPaths = generatedFolders
+            .Select(folder => folder.FolderPath)
+            .ToHashSet(StringComparer.Ordinal);
+        var retainedFolders = originalFolders
+            .Where(folder => ShouldKeepFolder(folder, currentFolderPaths))
+            .ToList();
+        var generatedJson = generatedFolders
             .Select(folder => folder.ToJson())
             .Cast<JsonNode?>()
             .ToList();
 
         if (retainedFolders.Count == originalFolders.Count &&
-            generatedFolders.Count == 0)
+            generatedJson.Count == 0)
             return content;
 
-        var updatedFolders = retainedFolders.Concat(generatedFolders).ToList();
+        var updatedFolders = retainedFolders.Concat(generatedJson).ToList();
         return YypArrayPropertyReplacer.ReplaceOrAdd(
             content,
             "Folders",
@@ -48,11 +55,9 @@ internal sealed class YypFolderUpdater
             .ToList();
     }
 
-    private static bool ShouldKeepFolder(JsonNode? folder)
+    private static bool ShouldKeepFolder(JsonNode? folder, IReadOnlySet<string> currentFolderPaths)
     {
         var folderPath = folder?["folderPath"]?.GetValue<string>();
-        return folderPath is null ||
-            (!folderPath.StartsWith("folders/BCL", StringComparison.Ordinal) &&
-             !folderPath.StartsWith("folders/TypedGML", StringComparison.Ordinal));
+        return folderPath is null || !currentFolderPaths.Contains(folderPath);
     }
 }

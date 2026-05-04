@@ -39,9 +39,19 @@ internal sealed class YypFolderArrayWriter
         WriteString("%Name", StringValue(folder["%Name"]) ?? string.Empty);
         WriteString("folderPath", StringValue(folder["folderPath"]) ?? string.Empty);
         WriteString("name", StringValue(folder["name"]) ?? string.Empty);
+        WriteNumber("order", NumberValue(folder["order"]) ?? 0);
+        WriteParent(folder["parent"] as JsonObject);
         WriteString("resourceType", StringValue(folder["resourceType"]) ?? "GMFolder");
         WriteString("resourceVersion", StringValue(folder["resourceVersion"]) ?? "2.0");
         _builder.Append("    },\n");
+    }
+
+    private void WriteParent(JsonObject? parent)
+    {
+        _builder.Append("      \"parent\":{\n");
+        WriteString("name", StringValue(parent?["name"]) ?? string.Empty, 8);
+        WriteString("path", StringValue(parent?["path"]) ?? string.Empty, 8);
+        _builder.Append("      },\n");
     }
 
     private void WriteString(string name, string value, int indent = 6)
@@ -54,11 +64,24 @@ internal sealed class YypFolderArrayWriter
         _builder.Append("\",\n");
     }
 
+    private void WriteNumber(string name, int value, int indent = 6)
+    {
+        _builder.Append(' ', indent);
+        _builder.Append('"');
+        _builder.Append(Escape(name));
+        _builder.Append("\":");
+        _builder.Append(value);
+        _builder.Append(",\n");
+    }
+
     private static bool IsGameMakerFolder(JsonObject folder) =>
         folder.ContainsKey("$GMFolder") && folder.ContainsKey("%Name");
 
     private static string? StringValue(JsonNode? node) =>
         node?.GetValue<string>();
+
+    private static int? NumberValue(JsonNode? node) =>
+        node is null ? null : node.GetValue<int>();
 
     private static string Escape(string value) =>
         value.Replace("\\", "\\\\", StringComparison.Ordinal)

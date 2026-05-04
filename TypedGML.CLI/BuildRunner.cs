@@ -10,7 +10,7 @@ internal sealed class BuildRunner(TgmlConfig config, string bclPath)
         if (result.Diagnostics.HasErrors || result.CompileResult is null)
             return PrintFailure(result.Diagnostics.Errors.Count);
 
-        new GameMakerProjectWriter().Write(result.CompileResult, config.YypPath);
+        new GameMakerProjectWriter().Write(result.CompileResult, config.YypPath, config.TgmlRoot);
         PrintSuccess(result);
         return 0;
     }

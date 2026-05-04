@@ -9,16 +9,22 @@ internal sealed class ScriptYyWriter
         string gmProjectRoot,
         string projectName,
         string yypFileName,
-        bool isBcl = false)
+        bool isBcl = false,
+        string? gmFolder = null)
     {
         var path = Path.Combine(gmProjectRoot, "scripts", scriptName, $"{scriptName}.yy");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, BuildContent(scriptName, isBcl, projectName, yypFileName), new UTF8Encoding(false));
+        File.WriteAllText(path, BuildContent(scriptName, isBcl, gmFolder, projectName, yypFileName), new UTF8Encoding(false));
     }
 
-    private static string BuildContent(string scriptName, bool isBcl, string projectName, string yypFileName)
+    private static string BuildContent(
+        string scriptName,
+        bool isBcl,
+        string? gmFolder,
+        string projectName,
+        string yypFileName)
     {
-        var parent = GetParentForScript(isBcl, projectName, yypFileName);
+        var parent = GetParentForScript(isBcl, gmFolder, projectName, yypFileName);
         return $$"""
         {
           "$GMScript":"v1",
@@ -38,9 +44,10 @@ internal sealed class ScriptYyWriter
 
     private static (string Name, string Path) GetParentForScript(
         bool isBcl,
+        string? gmFolder,
         string projectName,
         string yypFileName) =>
-        isBcl ? ("BCL", "folders/BCL.yy") : (projectName, yypFileName);
+        GameMakerFolderPath.AssetParent(isBcl ? GameMakerFolderPath.Bcl : gmFolder, projectName, yypFileName);
 
     private static string NormalizePath(string path) => path.Replace('\\', '/');
 

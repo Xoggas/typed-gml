@@ -6,12 +6,14 @@ internal sealed class CliCompileResult
         IReadOnlyDictionary<string, string> scripts,
         IReadOnlyList<CompiledObjectResource> objects,
         IReadOnlyDictionary<string, string> resourceNamespaces,
+        IReadOnlyDictionary<string, string> resourceSourcePaths,
         IReadOnlyList<string> namespaces,
         IReadOnlySet<string> bclScriptNames)
     {
         Scripts = scripts;
         Objects = objects;
         ResourceNamespaces = resourceNamespaces;
+        ResourceSourcePaths = resourceSourcePaths;
         Namespaces = namespaces;
         BclScriptNames = bclScriptNames;
     }
@@ -22,6 +24,8 @@ internal sealed class CliCompileResult
 
     public IReadOnlyDictionary<string, string> ResourceNamespaces { get; }
 
+    public IReadOnlyDictionary<string, string> ResourceSourcePaths { get; }
+
     public IReadOnlyList<string> Namespaces { get; }
 
     public IReadOnlySet<string> BclScriptNames { get; }
@@ -30,6 +34,7 @@ internal sealed class CliCompileResult
         IReadOnlyDictionary<string, string> output,
         string outputRoot,
         IReadOnlyDictionary<string, string> resourceNamespaces,
+        IReadOnlyDictionary<string, string> resourceSourcePaths,
         IReadOnlySet<string> bclScriptCandidates)
     {
         var scripts = new SortedDictionary<string, string>(StringComparer.Ordinal);
@@ -39,14 +44,17 @@ internal sealed class CliCompileResult
             AddOutput(path, content, outputRoot, scripts, objects);
 
         var objectResources = objects
-            .Select(entry => new CompiledObjectResource(entry.Key, entry.Value))
+            .Select(entry => new CompiledObjectResource(
+                entry.Key,
+                entry.Value,
+                SourcePath(entry.Key, resourceSourcePaths)))
             .ToList();
         var namespaces = BuildNamespaces(resourceNamespaces, scripts.Keys);
         var bclScriptNames = scripts.Keys
             .Where(bclScriptCandidates.Contains)
             .ToHashSet(StringComparer.Ordinal);
 
-        return new CliCompileResult(scripts, objectResources, resourceNamespaces, namespaces, bclScriptNames);
+        return new CliCompileResult(scripts, objectResources, resourceNamespaces, resourceSourcePaths, namespaces, bclScriptNames);
     }
 
     private static void AddOutput(
@@ -89,4 +97,9 @@ internal sealed class CliCompileResult
 
         return namespaces.Order(StringComparer.Ordinal).ToList();
     }
+
+    private static string? SourcePath(
+        string resourceName,
+        IReadOnlyDictionary<string, string> resourceSourcePaths) =>
+        resourceSourcePaths.TryGetValue(resourceName, out var sourcePath) ? sourcePath : null;
 }
