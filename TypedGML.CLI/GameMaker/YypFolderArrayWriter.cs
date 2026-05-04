@@ -39,22 +39,9 @@ internal sealed class YypFolderArrayWriter
         WriteString("%Name", StringValue(folder["%Name"]) ?? string.Empty);
         WriteString("folderPath", StringValue(folder["folderPath"]) ?? string.Empty);
         WriteString("name", StringValue(folder["name"]) ?? string.Empty);
-        _builder.Append("      \"order\":");
-        _builder.Append(folder["order"]?.ToJsonString() ?? "0");
-        _builder.Append(",\n");
-        WriteParent(folder["parent"] as JsonObject);
         WriteString("resourceType", StringValue(folder["resourceType"]) ?? "GMFolder");
         WriteString("resourceVersion", StringValue(folder["resourceVersion"]) ?? "2.0");
-        _builder.Append("      \"tags\":[],\n");
         _builder.Append("    },\n");
-    }
-
-    private void WriteParent(JsonObject? parent)
-    {
-        _builder.Append("      \"parent\":{\n");
-        WriteString("name", StringValue(parent?["name"]) ?? string.Empty, 8);
-        WriteString("path", StringValue(parent?["path"]) ?? string.Empty, 8);
-        _builder.Append("      },\n");
     }
 
     private void WriteString(string name, string value, int indent = 6)

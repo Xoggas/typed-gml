@@ -65,14 +65,8 @@ public sealed class GameMakerBclFolderTests
                   "%Name":"BCL",
                   "folderPath":"folders/BCL.yy",
                   "name":"BCL",
-                  "order":0,
-                  "parent":{
-                    "name":"Test",
-                    "path":"Test.yyp",
-                  },
                   "resourceType":"GMFolder",
                   "resourceVersion":"2.0",
-                  "tags":[],
                 },
               ],
             }

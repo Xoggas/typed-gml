@@ -21,7 +21,6 @@ internal record FolderEntry(
             ["path"] = ParentPath
         },
         ["resourceType"] = "GMFolder",
-        ["resourceVersion"] = "2.0",
-        ["tags"] = new JsonArray()
+        ["resourceVersion"] = "2.0"
     };
 }
