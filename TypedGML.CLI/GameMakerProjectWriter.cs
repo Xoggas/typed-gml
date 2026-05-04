@@ -17,6 +17,7 @@ internal sealed class GameMakerProjectWriter
         new YypUpdater().Update(
             yypFullPath,
             compileResult.Scripts.Keys.ToList(),
+            compileResult.BclScriptNames,
             compileResult.Objects.Select(obj => obj.Name).ToList(),
             []);
     }
@@ -32,7 +33,7 @@ internal sealed class GameMakerProjectWriter
         {
             var gmlDest = Path.Combine(gmRoot, "scripts", name, $"{name}.gml");
             WriteText(gmlDest, content);
-            scriptWriter.Write(name, gmRoot, projectName, yypFileName);
+            scriptWriter.Write(name, gmRoot, projectName, yypFileName, compileResult.BclScriptNames.Contains(name));
         }
     }
 

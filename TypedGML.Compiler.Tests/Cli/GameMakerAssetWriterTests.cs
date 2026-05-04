@@ -99,7 +99,7 @@ public sealed class GameMakerAssetWriterTests
             }
             """.ReplaceLineEndings("\n"));
 
-        new YypUpdater().Update(yypPath, ["Script1"], ["Object1"], []);
+        new YypUpdater().Update(yypPath, ["Script1"], new HashSet<string>(StringComparer.Ordinal), ["Object1"], []);
 
         File.ReadAllText(yypPath).Should().Be("""
             {

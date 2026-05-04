@@ -8,15 +8,18 @@ internal sealed class ScriptYyWriter
         string scriptName,
         string gmProjectRoot,
         string projectName,
-        string yypFileName)
+        string yypFileName,
+        bool isBcl = false)
     {
         var path = Path.Combine(gmProjectRoot, "scripts", scriptName, $"{scriptName}.yy");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, BuildContent(scriptName, projectName, yypFileName), new UTF8Encoding(false));
+        File.WriteAllText(path, BuildContent(scriptName, isBcl, projectName, yypFileName), new UTF8Encoding(false));
     }
 
-    private static string BuildContent(string scriptName, string projectName, string yypFileName) =>
-        $$"""
+    private static string BuildContent(string scriptName, bool isBcl, string projectName, string yypFileName)
+    {
+        var parent = GetParentForScript(isBcl, projectName, yypFileName);
+        return $$"""
         {
           "$GMScript":"v1",
           "%Name":"{{Escape(scriptName)}}",
@@ -24,13 +27,20 @@ internal sealed class ScriptYyWriter
           "isDnD":false,
           "name":"{{Escape(scriptName)}}",
           "parent":{
-            "name":"{{Escape(projectName)}}",
-            "path":"{{Escape(NormalizePath(yypFileName))}}",
+            "name":"{{Escape(parent.Name)}}",
+            "path":"{{Escape(NormalizePath(parent.Path))}}",
           },
           "resourceType":"GMScript",
           "resourceVersion":"2.0",
         }
         """.ReplaceLineEndings("\n");
+    }
+
+    private static (string Name, string Path) GetParentForScript(
+        bool isBcl,
+        string projectName,
+        string yypFileName) =>
+        isBcl ? ("BCL", "folders/BCL.yy") : (projectName, yypFileName);
 
     private static string NormalizePath(string path) => path.Replace('\\', '/');
 

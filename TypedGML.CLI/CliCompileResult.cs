@@ -6,12 +6,14 @@ internal sealed class CliCompileResult
         IReadOnlyDictionary<string, string> scripts,
         IReadOnlyList<CompiledObjectResource> objects,
         IReadOnlyDictionary<string, string> resourceNamespaces,
-        IReadOnlyList<string> namespaces)
+        IReadOnlyList<string> namespaces,
+        IReadOnlySet<string> bclScriptNames)
     {
         Scripts = scripts;
         Objects = objects;
         ResourceNamespaces = resourceNamespaces;
         Namespaces = namespaces;
+        BclScriptNames = bclScriptNames;
     }
 
     public IReadOnlyDictionary<string, string> Scripts { get; }
@@ -22,10 +24,13 @@ internal sealed class CliCompileResult
 
     public IReadOnlyList<string> Namespaces { get; }
 
+    public IReadOnlySet<string> BclScriptNames { get; }
+
     public static CliCompileResult FromOutput(
         IReadOnlyDictionary<string, string> output,
         string outputRoot,
-        IReadOnlyDictionary<string, string> resourceNamespaces)
+        IReadOnlyDictionary<string, string> resourceNamespaces,
+        IReadOnlySet<string> bclScriptCandidates)
     {
         var scripts = new SortedDictionary<string, string>(StringComparer.Ordinal);
         var objects = new SortedDictionary<string, SortedDictionary<string, string>>(StringComparer.Ordinal);
@@ -37,8 +42,11 @@ internal sealed class CliCompileResult
             .Select(entry => new CompiledObjectResource(entry.Key, entry.Value))
             .ToList();
         var namespaces = BuildNamespaces(resourceNamespaces, scripts.Keys);
+        var bclScriptNames = scripts.Keys
+            .Where(bclScriptCandidates.Contains)
+            .ToHashSet(StringComparer.Ordinal);
 
-        return new CliCompileResult(scripts, objectResources, resourceNamespaces, namespaces);
+        return new CliCompileResult(scripts, objectResources, resourceNamespaces, namespaces, bclScriptNames);
     }
 
     private static void AddOutput(

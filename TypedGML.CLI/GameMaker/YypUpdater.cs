@@ -1,7 +1,5 @@
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 
 namespace TypedGML.CLI.GameMaker;
 
@@ -10,14 +8,19 @@ internal sealed class YypUpdater
     public void Update(
         string yypFilePath,
         IReadOnlyList<string> scriptNames,
+        IReadOnlySet<string> bclScriptNames,
         IReadOnlyList<string> objectNames,
         IReadOnlyList<FolderEntry> folders)
     {
-        _ = folders;
         var originalText = LoadProjectText(yypFilePath);
-        var resources = LoadResources(originalText);
+        var resources = YypArrayLoader.Load(originalText, "resources");
         UpdateResources(resources, scriptNames, objectNames);
-        SaveProject(yypFilePath, ReplaceResources(originalText, resources));
+        var content = YypArrayPropertyReplacer.ReplaceOrAdd(
+            originalText,
+            "resources",
+            new YypResourceArrayWriter().Write(resources));
+        content = new YypFolderUpdater().Update(content, originalText, bclScriptNames, folders, yypFilePath);
+        SaveProject(yypFilePath, content);
     }
 
     private static string LoadProjectText(string yypFilePath)
@@ -34,14 +37,6 @@ internal sealed class YypUpdater
           "resourceVersion":"2.0",
         }
         """.ReplaceLineEndings("\n");
-    }
-
-    private static JsonArray LoadResources(string projectText)
-    {
-        var cleaned = Regex.Replace(projectText, @",(\s*[}\]])", "$1");
-        using var document = JsonDocument.Parse(cleaned);
-        var root = JsonNode.Parse(document.RootElement.GetRawText()) as JsonObject;
-        return root?["resources"] as JsonArray ?? [];
     }
 
     private static void UpdateResources(
@@ -75,20 +70,6 @@ internal sealed class YypUpdater
         return !generatedNames.Contains(name) ||
             (!path.StartsWith("scripts/", StringComparison.Ordinal) &&
              !path.StartsWith("objects/", StringComparison.Ordinal));
-    }
-
-    private static string ReplaceResources(string projectText, JsonArray resources)
-    {
-        var replacement = new YypResourceArrayWriter().Write(resources);
-        if (YypResourceArraySpan.TryFind(projectText, out var span))
-            return projectText[..span.Start] + replacement + projectText[(span.End + 1)..];
-
-        var insertionPoint = projectText.LastIndexOf('}');
-        if (insertionPoint < 0)
-            return $"{{\n  \"resources\":{replacement},\n}}\n";
-
-        var prefix = projectText[..insertionPoint].TrimEnd();
-        return $"{prefix}\n  \"resources\":{replacement},\n{projectText[insertionPoint..]}";
     }
 
     private static void SaveProject(string yypFilePath, string content)
