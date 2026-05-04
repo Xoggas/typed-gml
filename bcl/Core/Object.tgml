@@ -2,7 +2,9 @@
 
 public class Object
 {
-    @NativeCall("string")
-    public virtual string ToString() { return default(string); }
+    public virtual string ToString() 
+    { 
+        return "[Object]";
+    }
 }
 

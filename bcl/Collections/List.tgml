@@ -36,9 +36,6 @@ public class List<T> : IList<T>
     @NativeCall("array_sort")
     private void __sort(T[] arr, bool ascending) { }
 
-    @NativeCall("array_copy")
-    private T[] __copy(T[] arr) { return default(T[]); }
-
     public number Count
     {
         get { return __count(_items); }
@@ -104,7 +101,11 @@ public class List<T> : IList<T>
 
     public T[] ToArray()
     {
-        return __copy(_items);
+        T[] copy = [];
+        for (var i = 0; i < _size; i += 1) {
+            copy[i] = _items[i];
+        }
+        return copy;
     }
 
     public override string ToString()
