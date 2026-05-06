@@ -14,7 +14,7 @@ internal sealed class GameMakerProjectWriter
 
         WriteScripts(compileResult, gmRoot, projectName, yypFileName, tgmlRoot);
         WriteObjects(compileResult, gmRoot, projectName, yypFileName, tgmlRoot);
-        var folders = BuildFolders(compileResult, projectName, yypFileName, tgmlRoot);
+        var folders = BuildFolders(compileResult, tgmlRoot);
         new YypUpdater().Update(
             yypFullPath,
             compileResult.Scripts.Keys.ToList(),
@@ -61,8 +61,6 @@ internal sealed class GameMakerProjectWriter
 
     private static IReadOnlyList<FolderEntry> BuildFolders(
         CliCompileResult compileResult,
-        string projectName,
-        string yypFileName,
         string tgmlRoot)
     {
         var folderPaths = new HashSet<string>(StringComparer.Ordinal);
@@ -81,7 +79,7 @@ internal sealed class GameMakerProjectWriter
                 folderPaths.Add(folder);
         }
 
-        return FolderBuilder.Build(folderPaths, projectName, yypFileName);
+        return FolderBuilder.Build(folderPaths);
     }
 
     private static string? FolderForResource(

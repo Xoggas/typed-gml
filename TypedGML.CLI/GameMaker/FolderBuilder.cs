@@ -2,17 +2,14 @@ namespace TypedGML.CLI.GameMaker;
 
 internal static class FolderBuilder
 {
-    public static IReadOnlyList<FolderEntry> Build(
-        IEnumerable<string> folderPaths,
-        string projectName,
-        string yypRelativePath)
+    public static IReadOnlyList<FolderEntry> Build(IEnumerable<string> folderPaths)
     {
         var normalized = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var folderPath in folderPaths)
             AddWithIntermediates(normalized, folderPath);
 
         return normalized
-            .Select(path => BuildEntry(path, projectName, yypRelativePath))
+            .Select(BuildEntry)
             .ToList();
     }
 
@@ -29,16 +26,10 @@ internal static class FolderBuilder
         }
     }
 
-    private static FolderEntry BuildEntry(
-        string folderPath,
-        string projectName,
-        string yypRelativePath)
+    private static FolderEntry BuildEntry(string folderPath)
     {
-        var parent = GameMakerFolderPath.FolderParent(folderPath, projectName, yypRelativePath);
         return new FolderEntry(
             GameMakerFolderPath.Name(folderPath),
-            GameMakerFolderPath.ResourcePath(folderPath),
-            parent.Name,
-            parent.Path);
+            GameMakerFolderPath.ResourcePath(folderPath));
     }
 }

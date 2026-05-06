@@ -63,7 +63,7 @@ public sealed class GameMakerFolderMirrorTests
               ],
             }
             """.ReplaceLineEndings("\n"));
-        var folders = FolderBuilder.Build(["Entities/Boss", "Player"], "Test", "Test.yyp");
+        var folders = FolderBuilder.Build(["Entities/Boss", "Player"]);
 
         new YypUpdater().Update(yypPath, ["Script1"], new HashSet<string>(StringComparer.Ordinal), ["Object1"], folders);
 
@@ -76,45 +76,9 @@ public sealed class GameMakerFolderMirrorTests
               "Folders":[
                 {"folderPath":"folders/Custom.yy"},
                 {"folderPath":"folders/OldGenerated.yy"},
-                {
-                  "$GMFolder":"",
-                  "%Name":"Entities",
-                  "folderPath":"folders/Entities.yy",
-                  "name":"Entities",
-                  "order":0,
-                  "parent":{
-                    "name":"Test",
-                    "path":"Test.yyp",
-                  },
-                  "resourceType":"GMFolder",
-                  "resourceVersion":"2.0",
-                },
-                {
-                  "$GMFolder":"",
-                  "%Name":"Boss",
-                  "folderPath":"folders/Entities/Boss.yy",
-                  "name":"Boss",
-                  "order":0,
-                  "parent":{
-                    "name":"Entities",
-                    "path":"folders/Entities.yy",
-                  },
-                  "resourceType":"GMFolder",
-                  "resourceVersion":"2.0",
-                },
-                {
-                  "$GMFolder":"",
-                  "%Name":"Player",
-                  "folderPath":"folders/Player.yy",
-                  "name":"Player",
-                  "order":0,
-                  "parent":{
-                    "name":"Test",
-                    "path":"Test.yyp",
-                  },
-                  "resourceType":"GMFolder",
-                  "resourceVersion":"2.0",
-                },
+                {"$GMFolder":"","%Name":"Entities","folderPath":"folders/Entities.yy","name":"Entities","resourceType":"GMFolder","resourceVersion":"2.0",},
+                {"$GMFolder":"","%Name":"Boss","folderPath":"folders/Entities/Boss.yy","name":"Boss","resourceType":"GMFolder","resourceVersion":"2.0",},
+                {"$GMFolder":"","%Name":"Player","folderPath":"folders/Player.yy","name":"Player","resourceType":"GMFolder","resourceVersion":"2.0",},
               ],
             }
             """.ReplaceLineEndings("\n"));

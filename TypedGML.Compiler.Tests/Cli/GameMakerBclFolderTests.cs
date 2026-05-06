@@ -61,22 +61,64 @@ public sealed class GameMakerBclFolderTests
               "Folders":[
                 {"folderPath":"folders/Custom.yy"},
                 {"folderPath":"folders/TypedGML/Old.yy"},
-                {
-                  "$GMFolder":"",
-                  "%Name":"BCL",
-                  "folderPath":"folders/BCL.yy",
-                  "name":"BCL",
-                  "order":0,
-                  "parent":{
-                    "name":"Test",
-                    "path":"Test.yyp",
-                  },
-                  "resourceType":"GMFolder",
-                  "resourceVersion":"2.0",
-                },
+                {"$GMFolder":"","%Name":"BCL","folderPath":"folders/BCL.yy","name":"BCL","resourceType":"GMFolder","resourceVersion":"2.0",},
               ],
             }
             """.ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public void YypUpdater_ReordersCompactGeneratedFolderSchemaFields()
+    {
+        using var project = new TempGameMakerProject();
+        var yypPath = Path.Combine(project.Root, "Test.yyp");
+        File.WriteAllText(yypPath, """
+            {
+              "resources":[],
+              "Folders":[
+                {"$GMFolder":"","%Name":"BCL","folderPath":"folders/BCL.yy","name":"BCL","order":0,"parent":{"name":"Test","path":"Test.yyp",},"resourceType":"GMFolder","resourceVersion":"2.0",},
+              ],
+            }
+            """.ReplaceLineEndings("\n"));
+
+        new YypUpdater().Update(
+            yypPath,
+            ["TypedGML_Core_Object"],
+            new HashSet<string>(["TypedGML_Core_Object"], StringComparer.Ordinal),
+            [],
+            []);
+
+        var content = File.ReadAllText(yypPath);
+        content.Should().Contain("""{"$GMFolder":"","%Name":"BCL","folderPath":"folders/BCL.yy","name":"BCL","resourceType":"GMFolder","resourceVersion":"2.0",},""");
+        content.Should().NotContain("\"order\"");
+        content.Should().NotContain("\"parent\"");
+    }
+
+    [Fact]
+    public void YypUpdater_ReordersExistingFolderSchemaFieldsWhenNoFoldersAreGenerated()
+    {
+        using var project = new TempGameMakerProject();
+        var yypPath = Path.Combine(project.Root, "Test.yyp");
+        File.WriteAllText(yypPath, """
+            {
+              "resources":[],
+              "Folders":[
+                {"$GMFolder":"","%Name":"Custom","folderPath":"folders/Custom.yy","name":"Custom","order":0,"parent":{"name":"Test","path":"Test.yyp",},"resourceType":"GMFolder","resourceVersion":"2.0",},
+              ],
+            }
+            """.ReplaceLineEndings("\n"));
+
+        new YypUpdater().Update(
+            yypPath,
+            ["Script1"],
+            new HashSet<string>(StringComparer.Ordinal),
+            [],
+            []);
+
+        var content = File.ReadAllText(yypPath);
+        content.Should().Contain("""{"$GMFolder":"","%Name":"Custom","folderPath":"folders/Custom.yy","name":"Custom","resourceType":"GMFolder","resourceVersion":"2.0",},""");
+        content.Should().NotContain("\"order\"");
+        content.Should().NotContain("\"parent\"");
     }
 
     private sealed class TempGameMakerProject : IDisposable

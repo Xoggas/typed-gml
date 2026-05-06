@@ -19,7 +19,7 @@ internal sealed class YypUpdater
             originalText,
             "resources",
             new YypResourceArrayWriter().Write(resources));
-        content = new YypFolderUpdater().Update(content, originalText, bclScriptNames, folders, yypFilePath);
+        content = new YypFolderUpdater().Update(content, originalText, bclScriptNames, folders);
         SaveProject(yypFilePath, content);
     }
 

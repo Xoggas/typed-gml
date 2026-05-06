@@ -8,11 +8,10 @@ internal sealed class YypFolderUpdater
         string content,
         string originalText,
         IReadOnlySet<string> bclScriptNames,
-        IReadOnlyList<FolderEntry> folders,
-        string yypFilePath)
+        IReadOnlyList<FolderEntry> folders)
     {
         var originalFolders = YypArrayLoader.Load(originalText, "Folders");
-        var generatedFolders = BuildGeneratedFolders(bclScriptNames, folders, yypFilePath)
+        var generatedFolders = BuildGeneratedFolders(bclScriptNames, folders)
             .ToList();
         var currentFolderPaths = generatedFolders
             .Select(folder => folder.FolderPath)
@@ -26,7 +25,8 @@ internal sealed class YypFolderUpdater
             .ToList();
 
         if (retainedFolders.Count == originalFolders.Count &&
-            generatedJson.Count == 0)
+            generatedJson.Count == 0 &&
+            !originalFolders.Any(IsGameMakerFolder))
             return content;
 
         var updatedFolders = retainedFolders.Concat(generatedJson).ToList();
@@ -38,16 +38,11 @@ internal sealed class YypFolderUpdater
 
     private static IReadOnlyList<FolderEntry> BuildGeneratedFolders(
         IReadOnlySet<string> bclScriptNames,
-        IReadOnlyList<FolderEntry> folders,
-        string yypFilePath)
+        IReadOnlyList<FolderEntry> folders)
     {
         var generated = folders.ToList();
         if (bclScriptNames.Count > 0)
-        {
-            var projectName = Path.GetFileNameWithoutExtension(yypFilePath);
-            var yypFileName = Path.GetFileName(yypFilePath);
-            generated.Add(new FolderEntry("BCL", "folders/BCL.yy", projectName, yypFileName));
-        }
+            generated.Add(new FolderEntry("BCL", "folders/BCL.yy"));
 
         return generated
             .GroupBy(folder => folder.FolderPath, StringComparer.Ordinal)
@@ -60,4 +55,9 @@ internal sealed class YypFolderUpdater
         var folderPath = folder?["folderPath"]?.GetValue<string>();
         return folderPath is null || !currentFolderPaths.Contains(folderPath);
     }
+
+    private static bool IsGameMakerFolder(JsonNode? folder) =>
+        folder is JsonObject obj &&
+        obj.ContainsKey("$GMFolder") &&
+        obj.ContainsKey("%Name");
 }

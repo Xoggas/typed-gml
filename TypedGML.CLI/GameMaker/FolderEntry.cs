@@ -4,9 +4,7 @@ namespace TypedGML.CLI.GameMaker;
 
 internal record FolderEntry(
     string Name,
-    string FolderPath,
-    string ParentName,
-    string ParentPath)
+    string FolderPath)
 {
     public JsonObject ToJson() => new()
     {
@@ -14,12 +12,6 @@ internal record FolderEntry(
         ["%Name"] = Name,
         ["folderPath"] = FolderPath,
         ["name"] = Name,
-        ["order"] = 0,
-        ["parent"] = new JsonObject
-        {
-            ["name"] = ParentName,
-            ["path"] = ParentPath
-        },
         ["resourceType"] = "GMFolder",
         ["resourceVersion"] = "2.0"
     };
