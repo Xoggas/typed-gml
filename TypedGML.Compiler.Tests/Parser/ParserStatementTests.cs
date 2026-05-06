@@ -27,6 +27,7 @@ public sealed class ParserStatementTests
             using TypedGML.GameObjects;
             @Object("OBJ_WithStatementTarget")
             public class WithStatementTarget : GameObject {
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
                 public void Run() { with (this) { } }
             }
             """);

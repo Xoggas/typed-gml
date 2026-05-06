@@ -1,6 +1,5 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Expressions;
-using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Diagnostics;
 using TypedGML.Compiler.Symbols;
 using TypedGML.Compiler.Utils;
@@ -9,31 +8,10 @@ namespace TypedGML.Compiler.Verification.Checks;
 
 public sealed class ConstructorCallCheck : ISemanticCheck
 {
-    public bool Matches(IAstNode node) => node is ConstructorDeclarationNode or ObjectCreationExpressionNode;
+    public bool Matches(IAstNode node) => node is ObjectCreationExpressionNode;
 
     public void Check(IAstNode node, VerificationContext ctx)
-    {
-        if (node is ConstructorDeclarationNode constructor)
-            CheckChain(constructor, ctx);
-        else
-            CheckCreation((ObjectCreationExpressionNode)node, ctx);
-    }
-
-    private static void CheckChain(ConstructorDeclarationNode constructor, VerificationContext ctx)
-    {
-        var owner = constructor.ChainTarget == ConstructorChainTarget.Base ? ctx.CurrentType?.Base : ctx.CurrentType;
-        if (constructor.ChainTarget == ConstructorChainTarget.None || owner is null)
-            return;
-
-        var matches = owner.Members.Where(member => member.Kind == MemberKind.Constructor)
-            .Where(member => Matches(member, constructor.ChainArgs, ctx)).ToList();
-        if (matches.Count == 0)
-            Report(DiagnosticCode.NoMatchingMethodOverload, "Constructor chain target does not have a matching constructor.", constructor.Location, ctx);
-
-        if (constructor.ChainTarget == ConstructorChainTarget.This &&
-            matches.Any(match => MemberSignatureHelper.ParametersExact(match.Parameters, constructor.Parameters)))
-            Report(DiagnosticCode.TypeMismatch, "Constructor chaining cannot target the same constructor recursively.", constructor.Location, ctx);
-    }
+        => CheckCreation((ObjectCreationExpressionNode)node, ctx);
 
     private static void CheckCreation(ObjectCreationExpressionNode creation, VerificationContext ctx)
     {
@@ -56,7 +34,7 @@ public sealed class ConstructorCallCheck : ISemanticCheck
 
         var substitutions = GenericTypeSubstitution.Map(type, creation.TypeArgs);
         var matches = constructors
-            .Where(member => Matches(member, creation.PositionalArgs, creation.NamedArgs, substitutions, ctx))
+            .Where(member => ConstructorSignatureMatcher.Matches(member, creation.PositionalArgs, creation.NamedArgs, substitutions, ctx))
             .ToList();
         if (matches.Count == 0)
         {
@@ -67,34 +45,6 @@ public sealed class ConstructorCallCheck : ISemanticCheck
         if (type.ObjectAssetName is not null &&
             !matches.Any(member => ObjectConstructorSpatialArguments.SuppliesRequiredValues(member, arg => ExpressionTypeResolver.Resolve(arg, ctx))))
             Report(DiagnosticCode.InvalidObjectConstructorArgumentCount, "@Object construction requires x, y, and layer arguments from the constructor parameters or base constructor call.", creation.Location, ctx);
-    }
-
-    private static bool Matches(MemberSymbol constructor, IReadOnlyList<IAstNode> mixedArgs, VerificationContext ctx) =>
-        Matches(
-            constructor,
-            CallArgumentOrderer.PositionalFromMixed(mixedArgs),
-            CallArgumentOrderer.NamedFromMixed(mixedArgs),
-            new Dictionary<string, string>(StringComparer.Ordinal),
-            ctx);
-
-    private static bool Matches(
-        MemberSymbol constructor,
-        IReadOnlyList<IAstNode> positionalArgs,
-        IReadOnlyList<NamedArgNode> namedArgs,
-        IReadOnlyDictionary<string, string> substitutions,
-        VerificationContext ctx)
-    {
-        if (!CallArgumentOrderer.TryBind(constructor, positionalArgs, namedArgs, out var bindings))
-            return false;
-
-        foreach (var binding in bindings)
-        {
-            var targetType = GenericTypeSubstitution.Substitute(constructor.Parameters[binding.ParameterIndex].TypeRef, substitutions);
-            if (!TypeReferenceHelper.IsAssignable(targetType, ExpressionTypeResolver.Resolve(binding.Value, ctx), ctx))
-                return false;
-        }
-
-        return true;
     }
 
     private static void Report(DiagnosticCode code, string message, SourceLocation location, VerificationContext ctx) =>

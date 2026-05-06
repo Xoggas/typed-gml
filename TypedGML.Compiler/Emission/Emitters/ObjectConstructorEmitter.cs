@@ -24,7 +24,7 @@ internal sealed class ObjectConstructorEmitter
         {
             ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
-            if (!NeedsInstanceBlock(constructor, extraParameters))
+            if (!NeedsInstanceBlock(constructor, extraParameters, ctx))
             {
                 ctx.Writer.WriteLine($"return instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
                 ctx.Writer.EndBlock();
@@ -43,10 +43,15 @@ internal sealed class ObjectConstructorEmitter
         });
     }
 
-    private static bool NeedsInstanceBlock(ConstructorDeclarationNode constructor, IReadOnlyList<ParameterNode> extraParameters) =>
+    private static bool NeedsInstanceBlock(ConstructorDeclarationNode constructor, IReadOnlyList<ParameterNode> extraParameters, EmitContext ctx) =>
         extraParameters.Count > 0 ||
-        constructor.ChainTarget != ConstructorChainTarget.None ||
+        NeedsBaseInitialization(constructor, ctx) ||
         constructor.Body is BlockStatementNode { Statements.Count: > 0 };
+
+    private static bool NeedsBaseInitialization(ConstructorDeclarationNode constructor, EmitContext ctx) =>
+        constructor.ChainTarget == ConstructorChainTarget.This ||
+        constructor.ChainTarget == ConstructorChainTarget.Base &&
+        ctx.CurrentType?.Base?.QualifiedName != "TypedGML.GameObjects.GameObject";
 
     private static string? TargetName(string parameterName, EmitContext ctx) =>
         ctx.CurrentType?.Members.FirstOrDefault(member =>

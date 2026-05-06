@@ -12,7 +12,8 @@ internal static class CliCompilerRegistrations
     public static IReadOnlyList<ISemanticCheck> Checks() =>
     [
         new TypeAssignabilityCheck(), new NullabilityCheck(), new MemberAccessCheck(), new BaseCallCheck(),
-        new MethodCallCheck(), new ConstructorCallCheck(), new OperatorCheck(), new ControlFlowCheck(),
+        new MethodCallCheck(), new ConstructorDeclarationCheck(), new ConstructorCallCheck(),
+        new OperatorCheck(), new ControlFlowCheck(),
         new SealedInheritanceCheck(), new AbstractCompletenessCheck(), new InterfaceImplementationCheck(),
         new OverrideSignatureCheck(), new StructInheritanceCheck(), new GenericConstraintCheck(),
         new DelegateSignatureCheck(), new EventAccessCheck(), new LambdaCheck(), new DecoratorPlacementCheck(),

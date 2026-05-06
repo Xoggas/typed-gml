@@ -17,6 +17,12 @@ internal static class ConstructorChainInliner
             return;
         }
 
+        if (constructor.ChainTarget == ConstructorChainTarget.None && ctx.CurrentType?.Base is not null)
+        {
+            EmitBaseConstructor(ctx.CurrentType.Base, [], constructor.Body, ctx);
+            return;
+        }
+
         if (constructor.ChainTarget == ConstructorChainTarget.This && ctx.CurrentType is not null)
         {
             var positionalArgs = CallArgumentOrderer.PositionalFromMixed(constructor.ChainArgs);
@@ -38,10 +44,16 @@ internal static class ConstructorChainInliner
         }
     }
 
+    public static void EmitImplicitBase(TypeSymbol? baseType, EmitContext ctx)
+    {
+        if (baseType is not null)
+            EmitBaseConstructor(baseType, [], null, ctx);
+    }
+
     private static void EmitBaseConstructor(
         TypeSymbol type,
         IReadOnlyList<IAstNode> args,
-        IAstNode currentBody,
+        IAstNode? currentBody,
         EmitContext ctx)
     {
         var chain = new List<ConstructorInlineFrame>();
@@ -60,7 +72,8 @@ internal static class ConstructorChainInliner
         var constructor = ConstructorChainTargetResolver.Resolve(type, args, ctx, out var orderedArgs);
         if (constructor is null)
         {
-            CollectDefaultInitializerChain(type.Base, chain);
+            if (type.Base is not null)
+                CollectBaseChain(type.Base, [], ctx, chain);
             chain.Add(new ConstructorInlineFrame(type, null, []));
             return;
         }
@@ -78,21 +91,11 @@ internal static class ConstructorChainInliner
         }
         else
         {
-            CollectDefaultInitializerChain(type.Base, chain);
+            if (type.Base is not null)
+                CollectBaseChain(type.Base, [], ctx, chain);
         }
 
         chain.Add(new ConstructorInlineFrame(type, body, temps));
-    }
-
-    private static void CollectDefaultInitializerChain(
-        TypeSymbol? type,
-        List<ConstructorInlineFrame> chain)
-    {
-        if (type is null)
-            return;
-
-        CollectDefaultInitializerChain(type.Base, chain);
-        chain.Add(new ConstructorInlineFrame(type, null, []));
     }
 
     private static void EmitArgumentTemps(

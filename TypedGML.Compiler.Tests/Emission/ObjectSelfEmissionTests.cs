@@ -13,6 +13,7 @@ public sealed class ObjectSelfEmissionTests
             @Object("obj_Entity")
             public class Entity : GameObject {
                 public number CurrentHp { get; set; }
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
 
                 public void TakeDamage(number amount) {
                     CurrentHp = CurrentHp - amount;
@@ -40,6 +41,7 @@ public sealed class ObjectSelfEmissionTests
             @Object("obj_Entity")
             public class Entity : GameObject {
                 public bool IsAlive { get; set; }
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
 
                 public override void OnStep() {
                     if (not IsAlive) { return; }
@@ -67,6 +69,8 @@ public sealed class ObjectSelfEmissionTests
 
             @Object("obj_Entity")
             public class Entity : GameObject {
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
+
                 public void MoveTo(number targetX, number targetY) {
                     Direction = X + Y;
                     Speed = Direction;
@@ -95,7 +99,7 @@ public sealed class ObjectSelfEmissionTests
 
             @Object("obj_Entity")
             public class Entity : GameObject {
-                public constructor(number x, number y, string layer, number targetX) {
+                public constructor(number x, number y, string layer, number targetX) : base(x, y, layer) {
                     X = targetX;
                 }
             }

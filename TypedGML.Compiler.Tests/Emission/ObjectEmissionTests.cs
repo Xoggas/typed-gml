@@ -12,7 +12,7 @@ public sealed class ObjectEmissionTests
             using TypedGML.GameObjects;
             @Object("OBJ_Foo")
             public class Foo : GameObject {
-                public constructor(number x, number y, string layer) { }
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
             }
             """).GetFile("Foo.gml")!;
         GmlAssert.HasFunction(gml, "Foo_create");
@@ -27,7 +27,7 @@ public sealed class ObjectEmissionTests
             @Object("OBJ_Player")
             public class Player : GameObject {
                 public number Health;
-                public constructor(number x, number y, string layer, number health) { Health = health; }
+                public constructor(number x, number y, string layer, number health) : base(x, y, layer) { Health = health; }
             }
             """).GetFile("Player.gml")!;
         GmlAssert.ContainsPattern(gml, "with (__inst) {");
@@ -43,7 +43,7 @@ public sealed class ObjectEmissionTests
             @Object("OBJ_Enemy")
             public class Enemy : GameObject {
                 public number Hp;
-                public constructor(number x, number y, string layer, number hp) { }
+                public constructor(number x, number y, string layer, number hp) : base(x, y, layer) { }
             }
             """).GetFile("Enemy.gml")!;
 
@@ -61,7 +61,7 @@ public sealed class ObjectEmissionTests
             public class Enemy : GameObject {
                 public number Hp;
                 public number Speed;
-                public constructor(number x, number y, string layer, number hp, number speed) { }
+                public constructor(number x, number y, string layer, number hp, number speed) : base(x, y, layer) { }
             }
             """).GetFile("Enemy.gml")!;
 
@@ -77,6 +77,7 @@ public sealed class ObjectEmissionTests
             using TypedGML.GameObjects;
             @Object("OBJ_Player")
             public class Player : GameObject {
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
                 public override void OnCreate() { }
                 public override void OnStep() { }
             }
@@ -95,7 +96,7 @@ public sealed class ObjectEmissionTests
             @Object("OBJ_Player")
             public class Player : GameObject {
                 public number[] Positions = [0];
-                public constructor(number x, number y, string layer) { }
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
             }
             """).GetFile("OBJ_Player/Create_0.gml")!;
 
@@ -111,6 +112,7 @@ public sealed class ObjectEmissionTests
             using TypedGML.GameObjects;
             @Object("OBJ_Player")
             public class Player : GameObject {
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
                 public override void OnStep() { X = X + 1; }
             }
             """).GetFile("OBJ_Player/Step_0.gml")!;
@@ -125,11 +127,14 @@ public sealed class ObjectEmissionTests
         var result = Compile("""
             using TypedGML.GameObjects;
             @Object("obj_Enemy")
-            public class Enemy : GameObject { }
+            public class Enemy : GameObject {
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
+            }
 
             @Object("obj_Player")
             public class Player : GameObject {
                 public number Hits;
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
 
                 @Collision(typeof(Enemy))
                 public void OnCollisionEnemy() {

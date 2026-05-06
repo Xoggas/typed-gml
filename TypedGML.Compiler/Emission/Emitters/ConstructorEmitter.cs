@@ -17,6 +17,7 @@ public sealed class ConstructorEmitter : INodeEmitter
             ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine($"var {EmitContext.InstParam} = {{}};");
+            ConstructorChainInliner.EmitImplicitBase(type.Base, ctx);
             ConstructorMemberInitializerEmitter.EmitDefaults(type, (IAstNode?)null, ctx);
             ctx.Writer.WriteLine($"return {EmitContext.InstParam};");
             ctx.Writer.EndBlock();

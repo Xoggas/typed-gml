@@ -16,6 +16,7 @@ internal static class CompilerRegistrations
         new MemberAccessCheck(),
         new BaseCallCheck(),
         new MethodCallCheck(),
+        new ConstructorDeclarationCheck(),
         new ConstructorCallCheck(),
         new OperatorCheck(),
         new ControlFlowCheck(),

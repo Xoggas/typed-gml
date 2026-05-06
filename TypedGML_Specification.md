@@ -455,6 +455,9 @@ public constructor(number x) : this(x, 0) { }  // constructor chaining
 - `base(...)` calls the parent constructor.
 - `this(...)` delegates to another constructor in the same class.
 - `base(...)` / `this(...)` executes before the constructor body.
+- A class that extends another class must chain each constructor to a matching parent constructor, either explicitly with `: base(...)` or implicitly to the parent's parameterless constructor.
+- If a derived class declares no constructors, it implicitly inherits the parent's parameterless constructor if one exists.
+- If no matching parent constructor can be found, verification reports `TGML0036`.
 
 ### 8.4 Static Constructor
 
@@ -1849,7 +1852,7 @@ Compilation halts after the Population phase if any structural errors are found.
 | TGML0033 | Verification | `break` or `continue` outside loop or switch |
 | TGML0034 | Verification | `return` value in void method or missing in non-void method |
 | TGML0035 | Verification | `return` value in void method or missing in non-void method (control-flow path) |
-| TGML0036 | Verification | Static field initializer references another class's static member (cross-class static dependency) |
+| TGML0036 | Verification | No matching constructor / constructor does not chain to a matching base constructor |
 | TGML0037 | Verification | Unknown `@NativeEvent` logical name |
 | TGML0038 | Verification | No overload of method matches the supplied arguments |
 | TGML0039 | Verification | Ambiguous call — multiple overloads match |
