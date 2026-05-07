@@ -15,7 +15,7 @@ internal static class CliCompilerRegistrations
         new MethodCallCheck(), new ConstructorDeclarationCheck(), new ConstructorCallCheck(),
         new OperatorCheck(), new ControlFlowCheck(),
         new SealedInheritanceCheck(), new AbstractCompletenessCheck(), new InterfaceImplementationCheck(),
-        new OverrideSignatureCheck(), new StructInheritanceCheck(), new GenericConstraintCheck(),
+        new MemberShadowCheck(), new OverrideSignatureCheck(), new StructInheritanceCheck(), new GenericConstraintCheck(),
         new DelegateSignatureCheck(), new EventAccessCheck(), new LambdaCheck(), new DecoratorPlacementCheck(),
         new NativeEventNameCheck(), new CollisionDecoratorCheck(), new ObjectDecoratorCheck(),
         new GameObjectDecoratorCheck(), new ConstExpressionCheck(), new ReadonlyAssignmentCheck(),

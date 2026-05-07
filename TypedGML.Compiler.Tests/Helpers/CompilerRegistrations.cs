@@ -23,6 +23,7 @@ internal static class CompilerRegistrations
         new SealedInheritanceCheck(),
         new AbstractCompletenessCheck(),
         new InterfaceImplementationCheck(),
+        new MemberShadowCheck(),
         new OverrideSignatureCheck(),
         new StructInheritanceCheck(),
         new GenericConstraintCheck(),

@@ -578,8 +578,9 @@ var inst = new MyObject(x, y, layer);
 
 The `MyObject_create` script:
 1. Calls `instance_create_layer(x, y, layer, "OBJ_MyObject")` using the `@Object("OBJ_MyObject")` binding.
-2. If the class has additional constructor parameters (beyond the three spatial ones), sets them via a `with` block on the returned instance.
-3. If no additional parameters: directly returns the instance without a `with` block.
+2. Runs the constructor body, and any non-GameObject base constructor body, inside a `with` block on the returned instance.
+3. Constructor parameters are assigned to members only when the constructor body explicitly assigns them.
+4. If no constructor body or base constructor body needs to run: directly returns the instance without a `with` block.
 
 ### 8.9 Abstract Classes
 
@@ -1071,7 +1072,9 @@ All `@Object` classes must explicitly extend `TypedGML.GameObjects.GameObject`. 
 @Object("OBJ_Player")
 public class Player : GameObject {
     public number Health;
-    public constructor(number x, number y, string layer, number health) { ... }
+    public constructor(number x, number y, string layer, number health) : base(x, y, layer) {
+        Health = health;
+    }
 }
 
 // new Player(100, 200, "Instances", 50) emits:
@@ -1086,6 +1089,8 @@ If there are no class-specific constructor parameters (only x, y, layer):
 ```gml
 return instance_create_layer(x, y, layer, OBJ_Player);
 ```
+
+Additional constructor parameters do not imply member assignment. A parameter is assigned only if the constructor body explicitly assigns it to a field or property.
 
 Event methods overridden from `GameObject` are emitted into separate GML event files. Only overridden events generate output files — unoverridden events produce no GML file.
 
@@ -1866,6 +1871,7 @@ Compilation halts after the Population phase if any structural errors are found.
 | TGML0047 | Verification | `@Collision` argument must be `typeof(TypeName)` |
 | TGML0048 | Verification | `@Collision` target type is not decorated with `@Object` |
 | TGML0049 | Verification | `@Collision` can only be applied to methods in `@Object` classes |
+| TGML0051 | Verification | Member hides an inherited member; explicit hiding is not supported |
 
 ---
 

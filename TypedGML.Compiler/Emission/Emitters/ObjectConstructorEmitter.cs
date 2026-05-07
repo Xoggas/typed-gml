@@ -6,7 +6,6 @@ namespace TypedGML.Compiler.Emission.Emitters;
 
 internal sealed class ObjectConstructorEmitter
 {
-    private readonly ObjectConstructorParameterEmitter _parameterEmitter = new();
     private readonly ObjectConstructorBodyEmitter _bodyEmitter = new();
 
     public void EmitImplicit(EmitContext ctx)
@@ -30,7 +29,6 @@ internal sealed class ObjectConstructorEmitter
         var objectName = ObjectName(ctx);
         var symbol = ResolveSymbol(ctx.CurrentType!, constructor);
         var spatialValues = SpatialValues(symbol, ctx);
-        var extraParameters = ExtraParameters(symbol, constructor);
         var functionName = NamingConvention.ConstructorName(ctx.CurrentType!);
         ctx.Writer.Write($"function {functionName}({parameters})");
         WithConstructorContext(ctx, constructor.Parameters, symbol, () =>
@@ -38,26 +36,20 @@ internal sealed class ObjectConstructorEmitter
             ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine($"var __inst = instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
-            EmitInstanceBlock(constructor, extraParameters, ctx);
+            EmitInstanceBlock(constructor, ctx);
             ctx.Writer.WriteLine("return __inst;");
             ctx.Writer.EndBlock();
         });
     }
 
-    private void EmitInstanceBlock(
-        ConstructorDeclarationNode constructor,
-        IReadOnlyList<ParameterNode> extraParameters,
-        EmitContext ctx)
+    private void EmitInstanceBlock(ConstructorDeclarationNode constructor, EmitContext ctx)
     {
-        var assignedMembers = ConstructorFieldAssignmentFinder.Find(constructor.Body);
-        if (!_bodyEmitter.NeedsBody(constructor, ctx) &&
-            !_parameterEmitter.HasAssignments(extraParameters, assignedMembers, ctx))
+        if (!_bodyEmitter.NeedsBody(constructor, ctx))
             return;
 
         ctx.Writer.Write("with (__inst)");
         ctx.Writer.BeginBlock();
         _bodyEmitter.Emit(constructor, ctx);
-        _parameterEmitter.Emit(extraParameters, assignedMembers, ctx);
         ctx.Writer.EndBlock();
     }
 
@@ -73,11 +65,6 @@ internal sealed class ObjectConstructorEmitter
 
     private static string ObjectName(EmitContext ctx) =>
         ctx.CurrentType?.ObjectAssetName ?? ctx.Decorators.ObjectAssetName ?? NamingConvention.TypeName(ctx.CurrentType!);
-    private static IReadOnlyList<ParameterNode> ExtraParameters(MemberSymbol? symbol, ConstructorDeclarationNode constructor) =>
-        symbol is not null && ObjectConstructorSpatialArguments.ParametersSupplyRequiredValues(symbol)
-            ? constructor.Parameters.Skip(3).ToList()
-            : constructor.Parameters;
-
     private static void WithConstructorContext(
         EmitContext ctx,
         IReadOnlyList<ParameterNode> parameters,

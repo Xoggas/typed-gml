@@ -9,7 +9,7 @@ internal static class MemberSignatureHelper
     {
         for (var current = type; current is not null; current = current.Base)
             foreach (var member in current.Members)
-                if (member.Name == name && (kind is null || member.Kind == kind))
+                if (NamesMatch(member.Name, name) && (kind is null || member.Kind == kind))
                     yield return member;
     }
 
@@ -24,18 +24,21 @@ internal static class MemberSignatureHelper
 
     public static bool SignatureExact(MemberSymbol left, MemberSymbol right) =>
         left.Kind == right.Kind &&
-        left.Name == right.Name &&
+        NamesMatch(left.Name, right.Name) &&
         left.ReturnType == right.ReturnType &&
         ParametersExact(left.Parameters, right.Parameters);
 
     public static bool SignatureExact(MemberSymbol symbol, MethodDeclarationNode method) =>
         symbol.Kind == MemberKind.Method &&
-        symbol.Name == method.Name &&
+        NamesMatch(symbol.Name, method.Name) &&
         symbol.ReturnType == method.TypeRef &&
         ParametersExact(symbol.Parameters, method.Parameters);
 
     public static bool SignatureExact(MemberSymbol symbol, PropertyDeclarationNode property) =>
         symbol.Kind == MemberKind.Property &&
-        symbol.Name == property.Name &&
+        NamesMatch(symbol.Name, property.Name) &&
         symbol.ReturnType == property.TypeRef;
+
+    private static bool NamesMatch(string left, string right) =>
+        string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 }

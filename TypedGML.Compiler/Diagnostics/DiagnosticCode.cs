@@ -50,5 +50,6 @@ public enum DiagnosticCode
     InvalidStaticConstructorUsage = 47,
     CollisionArgumentMustBeTypeof = 47,
     CollisionTargetMissingObjectDecorator = 48,
-    CollisionDecoratorInvalidTarget = 49
+    CollisionDecoratorInvalidTarget = 49,
+    MemberHidesInheritedMember = 51
 }

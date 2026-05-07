@@ -15,6 +15,18 @@ public sealed class ClassMemberTests
     [Fact] public void Test_InterfaceMemberImplemented_Valid() => AssertValid("public interface IFoo { void Foo(); } public class FooHost : IFoo { public void Foo() { } }");
     [Fact] public void Test_OverrideWithNoVirtualAncestor_TGML0007() => AssertHasError("public class Base { public void Foo() { } } public class Child : Base { public override void Foo() { } }", DiagnosticCode.MissingOverrideTarget);
     [Fact] public void Test_OverrideValid() => AssertValid("public class Base { public virtual void Foo() { } } public class Child : Base { public override void Foo() { } }");
+    [Fact] public void Test_OverrideCaseInsensitive_Valid() => AssertValid("public abstract class Base { public abstract void Foo(); } public class Child : Base { public override void foo() { } }");
+    [Fact] public void Test_FieldShadowsInheritedField_TGML0051() => AssertHasError("public class Base { public number Value; } public class Child : Base { public number value; }", DiagnosticCode.MemberHidesInheritedMember);
+    [Fact] public void Test_MethodWithoutOverrideShadowsVirtual_TGML0007() => AssertHasError("public class Base { public virtual void Foo() { } } public class Child : Base { public void foo() { } }", DiagnosticCode.MissingOverrideTarget);
+    [Fact] public void Test_SubclassMethodOverloadDifferentParams_Valid() => AssertValid("public class Base { public void Foo(number x) { } } public class Child : Base { public void foo(string x) { } }");
+    [Fact] public void Test_NativePropertyShadow_TGML0051() => AssertHasError("""
+        using TypedGML.GameObjects;
+        @Object("OBJ_Player")
+        public class Player : GameObject {
+            public constructor(number x, number y, string layer) : base(x, y, layer) { }
+            public number x;
+        }
+        """, DiagnosticCode.MemberHidesInheritedMember);
     [Fact] public void Test_PrivateMemberAccessedExternally_TGML0008() => AssertHasError("public class Owner { private number Value; } public class Other { public void Run() { var owner = new Owner(); var value = owner.Value; } }", DiagnosticCode.AccessViolation);
     [Fact] public void Test_ProtectedMemberAccessedFromSubclass_Valid() => AssertValid("public class Base { protected number Value; } public class Child : Base { public number Read() { return Value; } }");
     [Fact] public void Test_ProtectedMemberAccessedExternally_TGML0008() => AssertHasError("public class Base { protected number Value; } public class Other { public void Run() { var owner = new Base(); var value = owner.Value; } }", DiagnosticCode.AccessViolation);

@@ -102,17 +102,17 @@ public sealed class ObjectEmissionTests
             using TypedGML.GameObjects;
             @Object("OBJ_Player")
             public class Player : GameObject {
-                public number Health;
-                public constructor(number x, number y, string layer, number health) : base(x, y, layer) { Health = health; }
+                public number HitPoints;
+                public constructor(number x, number y, string layer, number health) : base(x, y, layer) { HitPoints = health; }
             }
             """).GetFile("Player.gml")!;
         GmlAssert.ContainsPattern(gml, "with (__inst) {");
-        GmlAssert.ContainsPattern(gml, "Health = health;");
+        GmlAssert.ContainsPattern(gml, "HitPoints = health;");
         GmlAssert.NotContainsPattern(Normalize(gml), "with (__inst)\n    {");
     }
 
     [Fact]
-    public void Test_ObjectCreateWithOneExtraParamAssignsInsideFlatWithBlock()
+    public void Test_ObjectCreateWithExtraParamWithoutBodyDoesNotAssignMatchingField()
     {
         var gml = Compile("""
             using TypedGML.GameObjects;
@@ -124,26 +124,27 @@ public sealed class ObjectEmissionTests
             """).GetFile("Enemy.gml")!;
 
         var normalized = Normalize(gml);
-        GmlAssert.ContainsPattern(normalized, "with (__inst) {\n        Hp = hp;\n    }");
-        GmlAssert.NotContainsPattern(normalized, "with (__inst)\n    {");
+        GmlAssert.NotContainsPattern(normalized, "with (__inst)");
+        GmlAssert.NotContainsPattern(normalized, "Hp = hp;");
     }
 
     [Fact]
-    public void Test_ObjectCreateWithTwoExtraParamsAssignsInsideFlatWithBlock()
+    public void Test_ObjectCreateWithExtraParamsWithoutBodyDoesNotAssignMatchingFields()
     {
         var gml = Compile("""
             using TypedGML.GameObjects;
             @Object("OBJ_Enemy")
             public class Enemy : GameObject {
                 public number Hp;
-                public number Speed;
-                public constructor(number x, number y, string layer, number hp, number speed) : base(x, y, layer) { }
+                public number MoveSpeed;
+                public constructor(number x, number y, string layer, number hp, number moveSpeed) : base(x, y, layer) { }
             }
             """).GetFile("Enemy.gml")!;
 
         var normalized = Normalize(gml);
-        GmlAssert.ContainsPattern(normalized, "with (__inst) {\n        Hp = hp;\n        Speed = speed;\n    }");
-        GmlAssert.NotContainsPattern(normalized, "with (__inst)\n    {");
+        GmlAssert.NotContainsPattern(normalized, "with (__inst)");
+        GmlAssert.NotContainsPattern(normalized, "Hp = hp;");
+        GmlAssert.NotContainsPattern(normalized, "MoveSpeed = moveSpeed;");
     }
 
     [Fact]
