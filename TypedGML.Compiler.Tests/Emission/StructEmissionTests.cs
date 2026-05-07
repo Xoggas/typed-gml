@@ -51,5 +51,17 @@ public sealed class StructEmissionTests
         GmlAssert.ContainsPattern(gml, "Point_create()");
     }
 
+    [Fact]
+    public void Test_StructStringField_DefaultsToEmptyString()
+    {
+        var gml = Compile("""
+            public struct Label {
+                public string Text;
+            }
+            """).GetFile("Label.gml")!;
+
+        GmlAssert.ContainsPattern(gml, "inst.Text = \"\";");
+    }
+
     private static CompileResult Compile(string source) => CompilerFixture.Compile(source);
 }

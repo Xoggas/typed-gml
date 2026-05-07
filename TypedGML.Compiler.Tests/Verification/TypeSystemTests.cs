@@ -106,7 +106,7 @@ public sealed class TypeSystemTests
     {
         var result = CompileDefault("DefaultStringHost", "string value_default_string = default(string);");
         result.HasErrors.Should().BeFalse();
-        GmlAssert.ContainsPattern(result.GetFile("DefaultStringHost.gml")!, "var value_default_string = undefined;");
+        GmlAssert.ContainsPattern(result.GetFile("DefaultStringHost.gml")!, "var value_default_string = \"\";");
     }
 
     private static CompileResult CompileInMethod(string statement) =>

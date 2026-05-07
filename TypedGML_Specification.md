@@ -215,7 +215,7 @@ result = condition ? valueIfTrue : valueIfFalse;
 |---|---|
 | `number` | `0` |
 | `bool` | `false` |
-| `string` | `undefined` |
+| `string` | `""` |
 | class | `undefined` |
 | struct | New instance with all fields recursively defaulted down to primitives |
 | `T[]` / `List<T>` | `undefined` |
@@ -1607,6 +1607,7 @@ function __tgml_default(typeName) {
     switch (typeName) {
         case "number": return 0;
         case "bool":   return false;
+        case "string": return "";
         default:       return undefined;
     }
 }

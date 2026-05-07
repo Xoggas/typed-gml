@@ -137,8 +137,8 @@ public sealed class ConstructorBaseInitializationEmissionTests
         result.HasErrors.Should().BeFalse();
         var savingsCtor = FunctionBlock(result.GetFile("SavingsAccount.gml")!, "function SavingsAccount_create");
 
-        GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_Owner = undefined;");
-        GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_AccountNumber = undefined;");
+        GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_Owner = \"\";");
+        GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_AccountNumber = \"\";");
         GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_Balance = 0;");
         GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_HasTransaction = false;");
         GmlAssert.NotContainsPattern(savingsCtor, "inst.__backing_WithdrawalLimit = 0;");

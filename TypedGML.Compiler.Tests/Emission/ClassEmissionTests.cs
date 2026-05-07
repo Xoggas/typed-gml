@@ -50,7 +50,7 @@ public sealed class ClassEmissionTests
         var gml = result.GetFile("/T.gml")!;
 
         GmlAssert.NotContainsPattern(gml, "inst.__backing_Value = 0;");
-        GmlAssert.ContainsPattern(gml, "inst.__backing_Name = undefined;");
+        GmlAssert.ContainsPattern(gml, "inst.__backing_Name = \"\";");
         GmlAssert.NotContainsPattern(gml, "inst.__backing_Active = false;");
         GmlAssert.ContainsPattern(gml, "T_set_Value(inst, value);");
         GmlAssert.ContainsPattern(gml, "T_set_Active(inst, active);");
@@ -158,7 +158,7 @@ public sealed class ClassEmissionTests
         result.HasErrors.Should().BeFalse();
         var gml = result.GetFile("Animal.gml")!;
 
-        GmlAssert.NotContainsPattern(gml, "inst._name = undefined;");
+        GmlAssert.NotContainsPattern(gml, "inst._name = \"\";");
         GmlAssert.ContainsPattern(gml, "inst._name = name;");
         GmlAssert.ContainsPattern(gml, "inst.Score = 0;");
     }

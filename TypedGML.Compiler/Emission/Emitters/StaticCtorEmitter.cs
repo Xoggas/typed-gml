@@ -8,6 +8,7 @@ namespace TypedGML.Compiler.Emission.Emitters;
 
 public sealed class StaticCtorEmitter
 {
+    private readonly StaticAutoPropertyInitializerEmitter _autoPropertyInitializerEmitter = new();
     public void EmitStaticCtor(TypeSymbol type, IEnumerable<IAstNode> members, EmitContext ctx)
     {
         var staticMethods = members.OfType<MethodDeclarationNode>().Where(IsStatic).ToList();
@@ -23,6 +24,7 @@ public sealed class StaticCtorEmitter
         ctx.Writer.BeginBlock();
         staticMethods.ForEach(method => EmitMethod(type, method, ctx));
         staticFields.Where(field => !assignedStaticFields.Contains(field.Name)).ToList().ForEach(field => EmitField(type, field, ctx));
+        _autoPropertyInitializerEmitter.Emit(type, staticProperties, ctx);
         staticProperties.ForEach(property => EmitProperty(type, property, ctx));
         if (staticConstructor is not null)
             EmitBody(staticConstructor.Body, ctx);
@@ -54,8 +56,7 @@ public sealed class StaticCtorEmitter
         var symbol = type.Members.FirstOrDefault(m => m.Kind == MemberKind.Field && m.Name == field.Name);
         if (symbol is null)
             return;
-
-        var value = field.Initializer is null ? "undefined" : ctx.RenderWithExpectedTempPrelude(field.Initializer, field.TypeRef);
+        var value = field.Initializer is null ? DefaultValueRenderer.Render(new DefaultExpressionNode(field.TypeRef, field.Location), ctx) : ctx.RenderWithExpectedTempPrelude(field.Initializer, field.TypeRef);
         ctx.FlushTempPrelude();
         ctx.Writer.WriteLine($"{NamingConvention.StaticMemberName(type, symbol)} = {value};");
     }

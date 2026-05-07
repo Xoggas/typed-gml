@@ -42,7 +42,13 @@ public sealed class StructEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEm
             if (constructor is null)
             {
                 foreach (var field in fields)
-                    ctx.Writer.WriteLine($"{ctx.SelfName}.{field.Name} = {FormatValue(field.Initializer)};");
+                {
+                    var value = field.Initializer is null
+                        ? DefaultValueRenderer.Render(new DefaultExpressionNode(field.TypeRef, field.Location), ctx)
+                        : ctx.RenderWithExpectedTempPrelude(field.Initializer, field.TypeRef);
+                    ctx.FlushTempPrelude();
+                    ctx.Writer.WriteLine($"{ctx.SelfName}.{field.Name} = {value};");
+                }
             }
             else
             {
@@ -67,19 +73,6 @@ public sealed class StructEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEm
 
     private static TypeSymbol? ResolveType(EmitContext ctx, string name, int arity) =>
         ctx.Symbols.TryResolve(name, arity, ctx.CurrentNamespacePrefix, [], out var symbol) ? symbol : null;
-
-    private static string FormatValue(IAstNode? node) => node switch
-    {
-        LiteralExpressionNode literal => literal.Kind switch
-        {
-            LiteralKind.String => $"\"{literal.Value?.ToString()?.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"",
-            LiteralKind.Bool => string.Equals(literal.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false",
-            LiteralKind.Null => "undefined",
-            _ => literal.Value?.ToString() ?? "undefined"
-        },
-        IdentifierExpressionNode identifier => identifier.Name,
-        _ => "undefined"
-    };
 
     private static void WithConstructorContext(EmitContext ctx, IReadOnlyList<ParameterNode> parameters, Action action)
     {

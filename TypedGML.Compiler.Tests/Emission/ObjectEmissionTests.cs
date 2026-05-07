@@ -257,7 +257,7 @@ public sealed class ObjectEmissionTests
 
         var normalized = Normalize(gml);
         GmlAssert.ContainsLine(gml, "self.Timer = 0;");
-        GmlAssert.ContainsLine(gml, "self.__backing_Name = undefined;");
+        GmlAssert.ContainsLine(gml, "self.__backing_Name = \"\";");
         GmlAssert.ContainsLine(gml, "self.__event_OnDeath = [];");
         normalized.IndexOf("self.__event_OnDeath = [];", StringComparison.Ordinal)
             .Should().BeLessThan(normalized.IndexOf("Timer = Timer + 1;", StringComparison.Ordinal));

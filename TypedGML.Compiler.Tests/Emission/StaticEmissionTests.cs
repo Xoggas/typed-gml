@@ -18,12 +18,21 @@ public sealed class StaticEmissionTests
         GmlAssert.ContainsPattern(Compile("public class Config { public static number X = 5; }").GetFile("Config.gml")!, "global.Config_X = 5;");
 
     [Fact]
+    public void Test_StaticStringField_DefaultsToEmptyString() =>
+        GmlAssert.ContainsPattern(Compile("public class Config { public static string Name; }").GetFile("Config.gml")!, "global.Config_Name = \"\";");
+
+    [Fact]
     public void Test_StaticProperty_EmittedInStaticCtor()
     {
         var gml = Compile("public class Config { public static number Volume { get; set; } }").GetFile("Config.gml")!;
+        GmlAssert.ContainsPattern(gml, "global.Config__Volume = 0;");
         GmlAssert.ContainsPattern(gml, "global.Config_get_Volume = function() {");
         GmlAssert.ContainsPattern(gml, "global.Config_set_Volume = function(value) {");
     }
+
+    [Fact]
+    public void Test_StaticStringProperty_DefaultsToEmptyString() =>
+        GmlAssert.ContainsPattern(Compile("public class Config { public static string Name { get; set; } }").GetFile("Config.gml")!, "global.Config__Name = \"\";");
 
     [Fact]
     public void Test_StaticCallSite() =>

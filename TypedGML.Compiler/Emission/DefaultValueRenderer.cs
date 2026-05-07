@@ -30,6 +30,7 @@ internal static class DefaultValueRenderer
     {
         "number" => "0",
         "bool" => "false",
+        "string" => "\"\"",
         _ => "undefined"
     };
 }
