@@ -177,8 +177,38 @@ public sealed class ObjectEmissionTests
             """).GetFile("OBJ_Player/Create_0.gml")!;
 
         gml.Should().NotBeNull();
-        GmlAssert.ContainsLine(gml, "Positions = [0];");
-        Normalize(gml).TrimStart().Should().StartWith("Positions = [0];");
+        GmlAssert.ContainsLine(gml, "self.Positions = [0];");
+        Normalize(gml).TrimStart().Should().StartWith("self.Positions = [0];");
+    }
+
+    [Fact]
+    public void Test_ObjectCreateEvent_InitializesInstanceStateBeforeOnCreate()
+    {
+        var gml = Compile("""
+            using TypedGML.GameObjects;
+
+            public delegate void DeathHandler();
+
+            @Object("OBJ_Player")
+            public class Player : GameObject {
+                public number Timer;
+                public string Name { get; set; }
+                public event DeathHandler OnDeath;
+
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
+
+                public override void OnCreate() {
+                    Timer = Timer + 1;
+                }
+            }
+            """).GetFile("OBJ_Player/Create_0.gml")!;
+
+        var normalized = Normalize(gml);
+        GmlAssert.ContainsLine(gml, "self.Timer = 0;");
+        GmlAssert.ContainsLine(gml, "self.__backing_Name = undefined;");
+        GmlAssert.ContainsLine(gml, "self.__event_OnDeath = [];");
+        normalized.IndexOf("self.__event_OnDeath = [];", StringComparison.Ordinal)
+            .Should().BeLessThan(normalized.IndexOf("Timer = Timer + 1;", StringComparison.Ordinal));
     }
 
     [Fact]

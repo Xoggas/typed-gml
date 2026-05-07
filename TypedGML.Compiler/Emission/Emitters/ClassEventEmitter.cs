@@ -9,6 +9,7 @@ namespace TypedGML.Compiler.Emission.Emitters;
 internal sealed class ClassEventEmitter
 {
     private readonly DecoratorProcessor _decoratorProcessor = new();
+    private readonly ClassCreateInitializerEmitter _createInitializerEmitter = new();
 
     public void Emit(ClassDeclarationNode declaration, MethodDeclarationNode method, string eventName, EmitContext ctx)
     {
@@ -37,7 +38,7 @@ internal sealed class ClassEventEmitter
 
     public void EmitCreateInitializers(ClassDeclarationNode declaration, EmitContext ctx)
     {
-        if (ctx.CurrentType is null || !HasCreateInitializers(declaration))
+        if (ctx.CurrentType is null || !_createInitializerEmitter.HasInitializers(declaration, ctx))
             return;
 
         EmitEventFile(declaration, GmlEventMap.Resolve("Create"), ctx, _ => { });
@@ -73,7 +74,7 @@ internal sealed class ClassEventEmitter
                 ctx.UsingPrefixes).CollisionTargetFileName
             : null;
 
-    private static void EmitEventFile(
+    private void EmitEventFile(
         ClassDeclarationNode declaration,
         string resolvedEvent,
         EmitContext ctx,
@@ -91,7 +92,8 @@ internal sealed class ClassEventEmitter
         eventCtx.SelfName = "self";
         eventCtx.ResetTempVars();
         eventCtx.Scope.Push();
-        EmitCreateInitializers(declaration, resolvedEvent, eventWriter, eventCtx);
+        if (string.Equals(resolvedEvent, "Create_0", StringComparison.Ordinal))
+            _createInitializerEmitter.Emit(declaration, eventCtx);
         emitBody(eventCtx);
         eventCtx.Scope.Pop();
         var path = isCollision
@@ -99,42 +101,6 @@ internal sealed class ClassEventEmitter
             : ctx.Files.GetEventPath(type, resolvedEvent);
         ctx.Output.Write(path, eventWriter.GetOutput());
     }
-
-    private static void EmitCreateInitializers(
-        ClassDeclarationNode declaration,
-        string resolvedEvent,
-        GmlWriter eventWriter,
-        EmitContext eventCtx)
-    {
-        if (!string.Equals(resolvedEvent, "Create_0", StringComparison.Ordinal))
-            return;
-
-        foreach (var field in declaration.Members.OfType<FieldDeclarationNode>().Where(HasInstanceInitializer))
-        {
-            var value = eventCtx.RenderWithTempPrelude(field.Initializer);
-            eventCtx.FlushTempPrelude();
-            eventWriter.WriteLine($"{field.Name} = {value};");
-        }
-
-        foreach (var evt in declaration.Members.OfType<EventDeclarationNode>().Where(IsInstanceEvent))
-        {
-            var symbol = eventCtx.CurrentType?.Members.FirstOrDefault(member => member.Kind == MemberKind.Event && member.Name == evt.Name);
-            if (symbol is not null)
-                eventWriter.WriteLine($"{NamingConvention.InstanceEventBackingName("self", symbol)} = [];");
-        }
-    }
-
-    private static bool HasInstanceInitializer(FieldDeclarationNode field) =>
-        field.Initializer is not null &&
-        !field.Modifiers.Contains("static", StringComparer.Ordinal) &&
-        !field.Modifiers.Contains("const", StringComparer.Ordinal);
-
-    private static bool HasCreateInitializers(ClassDeclarationNode declaration) =>
-        declaration.Members.OfType<FieldDeclarationNode>().Any(HasInstanceInitializer) ||
-        declaration.Members.OfType<EventDeclarationNode>().Any(IsInstanceEvent);
-
-    private static bool IsInstanceEvent(EventDeclarationNode evt) =>
-        !evt.Modifiers.Contains("static", StringComparer.Ordinal);
 
     private static string? DecoratorArg(IReadOnlyList<DecoratorNode> decorators, string name) =>
         decorators.FirstOrDefault(d => d.Name == name)?.Args.FirstOrDefault() is LiteralExpressionNode literal

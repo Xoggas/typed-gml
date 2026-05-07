@@ -1,6 +1,4 @@
-using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Members;
-using TypedGML.Compiler.Ast.Statements;
 using TypedGML.Compiler.Symbols;
 using TypedGML.Compiler.Utils;
 
@@ -8,6 +6,9 @@ namespace TypedGML.Compiler.Emission.Emitters;
 
 internal sealed class ObjectConstructorEmitter
 {
+    private readonly ObjectConstructorParameterEmitter _parameterEmitter = new();
+    private readonly ObjectConstructorBodyEmitter _bodyEmitter = new();
+
     public void EmitImplicit(EmitContext ctx)
     {
         var objectName = ObjectName(ctx);
@@ -18,10 +19,6 @@ internal sealed class ObjectConstructorEmitter
             ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine($"var __inst = instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
-            ctx.Writer.Write("with (__inst)");
-            ctx.Writer.BeginBlock();
-            ConstructorChainInliner.EmitImplicitBase(ctx.CurrentType?.Base, ctx);
-            ctx.Writer.EndBlock();
             ctx.Writer.WriteLine("return __inst;");
             ctx.Writer.EndBlock();
         });
@@ -41,62 +38,27 @@ internal sealed class ObjectConstructorEmitter
             ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine($"var __inst = instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
-            if (NeedsInstanceBlock(constructor, extraParameters, ctx))
-                EmitInstanceBlock(constructor, extraParameters, ctx);
+            EmitInstanceBlock(constructor, extraParameters, ctx);
             ctx.Writer.WriteLine("return __inst;");
             ctx.Writer.EndBlock();
         });
     }
 
-    private static bool NeedsInstanceBlock(ConstructorDeclarationNode constructor, IReadOnlyList<ParameterNode> extraParameters, EmitContext ctx) =>
-        extraParameters.Count > 0 ||
-        NeedsBaseInitialization(constructor, ctx) ||
-        constructor.Body is BlockStatementNode { Statements.Count: > 0 };
-    private static bool NeedsBaseInitialization(ConstructorDeclarationNode constructor, EmitContext ctx) =>
-        constructor.ChainTarget == ConstructorChainTarget.This ||
-        constructor.ChainTarget == ConstructorChainTarget.Base &&
-        ctx.CurrentType?.Base?.QualifiedName != "TypedGML.GameObjects.GameObject";
-    private static void EmitInstanceBlock(
+    private void EmitInstanceBlock(
         ConstructorDeclarationNode constructor,
         IReadOnlyList<ParameterNode> extraParameters,
         EmitContext ctx)
     {
+        var assignedMembers = ConstructorFieldAssignmentFinder.Find(constructor.Body);
+        if (!_bodyEmitter.NeedsBody(constructor, ctx) &&
+            !_parameterEmitter.HasAssignments(extraParameters, assignedMembers, ctx))
+            return;
+
         ctx.Writer.Write("with (__inst)");
         ctx.Writer.BeginBlock();
-        ConstructorChainInliner.Emit(constructor, ctx);
-        EmitBodyStatements(constructor.Body, ctx);
-        EmitParameterAssignments(extraParameters, constructor.Body, ctx);
+        _bodyEmitter.Emit(constructor, ctx);
+        _parameterEmitter.Emit(extraParameters, assignedMembers, ctx);
         ctx.Writer.EndBlock();
-    }
-
-    private static string? TargetName(string parameterName, EmitContext ctx) =>
-        ctx.CurrentType?.Members.FirstOrDefault(member =>
-            member.Kind is MemberKind.Field or MemberKind.Property &&
-            !member.Modifiers.Contains("static", StringComparer.Ordinal) &&
-            !string.Equals(member.Name, parameterName, StringComparison.Ordinal) &&
-            string.Equals(member.Name, parameterName, StringComparison.OrdinalIgnoreCase))?.Name;
-
-    private static void EmitBodyStatements(IAstNode body, EmitContext ctx)
-    {
-        if (body is BlockStatementNode block)
-        {
-            foreach (var statement in block.Statements)
-                ctx.Dispatch(statement, ctx);
-            return;
-        }
-
-        ctx.Dispatch(body, ctx);
-    }
-
-    private static void EmitParameterAssignments(IReadOnlyList<ParameterNode> extraParameters, IAstNode body, EmitContext ctx)
-    {
-        var assignedFields = ConstructorFieldAssignmentFinder.Find(body);
-        foreach (var parameter in extraParameters)
-        {
-            var targetName = TargetName(parameter.Name, ctx);
-            if (targetName is not null && !assignedFields.Contains(targetName))
-                ctx.Writer.WriteLine($"{targetName} = {parameter.Name};");
-        }
     }
 
     private static MemberSymbol? ResolveSymbol(TypeSymbol type, ConstructorDeclarationNode constructor) =>
