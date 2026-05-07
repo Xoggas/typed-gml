@@ -817,7 +817,7 @@ All built-in decorators affect **code generation**. They are defined in BCL but 
 
 | Decorator | Target | Effect |
 |---|---|---|
-| `@Object("gmlName")` | class | Binds the class to a GML object asset. `new T(x,y,layer)` calls `instance_create_layer`. |
+| `@Object("gmlName")` | concrete class | Binds the class to a GML object asset. `new T(x,y,layer)` calls `instance_create_layer`. Abstract classes derived from `GameObject` must not use `@Object`. |
 | `@NativeEvent("eventName")` | method | Binds this method to a GML event (e.g. `"Create"`, `"Step"`, `"Draw"`). Emits to the corresponding GML event file. |
 | `@Collision(typeof(T))` | method | Binds to the collision event with GML object `T`. `T` must be `@Object`-decorated. Generates `Collision_<T_asset_name>.gml`. |
 | `@NativeProperty("gmlName")` | property | Binds the property to a GML native property (e.g. `"x"`, `"y"`, `"speed"`). `get` emits as `gmlName`, `set` as `gmlName = value`. |
@@ -1066,7 +1066,7 @@ gml_pragma("global", "Config_static_ctor()");
 
 ### 19.7 @Object Constructor Emission
 
-All `@Object` classes must explicitly extend `TypedGML.GameObjects.GameObject`. The `@Object` decorator binds the class to a GML object asset name used in `instance_create_layer`.
+All `@Object` classes must be concrete and explicitly extend `TypedGML.GameObjects.GameObject`. The `@Object` decorator binds the class to a GML object asset name used in `instance_create_layer`.
 
 ```tgml
 @Object("OBJ_Player")
@@ -1871,6 +1871,7 @@ Compilation halts after the Population phase if any structural errors are found.
 | TGML0047 | Verification | `@Collision` argument must be `typeof(TypeName)` |
 | TGML0048 | Verification | `@Collision` target type is not decorated with `@Object` |
 | TGML0049 | Verification | `@Collision` can only be applied to methods in `@Object` classes |
+| TGML0050 | Verification | Abstract class derived from `GameObject` has an `@Object` decorator |
 | TGML0051 | Verification | Member hides an inherited member; explicit hiding is not supported |
 
 ---

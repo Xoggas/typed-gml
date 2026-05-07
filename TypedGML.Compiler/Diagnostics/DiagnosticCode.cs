@@ -51,5 +51,6 @@ public enum DiagnosticCode
     CollisionArgumentMustBeTypeof = 47,
     CollisionTargetMissingObjectDecorator = 48,
     CollisionDecoratorInvalidTarget = 49,
+    AbstractGameObjectObjectDecorator = 50,
     MemberHidesInheritedMember = 51
 }

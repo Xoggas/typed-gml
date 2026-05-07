@@ -17,14 +17,22 @@ public sealed class GameObjectDecoratorCheck : ISemanticCheck
         if (DecoratorHelper.IsBcl(@class.Location))
             return;
 
-        var hasObjectDecorator = ctx.CurrentType?.ObjectAssetName is not null;
+        var hasObjectDecorator = @class.Decorators.Any(decorator => decorator.Name == "Object");
         var extendsGameObject = ExtendsGameObject(ctx.CurrentType);
+        var isAbstract = ctx.CurrentType?.IsAbstract == true;
 
-        if (extendsGameObject && !hasObjectDecorator)
+        if (extendsGameObject && !isAbstract && !hasObjectDecorator)
             ctx.Diagnostics.Report(
                 DiagnosticCode.GameObjectMissingObjectDecorator,
                 DiagnosticSeverity.Error,
                 $"Class '{@class.Name}' extends GameObject and must be decorated with @Object.",
+                @class.Location);
+
+        if (extendsGameObject && isAbstract && hasObjectDecorator)
+            ctx.Diagnostics.Report(
+                DiagnosticCode.AbstractGameObjectObjectDecorator,
+                DiagnosticSeverity.Error,
+                $"Abstract GameObject class '{@class.Name}' must not be decorated with @Object.",
                 @class.Location);
 
         if (hasObjectDecorator && !extendsGameObject)

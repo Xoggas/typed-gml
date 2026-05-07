@@ -686,6 +686,15 @@ All operator resolution goes through `SymbolTable`. Primitive types (`number`, `
 | DP06 | Multiple `@Object` decorators on one class → error. |
 | DP07 | `@Object` string argument must be a non-empty string literal. |
 
+**File:** `GameObjectDecoratorCheck.cs`
+**Matches:** `ClassDeclarationNode`
+
+| # | Rule |
+|---|---|
+| DP08 | Concrete classes derived from `TypedGML.GameObjects.GameObject` must have `@Object` → error `TGML0045`. |
+| DP09 | Classes with `@Object` must explicitly derive from `TypedGML.GameObjects.GameObject` → error `TGML0046`. |
+| DP10 | Abstract classes derived from `TypedGML.GameObjects.GameObject` must not have `@Object` → error `TGML0050`. |
+
 ---
 
 ### 7.15 Const and Readonly
