@@ -50,8 +50,13 @@ public sealed class ClassEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEmi
     {
         foreach (var member in declaration.Members.OfType<FieldDeclarationNode>())
             ctx.Dispatch(member, ctx);
-        foreach (var constructor in declaration.Members.OfType<ConstructorDeclarationNode>())
+
+        var constructors = declaration.Members.OfType<ConstructorDeclarationNode>().ToList();
+        if (constructors.Count == 0)
+            _objectConstructorEmitter.EmitImplicit(ctx);
+        foreach (var constructor in constructors)
             _objectConstructorEmitter.Emit(ctx, constructor);
+
         var createEventEmitted = false;
         foreach (var method in declaration.Members.OfType<MethodDeclarationNode>().Where(m => !m.Modifiers.Contains("static", StringComparer.Ordinal)))
         {

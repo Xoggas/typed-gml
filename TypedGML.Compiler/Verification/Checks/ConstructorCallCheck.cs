@@ -43,8 +43,28 @@ public sealed class ConstructorCallCheck : ISemanticCheck
         }
 
         if (type.ObjectAssetName is not null &&
-            !matches.Any(member => ObjectConstructorSpatialArguments.SuppliesRequiredValues(member, arg => ExpressionTypeResolver.Resolve(arg, ctx))))
+            !matches.Any(member => ObjectConstructorSpatialArguments.SuppliesRequiredValues(type, member, TryResolveSpatialConstructor)))
             Report(DiagnosticCode.InvalidObjectConstructorArgumentCount, "@Object construction requires x, y, and layer arguments from the constructor parameters or base constructor call.", creation.Location, ctx);
+    }
+
+    private static bool TryResolveSpatialConstructor(
+        TypeSymbol type,
+        IReadOnlyList<IAstNode> mixedArgs,
+        out MemberSymbol? constructor,
+        out IReadOnlyList<IAstNode> orderedArgs)
+    {
+        var positionalArgs = CallArgumentOrderer.PositionalFromMixed(mixedArgs);
+        var namedArgs = CallArgumentOrderer.NamedFromMixed(mixedArgs);
+        constructor = type.Members
+            .Where(member => member.Kind == MemberKind.Constructor)
+            .FirstOrDefault(member => CallArgumentOrderer.TryOrder(member, positionalArgs, namedArgs, true, out _));
+        if (constructor is null)
+        {
+            orderedArgs = [];
+            return false;
+        }
+
+        return CallArgumentOrderer.TryOrder(constructor, positionalArgs, namedArgs, true, out orderedArgs);
     }
 
     private static void Report(DiagnosticCode code, string message, SourceLocation location, VerificationContext ctx) =>

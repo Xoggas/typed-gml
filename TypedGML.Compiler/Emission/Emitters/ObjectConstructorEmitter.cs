@@ -1,7 +1,6 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Ast.Statements;
-using TypedGML.Compiler.Emission.Emitters.Expressions;
 using TypedGML.Compiler.Symbols;
 using TypedGML.Compiler.Utils;
 
@@ -9,35 +8,41 @@ namespace TypedGML.Compiler.Emission.Emitters;
 
 internal sealed class ObjectConstructorEmitter
 {
+    public void EmitImplicit(EmitContext ctx)
+    {
+        var objectName = ObjectName(ctx);
+        var spatialValues = SpatialValues(null, ctx);
+        ctx.Writer.Write($"function {NamingConvention.ConstructorName(ctx.CurrentType!)}()");
+        WithConstructorContext(ctx, [], null, () =>
+        {
+            ctx.ResetTempVars();
+            ctx.Writer.BeginBlock();
+            ctx.Writer.WriteLine($"var __inst = instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
+            ctx.Writer.Write("with (__inst)");
+            ctx.Writer.BeginBlock();
+            ConstructorChainInliner.EmitImplicitBase(ctx.CurrentType?.Base, ctx);
+            ctx.Writer.EndBlock();
+            ctx.Writer.WriteLine("return __inst;");
+            ctx.Writer.EndBlock();
+        });
+    }
+
     public void Emit(EmitContext ctx, ConstructorDeclarationNode constructor)
     {
         var parameters = string.Join(", ", constructor.Parameters.Select(p => p.Name));
-        var objectName = ctx.CurrentType?.ObjectAssetName ?? ctx.Decorators.ObjectAssetName ?? NamingConvention.TypeName(ctx.CurrentType!);
+        var objectName = ObjectName(ctx);
         var symbol = ResolveSymbol(ctx.CurrentType!, constructor);
-        var spatialValues = SpatialValues(symbol, constructor, ctx);
+        var spatialValues = SpatialValues(symbol, ctx);
         var extraParameters = ExtraParameters(symbol, constructor);
-        var functionName = symbol is null
-            ? NamingConvention.ConstructorName(ctx.CurrentType!)
-            : NamingConvention.ConstructorName(ctx.CurrentType!, symbol);
+        var functionName = NamingConvention.ConstructorName(ctx.CurrentType!);
         ctx.Writer.Write($"function {functionName}({parameters})");
         WithConstructorContext(ctx, constructor.Parameters, symbol, () =>
         {
             ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
-            if (!NeedsInstanceBlock(constructor, extraParameters, ctx))
-            {
-                ctx.Writer.WriteLine($"return instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
-                ctx.Writer.EndBlock();
-                return;
-            }
-
             ctx.Writer.WriteLine($"var __inst = instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
-            ctx.Writer.Write("with (__inst)");
-            ctx.Writer.BeginBlock();
-            ConstructorChainInliner.Emit(constructor, ctx);
-            EmitBodyStatements(constructor.Body, ctx);
-            EmitParameterAssignments(extraParameters, constructor.Body, ctx);
-            ctx.Writer.EndBlock();
+            if (NeedsInstanceBlock(constructor, extraParameters, ctx))
+                EmitInstanceBlock(constructor, extraParameters, ctx);
             ctx.Writer.WriteLine("return __inst;");
             ctx.Writer.EndBlock();
         });
@@ -47,11 +52,22 @@ internal sealed class ObjectConstructorEmitter
         extraParameters.Count > 0 ||
         NeedsBaseInitialization(constructor, ctx) ||
         constructor.Body is BlockStatementNode { Statements.Count: > 0 };
-
     private static bool NeedsBaseInitialization(ConstructorDeclarationNode constructor, EmitContext ctx) =>
         constructor.ChainTarget == ConstructorChainTarget.This ||
         constructor.ChainTarget == ConstructorChainTarget.Base &&
         ctx.CurrentType?.Base?.QualifiedName != "TypedGML.GameObjects.GameObject";
+    private static void EmitInstanceBlock(
+        ConstructorDeclarationNode constructor,
+        IReadOnlyList<ParameterNode> extraParameters,
+        EmitContext ctx)
+    {
+        ctx.Writer.Write("with (__inst)");
+        ctx.Writer.BeginBlock();
+        ConstructorChainInliner.Emit(constructor, ctx);
+        EmitBodyStatements(constructor.Body, ctx);
+        EmitParameterAssignments(extraParameters, constructor.Body, ctx);
+        ctx.Writer.EndBlock();
+    }
 
     private static string? TargetName(string parameterName, EmitContext ctx) =>
         ctx.CurrentType?.Members.FirstOrDefault(member =>
@@ -88,15 +104,13 @@ internal sealed class ObjectConstructorEmitter
             member.Kind == MemberKind.Constructor &&
             member.Parameters.Select(p => p.TypeRef).SequenceEqual(constructor.Parameters.Select(p => p.TypeRef), StringComparer.Ordinal));
 
-    private static IReadOnlyList<string> SpatialValues(MemberSymbol? symbol, ConstructorDeclarationNode constructor, EmitContext ctx) =>
-        ObjectConstructorSpatialArguments.TryGetBaseChainValues(symbol, arg => ExpressionTypeLookup.Resolve(arg, ctx), out var values)
+    private static IReadOnlyList<string> SpatialValues(MemberSymbol? symbol, EmitContext ctx) =>
+        ObjectConstructorSpatialArguments.TryGetValues(ctx.CurrentType!, symbol, ObjectConstructorLookup.Create(ctx), out var values)
             ? values.Select(arg => ctx.Emitter.Render(arg, ctx)).ToList()
-            : [
-                constructor.Parameters.ElementAtOrDefault(0)?.Name ?? "x",
-                constructor.Parameters.ElementAtOrDefault(1)?.Name ?? "y",
-                constructor.Parameters.ElementAtOrDefault(2)?.Name ?? "layer"
-            ];
+            : ["undefined", "undefined", "undefined"];
 
+    private static string ObjectName(EmitContext ctx) =>
+        ctx.CurrentType?.ObjectAssetName ?? ctx.Decorators.ObjectAssetName ?? NamingConvention.TypeName(ctx.CurrentType!);
     private static IReadOnlyList<ParameterNode> ExtraParameters(MemberSymbol? symbol, ConstructorDeclarationNode constructor) =>
         symbol is not null && ObjectConstructorSpatialArguments.ParametersSupplyRequiredValues(symbol)
             ? constructor.Parameters.Skip(3).ToList()

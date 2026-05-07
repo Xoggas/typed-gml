@@ -16,7 +16,83 @@ public sealed class ObjectEmissionTests
             }
             """).GetFile("Foo.gml")!;
         GmlAssert.HasFunction(gml, "Foo_create");
-        GmlAssert.ContainsPattern(gml, "return instance_create_layer(x, y, layer, OBJ_Foo);");
+        GmlAssert.ContainsPattern(gml, "var __inst = instance_create_layer(x, y, layer, OBJ_Foo);");
+        GmlAssert.ContainsPattern(gml, "return __inst;");
+    }
+
+    [Fact]
+    public void Test_ObjectCreation_AlwaysCallsCreateFunction()
+    {
+        var result = Compile("""
+            using TypedGML.GameObjects;
+
+            @Object("obj_Player")
+            public class Player : GameObject {
+                public constructor(string name) : base(0, 0, "player_layer") { }
+            }
+
+            public class Spawner {
+                public void Spawn() {
+                    var player = new Player("Ada");
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(ErrorText(result));
+        var player = result.GetFile("Player.gml")!;
+        var spawner = result.GetFile("Spawner.gml")!;
+
+        GmlAssert.ContainsPattern(player, "function Player_create(name)");
+        GmlAssert.ContainsPattern(player, "var __inst = instance_create_layer(0, 0, \"player_layer\", obj_Player);");
+        GmlAssert.ContainsPattern(spawner, "var player = Player_create(\"Ada\");");
+        GmlAssert.NotContainsPattern(spawner, "instance_create_layer");
+    }
+
+    [Fact]
+    public void Test_ObjectCreate_TracesForwardedBaseChain()
+    {
+        var result = Compile("""
+            using TypedGML.GameObjects;
+
+            @Object("obj_Actor")
+            public class Actor : GameObject {
+                public constructor(number x, number y, string layer) : base(x, y, layer) { }
+            }
+
+            @Object("obj_Player")
+            public class Player : Actor {
+                public constructor(number px, number py, string targetLayer, number hp) : base(px, py, targetLayer) { }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(ErrorText(result));
+        var player = result.GetFile("Player.gml")!;
+
+        GmlAssert.ContainsPattern(player, "function Player_create(px, py, targetLayer, hp)");
+        GmlAssert.ContainsPattern(player, "var __inst = instance_create_layer(px, py, targetLayer, obj_Player);");
+    }
+
+    [Fact]
+    public void Test_ObjectCreate_ConstructorBodyRunsInsideInstanceBlock()
+    {
+        var result = Compile("""
+            using TypedGML.GameObjects;
+
+            @Object("obj_Player")
+            public class Player : GameObject {
+                public string Name { get; set; }
+
+                public constructor(string name) : base(0, 0, "player_layer") {
+                    Name = name;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(ErrorText(result));
+        var player = result.GetFile("Player.gml")!;
+
+        GmlAssert.ContainsPattern(player, "with (__inst) {");
+        GmlAssert.ContainsPattern(player, "Player_set_Name(self, name);");
     }
 
     [Fact]
@@ -193,4 +269,7 @@ public sealed class ObjectEmissionTests
 
     private static string Normalize(string text) =>
         text.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+    private static string ErrorText(CompileResult result) =>
+        string.Join(Environment.NewLine, result.Errors.Select(error => $"{error.Code}: {error.Message}"));
 }

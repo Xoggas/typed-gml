@@ -44,7 +44,7 @@ internal static class GmlExpressionRenderer
         NameofExpressionNode n => $"\"{n.Chain.LastOrDefault() ?? string.Empty}\"",
         NullCoalescingExpressionNode n => $"({Render(n.Left, ctx)} != undefined ? {Render(n.Left, ctx)} : {Render(n.Right, ctx)})",
         NullConditionalExpressionNode n => RenderNullConditional(n, ctx),
-        ObjectCreationExpressionNode n => $"{ResolveConstructorName(n.TypeRef, n.TypeArgs.Count, ctx)}({JoinArgs(n.PositionalArgs, n.NamedArgs, ctx)})",
+        ObjectCreationExpressionNode n => ObjectCreationExpressionEmitter.Render(n, ctx),
         TernaryExpressionNode n => $"({Render(n.Condition, ctx)} ? {Render(n.ThenExpr, ctx)} : {Render(n.ElseExpr, ctx)})",
         ThisExpressionNode => ctx.SelfName ?? EmitContext.InstParam,
         TypeofExpressionNode n => RenderTypeof(n, ctx),
@@ -94,11 +94,6 @@ internal static class GmlExpressionRenderer
         nested.Emitter.Emit(node.Body, nested);
         return writer.GetOutput().TrimEnd();
     }
-
-    private static string ResolveConstructorName(string typeRef, int arity, EmitContext ctx) =>
-        ctx.Symbols.TryResolve(typeRef, arity, ctx.CurrentNamespacePrefix, [], out var symbol)
-            ? NamingConvention.ConstructorName(symbol)
-            : $"{typeRef.Replace(".", "_", StringComparison.Ordinal)}_create";
 
     private static string RenderNullConditional(NullConditionalExpressionNode node, EmitContext ctx)
     {
