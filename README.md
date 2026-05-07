@@ -1,4 +1,6 @@
-# TypedGML
+<p align="center">
+  <img src="resources/logo.svg" alt="TypedGML" height="175">
+</p>
 
 TypedGML is a statically typed language that compiles to **GML (GameMaker Language)**.
 
