@@ -34,12 +34,7 @@ public sealed class ObjectCreationExpressionEmitter : INodeEmitter
     private static string RenderObjectCreation(ObjectCreationExpressionNode expression, TypeSymbol type, EmitContext ctx)
     {
         var args = ExpressionCallHelper.JoinConstructorArguments(type, expression.PositionalArgs, expression.NamedArgs, ctx);
-        var invocation = $"{NamingConvention.ConstructorName(type)}({args})";
-        if (type.GenericParameters.Count == 0 || expression.TypeArgs.Count == 0)
-            return invocation;
-
-        var genericArgs = GenericArgsRenderer.Render(type, expression.TypeArgs, ctx);
-        return $"(function() {{ var __inst = {invocation}; __inst.__genericArgs = {genericArgs}; return __inst; }})()";
+        return $"{NamingConvention.ConstructorName(type)}({args})";
     }
 
     private static string RenderGenericCreation(ObjectCreationExpressionNode expression, TypeSymbol type, EmitContext ctx)
