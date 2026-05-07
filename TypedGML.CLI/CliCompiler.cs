@@ -34,7 +34,8 @@ internal sealed class CliCompiler(string bclPath)
         var metadata = CompileMetadataBuilder.Build(fileNodes, symbols);
         var sourcePaths = ResourceSourcePathBuilder.Build(fileNodes, symbols);
         var bclScriptNames = BclScriptNameCollector.Collect(fileNodes, bclPath);
-        return new BuildResult(diagnostics, CliCompileResult.FromOutput(outputSink.Output, outputRoot, metadata, sourcePaths, bclScriptNames));
+        var objectNames = ObjectResourceNameCollector.Collect(symbols);
+        return new BuildResult(diagnostics, CliCompileResult.FromOutput(outputSink.Output, outputRoot, metadata, sourcePaths, bclScriptNames, objectNames));
     }
 
     private IReadOnlyList<FileNode> BuildAst(TgmlConfig config, DiagnosticBag diagnostics)

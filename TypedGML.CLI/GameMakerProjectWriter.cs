@@ -51,8 +51,10 @@ internal sealed class GameMakerProjectWriter
         var objectWriter = new ObjectYyWriter();
         foreach (var obj in compileResult.Objects)
         {
+            var objectDir = Path.Combine(gmRoot, "objects", obj.Name);
+            DeleteStaleEventFiles(objectDir, obj.Events.Keys);
             foreach (var (eventFile, content) in obj.Events)
-                WriteText(Path.Combine(gmRoot, "objects", obj.Name, $"{eventFile}.gml"), content);
+                WriteText(Path.Combine(objectDir, $"{eventFile}.gml"), content);
 
             var gmFolder = FolderForSource(obj.SourceFilePath, tgmlRoot);
             objectWriter.Write(obj.Name, gmRoot, obj.Events.Keys.ToList(), projectName, yypFileName, gmFolder);
@@ -103,5 +105,19 @@ internal sealed class GameMakerProjectWriter
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content, new UTF8Encoding(false));
+    }
+
+    private static void DeleteStaleEventFiles(string objectDir, IEnumerable<string> currentEventFiles)
+    {
+        if (!Directory.Exists(objectDir))
+            return;
+
+        var current = currentEventFiles.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in Directory.EnumerateFiles(objectDir, "*.gml"))
+        {
+            var stem = Path.GetFileNameWithoutExtension(path);
+            if (!current.Contains(stem))
+                File.Delete(path);
+        }
     }
 }

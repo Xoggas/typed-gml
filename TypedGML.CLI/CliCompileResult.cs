@@ -37,11 +37,24 @@ internal sealed class CliCompileResult
         IReadOnlyDictionary<string, string> resourceSourcePaths,
         IReadOnlySet<string> bclScriptCandidates)
     {
+        return FromOutput(output, outputRoot, resourceNamespaces, resourceSourcePaths, bclScriptCandidates, []);
+    }
+
+    public static CliCompileResult FromOutput(
+        IReadOnlyDictionary<string, string> output,
+        string outputRoot,
+        IReadOnlyDictionary<string, string> resourceNamespaces,
+        IReadOnlyDictionary<string, string> resourceSourcePaths,
+        IReadOnlySet<string> bclScriptCandidates,
+        IReadOnlyList<string> objectNames)
+    {
         var scripts = new SortedDictionary<string, string>(StringComparer.Ordinal);
         var objects = new SortedDictionary<string, SortedDictionary<string, string>>(StringComparer.Ordinal);
 
         foreach (var (path, content) in output)
             AddOutput(path, content, outputRoot, scripts, objects);
+        foreach (var objectName in objectNames)
+            objects.TryAdd(objectName, new SortedDictionary<string, string>(StringComparer.Ordinal));
 
         var objectResources = objects
             .Select(entry => new CompiledObjectResource(
