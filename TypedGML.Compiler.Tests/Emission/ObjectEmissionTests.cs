@@ -73,6 +73,57 @@ public sealed class ObjectEmissionTests
     }
 
     [Fact]
+    public void Test_ObjectImplicitConstructor_InlinesParameterlessBaseBody()
+    {
+        var result = Compile("""
+            using TypedGML.GameObjects;
+
+            public abstract class Entity : GameObject {
+                public string Name { get; set; }
+                public string _name = "Unnamed Entity";
+
+                public constructor() : base(0, 0, "player_layer") {
+                    _name = "AAA";
+                }
+            }
+
+            @Object("obj_Player")
+            public class Player : Entity {
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(ErrorText(result));
+        var player = result.GetFile("Player.gml")!;
+
+        GmlAssert.ContainsPattern(player, "function Player_create()");
+        GmlAssert.ContainsPattern(player, "var __inst = instance_create_layer(0, 0, \"player_layer\", obj_Player);");
+        GmlAssert.ContainsPattern(player, "with (__inst) {");
+        GmlAssert.ContainsPattern(player, "self._name = \"AAA\";");
+    }
+
+    [Fact]
+    public void Test_ObjectImplicitConstructor_EmptyBaseBodySkipsInstanceBlock()
+    {
+        var result = Compile("""
+            using TypedGML.GameObjects;
+
+            public abstract class Entity : GameObject {
+                public constructor() : base(0, 0, "player_layer") { }
+            }
+
+            @Object("obj_Player")
+            public class Player : Entity {
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse(ErrorText(result));
+        var player = result.GetFile("Player.gml")!;
+
+        GmlAssert.ContainsPattern(player, "var __inst = instance_create_layer(0, 0, \"player_layer\", obj_Player);");
+        GmlAssert.NotContainsPattern(Normalize(player), "with (__inst)");
+    }
+
+    [Fact]
     public void Test_ObjectCreate_ConstructorBodyRunsInsideInstanceBlock()
     {
         var result = Compile("""

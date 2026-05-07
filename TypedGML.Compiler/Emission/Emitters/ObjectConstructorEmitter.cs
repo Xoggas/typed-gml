@@ -18,6 +18,7 @@ internal sealed class ObjectConstructorEmitter
             ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine($"var __inst = instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
+            EmitInstanceBlock(_bodyEmitter.BuildImplicit(ctx), ctx);
             ctx.Writer.WriteLine("return __inst;");
             ctx.Writer.EndBlock();
         });
@@ -36,20 +37,20 @@ internal sealed class ObjectConstructorEmitter
             ctx.ResetTempVars();
             ctx.Writer.BeginBlock();
             ctx.Writer.WriteLine($"var __inst = instance_create_layer({spatialValues[0]}, {spatialValues[1]}, {spatialValues[2]}, {objectName});");
-            EmitInstanceBlock(constructor, ctx);
+            EmitInstanceBlock(_bodyEmitter.Build(constructor, ctx), ctx);
             ctx.Writer.WriteLine("return __inst;");
             ctx.Writer.EndBlock();
         });
     }
 
-    private void EmitInstanceBlock(ConstructorDeclarationNode constructor, EmitContext ctx)
+    private void EmitInstanceBlock(IReadOnlyList<ConstructorInlineFrame> chain, EmitContext ctx)
     {
-        if (!_bodyEmitter.NeedsBody(constructor, ctx))
+        if (!_bodyEmitter.NeedsBody(chain))
             return;
 
         ctx.Writer.Write("with (__inst)");
         ctx.Writer.BeginBlock();
-        _bodyEmitter.Emit(constructor, ctx);
+        _bodyEmitter.Emit(chain, ctx);
         ctx.Writer.EndBlock();
     }
 
