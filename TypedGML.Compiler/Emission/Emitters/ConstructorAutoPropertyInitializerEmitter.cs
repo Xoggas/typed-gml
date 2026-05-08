@@ -1,6 +1,5 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Declarations;
-using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Symbols;
 
@@ -18,11 +17,12 @@ internal static class ConstructorAutoPropertyInitializerEmitter
 
         foreach (var property in AutoProperties(type, ctx))
         {
-            if (assignedProperties.Contains(property.Name))
+            if (property.Initializer is null && assignedProperties.Contains(property.Name))
                 continue;
 
             var target = NamingConvention.InstancePropertyBackingName(ctx.SelfName ?? EmitContext.InstParam, property.Name);
-            var value = DefaultValueRenderer.Render(new DefaultExpressionNode(property.TypeRef, property.Location), ctx);
+            var value = AutoPropertyEmitterHelper.RenderInitialValue(property, ctx);
+            ctx.FlushTempPrelude();
             ctx.Writer.WriteLine($"{target} = {value};");
         }
     }
@@ -46,13 +46,5 @@ internal static class ConstructorAutoPropertyInitializerEmitter
     private static bool IsInstanceAutoProperty(PropertyDeclarationNode property) =>
         !property.Modifiers.Contains("static", StringComparer.Ordinal) &&
         !property.Modifiers.Contains("abstract", StringComparer.Ordinal) &&
-        property.Accessors.Count > 0 &&
-        property.Accessors.All(accessor => accessor.Body is null) &&
-        DecoratorArg(property.Decorators, "NativeProperty") is null &&
-        DecoratorArg(property.Decorators, "Asset") is null;
-
-    private static string? DecoratorArg(IReadOnlyList<DecoratorNode> decorators, string name) =>
-        decorators.FirstOrDefault(d => d.Name == name)?.Args.FirstOrDefault() is LiteralExpressionNode literal
-            ? literal.Value?.ToString()
-            : null;
+        AutoPropertyEmitterHelper.IsCompilerBacked(property);
 }

@@ -57,6 +57,25 @@ public sealed class ClassEmissionTests
     }
 
     [Fact]
+    public void Test_AutoProperty_InitializerEmitsBackingFieldValue()
+    {
+        var result = Compile("""
+            public class T {
+                public number Value { get; set; } = 5;
+                public constructor(number value) {
+                    Value = value;
+                }
+            }
+            """);
+
+        result.HasErrors.Should().BeFalse();
+        var gml = result.GetFile("/T.gml")!;
+
+        GmlAssert.ContainsPattern(gml, "inst.__backing_Value = 5;");
+        GmlAssert.ContainsPattern(gml, "T_set_Value(inst, value);");
+    }
+
+    [Fact]
     public void Test_ReadOnlyAutoProperty_ConstructorAssignsBackingField()
     {
         var result = Compile("""

@@ -57,7 +57,7 @@ public sealed class Verifier(IReadOnlyList<ISemanticCheck> checks, DiagnosticBag
                 WalkExpected(field.Initializer, field.TypeRef, ctx, currentNamespace);
                 break;
             case PropertyDeclarationNode property:
-                WithMember(VerifierMemberResolver.ResolveProperty(property), ctx, false, null, () => { RunChecks(property, ctx); foreach (var accessor in property.Accessors) WalkAccessor(accessor, property.TypeRef, property.Modifiers, ctx, currentNamespace); });
+                WithMember(VerifierMemberResolver.ResolveProperty(property), ctx, false, null, () => { RunChecks(property, ctx); WalkExpected(property.Initializer, property.TypeRef, ctx, currentNamespace); foreach (var accessor in property.Accessors) WalkAccessor(accessor, property.TypeRef, property.Modifiers, ctx, currentNamespace); });
                 break;
             case IndexerDeclarationNode indexer:
                 WithMember(VerifierMemberResolver.ResolveIndexer(indexer), ctx, false, [indexer.Parameter], () => { RunChecks(indexer, ctx); foreach (var accessor in indexer.Accessors) WalkAccessor(accessor, indexer.TypeRef, indexer.Modifiers, ctx, currentNamespace, indexer.Parameter); });

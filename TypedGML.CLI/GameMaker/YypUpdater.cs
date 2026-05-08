@@ -12,14 +12,25 @@ internal sealed class YypUpdater
         IReadOnlyList<string> objectNames,
         IReadOnlyList<FolderEntry> folders)
     {
+        Update(yypFilePath, scriptNames, bclScriptNames, objectNames, folders, GeneratedResourceManifest.CreateEmpty());
+    }
+
+    public void Update(
+        string yypFilePath,
+        IReadOnlyList<string> scriptNames,
+        IReadOnlySet<string> bclScriptNames,
+        IReadOnlyList<string> objectNames,
+        IReadOnlyList<FolderEntry> folders,
+        GeneratedResourceManifest previousGeneratedResources)
+    {
         var originalText = LoadProjectText(yypFilePath);
         var resources = YypArrayLoader.Load(originalText, "resources");
-        UpdateResources(resources, scriptNames, objectNames);
+        UpdateResources(resources, scriptNames, objectNames, previousGeneratedResources);
         var content = YypArrayPropertyReplacer.ReplaceOrAdd(
             originalText,
             "resources",
             new YypResourceArrayWriter().Write(resources));
-        content = new YypFolderUpdater().Update(content, originalText, bclScriptNames, folders);
+        content = new YypFolderUpdater().Update(content, originalText, bclScriptNames, folders, previousGeneratedResources.Folders);
         SaveProject(yypFilePath, content);
     }
 
@@ -42,11 +53,16 @@ internal sealed class YypUpdater
     private static void UpdateResources(
         JsonArray resources,
         IReadOnlyList<string> scriptNames,
-        IReadOnlyList<string> objectNames)
+        IReadOnlyList<string> objectNames,
+        GeneratedResourceManifest previousGeneratedResources)
     {
         var generatedNames = scriptNames.Concat(objectNames).ToHashSet(StringComparer.Ordinal);
+        var staleGeneratedNames = previousGeneratedResources.Scripts
+            .Concat(previousGeneratedResources.Objects)
+            .Where(name => !generatedNames.Contains(name))
+            .ToHashSet(StringComparer.Ordinal);
         var retainedResources = resources
-            .Where(resource => ShouldKeepResource(resource, generatedNames))
+            .Where(resource => ShouldKeepResource(resource, generatedNames, staleGeneratedNames))
             .Select(ResourceEntry.FromJson)
             .OfType<ResourceEntry>()
             .ToList();
@@ -60,14 +76,17 @@ internal sealed class YypUpdater
             resources.Add(resource.ToJson());
     }
 
-    private static bool ShouldKeepResource(JsonNode? resource, HashSet<string> generatedNames)
+    private static bool ShouldKeepResource(
+        JsonNode? resource,
+        HashSet<string> generatedNames,
+        HashSet<string> staleGeneratedNames)
     {
         var name = StringValue(resource?["id"]?["name"]);
         var path = StringValue(resource?["id"]?["path"]);
         if (name is null || path is null)
             return true;
 
-        return !generatedNames.Contains(name) ||
+        return (!generatedNames.Contains(name) && !staleGeneratedNames.Contains(name)) ||
             (!path.StartsWith("scripts/", StringComparison.Ordinal) &&
              !path.StartsWith("objects/", StringComparison.Ordinal));
     }

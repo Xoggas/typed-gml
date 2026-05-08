@@ -35,6 +35,10 @@ public sealed class StaticEmissionTests
         GmlAssert.ContainsPattern(Compile("public class Config { public static string Name { get; set; } }").GetFile("Config.gml")!, "global.Config__Name = \"\";");
 
     [Fact]
+    public void Test_StaticProperty_InitializerEmitsBackingFieldValue() =>
+        GmlAssert.ContainsPattern(Compile("public class Config { public static number Volume { get; set; } = 5; }").GetFile("Config.gml")!, "global.Config__Volume = 5;");
+
+    [Fact]
     public void Test_StaticCallSite() =>
         GmlAssert.ContainsPattern(Compile("public class MathHost { public static number Abs(number x) { return x; } public number Run() { return MathHost.Abs(1); } }").GetFile("MathHost.gml")!, "return global.MathHost_Abs(1);");
 

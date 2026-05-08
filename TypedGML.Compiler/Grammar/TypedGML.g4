@@ -169,6 +169,7 @@ propertyDecl
     : decorator*
       propertyModifiers typeRef nameId
       LBRACE accessorDecl+ RBRACE
+      (ASSIGN expression SEMI)?
     ;
 
 indexerDecl

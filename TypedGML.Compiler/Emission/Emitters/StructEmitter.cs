@@ -1,6 +1,5 @@
 using TypedGML.Compiler.Ast;
 using TypedGML.Compiler.Ast.Declarations;
-using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Ast.Statements;
 using TypedGML.Compiler.Symbols;
@@ -33,25 +32,12 @@ public sealed class StructEmitter(StaticCtorEmitter staticCtorEmitter) : INodeEm
         {
             ctx.Writer.BeginBlock();
 
-            var fields = declaration.Members
-                .OfType<FieldDeclarationNode>()
-                .Where(f => !f.Modifiers.Contains("const", StringComparer.Ordinal) && !f.Modifiers.Contains("static", StringComparer.Ordinal))
-                .ToList();
-
             ctx.Writer.WriteLine($"var {EmitContext.InstParam} = {{}};");
             if (constructor is null)
-            {
-                foreach (var field in fields)
-                {
-                    var value = field.Initializer is null
-                        ? DefaultValueRenderer.Render(new DefaultExpressionNode(field.TypeRef, field.Location), ctx)
-                        : ctx.RenderWithExpectedTempPrelude(field.Initializer, field.TypeRef);
-                    ctx.FlushTempPrelude();
-                    ctx.Writer.WriteLine($"{ctx.SelfName}.{field.Name} = {value};");
-                }
-            }
+                ConstructorMemberInitializerEmitter.EmitDefaults(ctx.CurrentType, (IAstNode?)null, ctx);
             else
             {
+                ConstructorMemberInitializerEmitter.EmitDefaults(ctx.CurrentType, constructor.Body, ctx);
                 EmitConstructorStatements(constructor.Body, ctx);
             }
 

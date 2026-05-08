@@ -12,6 +12,7 @@ internal static class CompilerRegistrations
     public static IReadOnlyList<ISemanticCheck> Checks() =>
     [
         new TypeAssignabilityCheck(),
+        new PropertyInitializerCheck(),
         new NullabilityCheck(),
         new MemberAccessCheck(),
         new BaseCallCheck(),

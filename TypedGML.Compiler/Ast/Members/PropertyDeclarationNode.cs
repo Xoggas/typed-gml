@@ -10,5 +10,6 @@ public sealed record PropertyDeclarationNode(
     IReadOnlyList<string> Modifiers,
     IReadOnlyList<DecoratorNode> Decorators,
     IReadOnlyList<AccessorNode> Accessors,
+    IAstNode? Initializer,
     DocCommentNode? DocComment,
     SourceLocation Location) : IAstNode;

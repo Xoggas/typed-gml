@@ -25,6 +25,7 @@ public sealed class ParserMemberTests
                 public number ReadWrite { get; set; }
                 public number ReadOnly { get; }
                 public number PrivateSet { get; private set; }
+                public number Initialized { get; set; } = 5;
             }
             """);
 

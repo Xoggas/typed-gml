@@ -1,5 +1,3 @@
-using TypedGML.Compiler.Ast;
-using TypedGML.Compiler.Ast.Expressions;
 using TypedGML.Compiler.Ast.Members;
 using TypedGML.Compiler.Symbols;
 
@@ -15,19 +13,12 @@ internal sealed class StaticAutoPropertyInitializerEmitter
             if (symbol is null)
                 continue;
 
-            var value = DefaultValueRenderer.Render(new DefaultExpressionNode(property.TypeRef, property.Location), ctx);
+            var value = AutoPropertyEmitterHelper.RenderInitialValue(property, ctx);
+            ctx.FlushTempPrelude();
             ctx.Writer.WriteLine($"{NamingConvention.StaticPropertyBackingName(type, symbol)} = {value};");
         }
     }
 
     private static bool IsAutoProperty(PropertyDeclarationNode property) =>
-        property.Accessors.Count > 0 &&
-        property.Accessors.All(accessor => accessor.Body is null) &&
-        DecoratorArg(property.Decorators, "NativeProperty") is null &&
-        DecoratorArg(property.Decorators, "Asset") is null;
-
-    private static string? DecoratorArg(IReadOnlyList<DecoratorNode> decorators, string name) =>
-        decorators.FirstOrDefault(d => d.Name == name)?.Args.FirstOrDefault() is LiteralExpressionNode literal
-            ? literal.Value?.ToString()
-            : null;
+        AutoPropertyEmitterHelper.IsCompilerBacked(property);
 }

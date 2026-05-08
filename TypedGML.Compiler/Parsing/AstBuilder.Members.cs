@@ -11,7 +11,7 @@ public sealed partial class AstBuilder
         new FieldDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.fieldModifiers()), Decorators(context.decorator()), MaybeNode(context.expression()), Doc(context), Location(context));
 
     public override IAstNode VisitPropertyDecl(TypedGMLParser.PropertyDeclContext context) =>
-        new PropertyDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.propertyModifiers()), Decorators(context.decorator()), Nodes<AccessorNode>(context.accessorDecl()), Doc(context), Location(context));
+        new PropertyDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.propertyModifiers()), Decorators(context.decorator()), Nodes<AccessorNode>(context.accessorDecl()), MaybeNode(context.expression()), Doc(context), Location(context));
 
     public override IAstNode VisitIndexerDecl(TypedGMLParser.IndexerDeclContext context) =>
         new IndexerDeclarationNode(Text(context.typeRef()), Parts(context.propertyModifiers()), (ParameterNode)Node(context.param()), Decorators(context.decorator()), Nodes<AccessorNode>(context.accessorDecl()), Doc(context), Location(context));
@@ -49,7 +49,7 @@ public sealed partial class AstBuilder
         new MethodDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.STATIC()), GenericParams(context.typeParams()), Parameters(context.paramList()), Decorators(context.decorator()), MaybeNode(context.block()), Doc(context), Location(context));
 
     public override IAstNode VisitInterfacePropertyDecl(TypedGMLParser.InterfacePropertyDeclContext context) =>
-        new PropertyDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.STATIC()), Decorators(context.decorator()), Nodes<AccessorNode>(context.interfaceAccessorDecl()), Doc(context), Location(context));
+        new PropertyDeclarationNode(Text(context.nameId()), Text(context.typeRef()), Parts(context.STATIC()), Decorators(context.decorator()), Nodes<AccessorNode>(context.interfaceAccessorDecl()), null, Doc(context), Location(context));
 
     public override IAstNode VisitInterfaceIndexerDecl(TypedGMLParser.InterfaceIndexerDeclContext context) =>
         new IndexerDeclarationNode(Text(context.typeRef()), Parts(context.STATIC()), (ParameterNode)Node(context.param()), Decorators(context.decorator()), Nodes<AccessorNode>(context.interfaceAccessorDecl()), Doc(context), Location(context));

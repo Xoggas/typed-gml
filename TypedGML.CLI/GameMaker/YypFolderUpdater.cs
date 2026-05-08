@@ -10,14 +10,27 @@ internal sealed class YypFolderUpdater
         IReadOnlySet<string> bclScriptNames,
         IReadOnlyList<FolderEntry> folders)
     {
+        return Update(content, originalText, bclScriptNames, folders, []);
+    }
+
+    public string Update(
+        string content,
+        string originalText,
+        IReadOnlySet<string> bclScriptNames,
+        IReadOnlyList<FolderEntry> folders,
+        IReadOnlyList<string> previousGeneratedFolderPaths)
+    {
         var originalFolders = YypArrayLoader.Load(originalText, "Folders");
         var generatedFolders = BuildGeneratedFolders(bclScriptNames, folders)
             .ToList();
         var currentFolderPaths = generatedFolders
             .Select(folder => folder.FolderPath)
             .ToHashSet(StringComparer.Ordinal);
+        var staleFolderPaths = previousGeneratedFolderPaths
+            .Where(path => !currentFolderPaths.Contains(path))
+            .ToHashSet(StringComparer.Ordinal);
         var retainedFolders = originalFolders
-            .Where(folder => ShouldKeepFolder(folder, currentFolderPaths))
+            .Where(folder => ShouldKeepFolder(folder, currentFolderPaths, staleFolderPaths))
             .ToList();
         var generatedJson = generatedFolders
             .Select(folder => folder.ToJson())
@@ -50,10 +63,14 @@ internal sealed class YypFolderUpdater
             .ToList();
     }
 
-    private static bool ShouldKeepFolder(JsonNode? folder, IReadOnlySet<string> currentFolderPaths)
+    private static bool ShouldKeepFolder(
+        JsonNode? folder,
+        IReadOnlySet<string> currentFolderPaths,
+        IReadOnlySet<string> staleFolderPaths)
     {
         var folderPath = folder?["folderPath"]?.GetValue<string>();
-        return folderPath is null || !currentFolderPaths.Contains(folderPath);
+        return folderPath is null ||
+            (!currentFolderPaths.Contains(folderPath) && !staleFolderPaths.Contains(folderPath));
     }
 
     private static bool IsGameMakerFolder(JsonNode? folder) =>

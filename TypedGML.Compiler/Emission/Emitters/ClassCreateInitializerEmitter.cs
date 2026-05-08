@@ -42,7 +42,8 @@ internal sealed class ClassCreateInitializerEmitter
         foreach (var property in InstanceAutoProperties(declaration.Members))
         {
             var target = NamingConvention.InstancePropertyBackingName("self", property.Name);
-            var value = DefaultValueRenderer.Render(new DefaultExpressionNode(property.TypeRef, property.Location), ctx);
+            var value = AutoPropertyEmitterHelper.RenderInitialValue(property, ctx);
+            ctx.FlushTempPrelude();
             ctx.Writer.WriteLine($"{target} = {value};");
         }
     }
@@ -87,18 +88,10 @@ internal sealed class ClassCreateInitializerEmitter
     private static bool IsInstanceAutoProperty(PropertyDeclarationNode property) =>
         !property.Modifiers.Contains("static", StringComparer.Ordinal) &&
         !property.Modifiers.Contains("abstract", StringComparer.Ordinal) &&
-        property.Accessors.Count > 0 &&
-        property.Accessors.All(accessor => accessor.Body is null) &&
-        DecoratorArg(property.Decorators, "NativeProperty") is null &&
-        DecoratorArg(property.Decorators, "Asset") is null;
+        AutoPropertyEmitterHelper.IsCompilerBacked(property);
 
     private static IEnumerable<EventDeclarationNode> InstanceEvents(IEnumerable<IAstNode> members) =>
         members.OfType<EventDeclarationNode>().Where(evt => !evt.Modifiers.Contains("static", StringComparer.Ordinal));
-
-    private static string? DecoratorArg(IReadOnlyList<DecoratorNode> decorators, string name) =>
-        decorators.FirstOrDefault(d => d.Name == name)?.Args.FirstOrDefault() is LiteralExpressionNode literal
-            ? literal.Value?.ToString()
-            : null;
 
     private static void WithCurrentType(EmitContext ctx, TypeSymbol type, Action action)
     {

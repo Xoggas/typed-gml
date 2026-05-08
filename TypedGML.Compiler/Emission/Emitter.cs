@@ -107,7 +107,7 @@ public sealed class Emitter(
         typeof(T) == typeof(DelegateDeclarationNode) ? new DelegateDeclarationNode(string.Empty, [], [], string.Empty, [], [], null, new SourceLocation(string.Empty, 0, 0)) :
         typeof(T) == typeof(FunctionDeclarationNode) ? new FunctionDeclarationNode(string.Empty, [], [], string.Empty, [], [], new FileNode(string.Empty, [], new SourceLocation(string.Empty, 0, 0)), null, new SourceLocation(string.Empty, 0, 0)) :
         typeof(T) == typeof(FieldDeclarationNode) ? new FieldDeclarationNode(string.Empty, string.Empty, [], [], null, null, new SourceLocation(string.Empty, 0, 0)) :
-        typeof(T) == typeof(PropertyDeclarationNode) ? new PropertyDeclarationNode(string.Empty, string.Empty, [], [], [], null, new SourceLocation(string.Empty, 0, 0)) :
+        typeof(T) == typeof(PropertyDeclarationNode) ? new PropertyDeclarationNode(string.Empty, string.Empty, [], [], [], null, null, new SourceLocation(string.Empty, 0, 0)) :
         typeof(T) == typeof(MethodDeclarationNode) ? new MethodDeclarationNode(string.Empty, string.Empty, [], [], [], [], null, null, new SourceLocation(string.Empty, 0, 0)) :
         typeof(T) == typeof(ConstructorDeclarationNode) ? new ConstructorDeclarationNode([], [], [], ConstructorChainTarget.None, [], new FileNode(string.Empty, [], new SourceLocation(string.Empty, 0, 0)), null, new SourceLocation(string.Empty, 0, 0)) :
         typeof(T) == typeof(IndexerDeclarationNode) ? new IndexerDeclarationNode(string.Empty, [], new ParameterNode(string.Empty, string.Empty, null, [], new SourceLocation(string.Empty, 0, 0)), [], [], null, new SourceLocation(string.Empty, 0, 0)) :

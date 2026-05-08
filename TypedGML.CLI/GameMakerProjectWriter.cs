@@ -11,16 +11,22 @@ internal sealed class GameMakerProjectWriter
         var gmRoot = Path.GetDirectoryName(yypFullPath)!;
         var projectName = Path.GetFileNameWithoutExtension(yypFullPath);
         var yypFileName = Path.GetFileName(yypFullPath);
+        var folders = BuildFolders(compileResult, tgmlRoot);
+        var manifestStore = new GeneratedResourceManifestStore();
+        var previousManifest = manifestStore.Load(gmRoot);
+        var currentManifest = GeneratedResourceManifest.From(compileResult, folders);
 
+        new GeneratedResourceCleaner().DeleteStale(gmRoot, previousManifest, currentManifest);
         WriteScripts(compileResult, gmRoot, projectName, yypFileName, tgmlRoot);
         WriteObjects(compileResult, gmRoot, projectName, yypFileName, tgmlRoot);
-        var folders = BuildFolders(compileResult, tgmlRoot);
         new YypUpdater().Update(
             yypFullPath,
             compileResult.Scripts.Keys.ToList(),
             compileResult.BclScriptNames,
             compileResult.Objects.Select(obj => obj.Name).ToList(),
-            folders);
+            folders,
+            previousManifest);
+        manifestStore.Save(gmRoot, currentManifest);
     }
 
     private static void WriteScripts(
