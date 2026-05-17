@@ -1,4 +1,4 @@
-// Generated from c:/Users/xoggas/Documents/GitHub/typed-gml/TypedGML.Transpiler/Grammar/TypedGML.g4 by ANTLR 4.13.1
+// Generated from c:/Users/xoggas/Documents/GitHub/typed-gml/TypedGML.Compiler/Grammar/TypedGML.g4 by ANTLR 4.13.1
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 /**
@@ -46,6 +46,26 @@ public interface TypedGMLListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitTypeDecl(TypedGMLParser.TypeDeclContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link TypedGMLParser#functionDecl}.
+	 * @param ctx the parse tree
+	 */
+	void enterFunctionDecl(TypedGMLParser.FunctionDeclContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link TypedGMLParser#functionDecl}.
+	 * @param ctx the parse tree
+	 */
+	void exitFunctionDecl(TypedGMLParser.FunctionDeclContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link TypedGMLParser#topLevelDecl}.
+	 * @param ctx the parse tree
+	 */
+	void enterTopLevelDecl(TypedGMLParser.TopLevelDeclContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link TypedGMLParser#topLevelDecl}.
+	 * @param ctx the parse tree
+	 */
+	void exitTopLevelDecl(TypedGMLParser.TopLevelDeclContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link TypedGMLParser#classDecl}.
 	 * @param ctx the parse tree
@@ -257,6 +277,26 @@ public interface TypedGMLListener extends ParseTreeListener {
 	 */
 	void exitConstructorDecl(TypedGMLParser.ConstructorDeclContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link TypedGMLParser#staticConstructorDecl}.
+	 * @param ctx the parse tree
+	 */
+	void enterStaticConstructorDecl(TypedGMLParser.StaticConstructorDeclContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link TypedGMLParser#staticConstructorDecl}.
+	 * @param ctx the parse tree
+	 */
+	void exitStaticConstructorDecl(TypedGMLParser.StaticConstructorDeclContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link TypedGMLParser#eventDecl}.
+	 * @param ctx the parse tree
+	 */
+	void enterEventDecl(TypedGMLParser.EventDeclContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link TypedGMLParser#eventDecl}.
+	 * @param ctx the parse tree
+	 */
+	void exitEventDecl(TypedGMLParser.EventDeclContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link TypedGMLParser#interfaceMemberDecl}.
 	 * @param ctx the parse tree
 	 */
@@ -286,6 +326,26 @@ public interface TypedGMLListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitInterfacePropertyDecl(TypedGMLParser.InterfacePropertyDeclContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link TypedGMLParser#interfaceIndexerDecl}.
+	 * @param ctx the parse tree
+	 */
+	void enterInterfaceIndexerDecl(TypedGMLParser.InterfaceIndexerDeclContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link TypedGMLParser#interfaceIndexerDecl}.
+	 * @param ctx the parse tree
+	 */
+	void exitInterfaceIndexerDecl(TypedGMLParser.InterfaceIndexerDeclContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link TypedGMLParser#interfaceEventDecl}.
+	 * @param ctx the parse tree
+	 */
+	void enterInterfaceEventDecl(TypedGMLParser.InterfaceEventDeclContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link TypedGMLParser#interfaceEventDecl}.
+	 * @param ctx the parse tree
+	 */
+	void exitInterfaceEventDecl(TypedGMLParser.InterfaceEventDeclContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link TypedGMLParser#interfaceAccessorDecl}.
 	 * @param ctx the parse tree
@@ -577,6 +637,16 @@ public interface TypedGMLListener extends ParseTreeListener {
 	 */
 	void exitTryStmt(TypedGMLParser.TryStmtContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link TypedGMLParser#throwStmt}.
+	 * @param ctx the parse tree
+	 */
+	void enterThrowStmt(TypedGMLParser.ThrowStmtContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link TypedGMLParser#throwStmt}.
+	 * @param ctx the parse tree
+	 */
+	void exitThrowStmt(TypedGMLParser.ThrowStmtContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link TypedGMLParser#catchClause}.
 	 * @param ctx the parse tree
 	 */
@@ -618,6 +688,18 @@ public interface TypedGMLListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitNewObjectExpr(TypedGMLParser.NewObjectExprContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code thisExpr}
+	 * labeled alternative in {@link TypedGMLParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterThisExpr(TypedGMLParser.ThisExprContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code thisExpr}
+	 * labeled alternative in {@link TypedGMLParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitThisExpr(TypedGMLParser.ThisExprContext ctx);
 	/**
 	 * Enter a parse tree produced by the {@code nullExpr}
 	 * labeled alternative in {@link TypedGMLParser#expression}.
@@ -823,6 +905,18 @@ public interface TypedGMLListener extends ParseTreeListener {
 	 */
 	void exitTernaryExpr(TypedGMLParser.TernaryExprContext ctx);
 	/**
+	 * Enter a parse tree produced by the {@code dictInitExpr}
+	 * labeled alternative in {@link TypedGMLParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterDictInitExpr(TypedGMLParser.DictInitExprContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code dictInitExpr}
+	 * labeled alternative in {@link TypedGMLParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitDictInitExpr(TypedGMLParser.DictInitExprContext ctx);
+	/**
 	 * Enter a parse tree produced by the {@code bitwiseOr}
 	 * labeled alternative in {@link TypedGMLParser#expression}.
 	 * @param ctx the parse tree
@@ -858,18 +952,6 @@ public interface TypedGMLListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitIsExpr(TypedGMLParser.IsExprContext ctx);
-	/**
-	 * Enter a parse tree produced by the {@code newArrayExpr}
-	 * labeled alternative in {@link TypedGMLParser#expression}.
-	 * @param ctx the parse tree
-	 */
-	void enterNewArrayExpr(TypedGMLParser.NewArrayExprContext ctx);
-	/**
-	 * Exit a parse tree produced by the {@code newArrayExpr}
-	 * labeled alternative in {@link TypedGMLParser#expression}.
-	 * @param ctx the parse tree
-	 */
-	void exitNewArrayExpr(TypedGMLParser.NewArrayExprContext ctx);
 	/**
 	 * Enter a parse tree produced by the {@code mulDivMod}
 	 * labeled alternative in {@link TypedGMLParser#expression}.
@@ -967,6 +1049,18 @@ public interface TypedGMLListener extends ParseTreeListener {
 	 */
 	void exitLogicalAnd(TypedGMLParser.LogicalAndContext ctx);
 	/**
+	 * Enter a parse tree produced by the {@code nullCoalesceExpr}
+	 * labeled alternative in {@link TypedGMLParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterNullCoalesceExpr(TypedGMLParser.NullCoalesceExprContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code nullCoalesceExpr}
+	 * labeled alternative in {@link TypedGMLParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitNullCoalesceExpr(TypedGMLParser.NullCoalesceExprContext ctx);
+	/**
 	 * Enter a parse tree produced by the {@code addSub}
 	 * labeled alternative in {@link TypedGMLParser#expression}.
 	 * @param ctx the parse tree
@@ -990,6 +1084,18 @@ public interface TypedGMLListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitLambdaExprAtom(TypedGMLParser.LambdaExprAtomContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code nullConditionalAccessExpr}
+	 * labeled alternative in {@link TypedGMLParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterNullConditionalAccessExpr(TypedGMLParser.NullConditionalAccessExprContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code nullConditionalAccessExpr}
+	 * labeled alternative in {@link TypedGMLParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitNullConditionalAccessExpr(TypedGMLParser.NullConditionalAccessExprContext ctx);
 	/**
 	 * Enter a parse tree produced by the {@code nameofExpr}
 	 * labeled alternative in {@link TypedGMLParser#expression}.
@@ -1096,6 +1202,16 @@ public interface TypedGMLListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitLambdaExpr(TypedGMLParser.LambdaExprContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link TypedGMLParser#dictionaryEntry}.
+	 * @param ctx the parse tree
+	 */
+	void enterDictionaryEntry(TypedGMLParser.DictionaryEntryContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link TypedGMLParser#dictionaryEntry}.
+	 * @param ctx the parse tree
+	 */
+	void exitDictionaryEntry(TypedGMLParser.DictionaryEntryContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link TypedGMLParser#intLiteral}.
 	 * @param ctx the parse tree

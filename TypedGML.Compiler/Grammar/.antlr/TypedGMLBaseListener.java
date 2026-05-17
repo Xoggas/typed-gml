@@ -1,4 +1,4 @@
-// Generated from c:/Users/xoggas/Documents/GitHub/typed-gml/TypedGML.Transpiler/Grammar/TypedGML.g4 by ANTLR 4.13.1
+// Generated from c:/Users/xoggas/Documents/GitHub/typed-gml/TypedGML.Compiler/Grammar/TypedGML.g4 by ANTLR 4.13.1
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ErrorNode;
@@ -59,6 +59,30 @@ public class TypedGMLBaseListener implements TypedGMLListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitTypeDecl(TypedGMLParser.TypeDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterFunctionDecl(TypedGMLParser.FunctionDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitFunctionDecl(TypedGMLParser.FunctionDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterTopLevelDecl(TypedGMLParser.TopLevelDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitTopLevelDecl(TypedGMLParser.TopLevelDeclContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -316,6 +340,30 @@ public class TypedGMLBaseListener implements TypedGMLListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterStaticConstructorDecl(TypedGMLParser.StaticConstructorDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitStaticConstructorDecl(TypedGMLParser.StaticConstructorDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterEventDecl(TypedGMLParser.EventDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitEventDecl(TypedGMLParser.EventDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterInterfaceMemberDecl(TypedGMLParser.InterfaceMemberDeclContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -347,6 +395,30 @@ public class TypedGMLBaseListener implements TypedGMLListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitInterfacePropertyDecl(TypedGMLParser.InterfacePropertyDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterInterfaceIndexerDecl(TypedGMLParser.InterfaceIndexerDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitInterfaceIndexerDecl(TypedGMLParser.InterfaceIndexerDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterInterfaceEventDecl(TypedGMLParser.InterfaceEventDeclContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitInterfaceEventDecl(TypedGMLParser.InterfaceEventDeclContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -700,6 +772,18 @@ public class TypedGMLBaseListener implements TypedGMLListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterThrowStmt(TypedGMLParser.ThrowStmtContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitThrowStmt(TypedGMLParser.ThrowStmtContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterCatchClause(TypedGMLParser.CatchClauseContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -743,6 +827,18 @@ public class TypedGMLBaseListener implements TypedGMLListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitNewObjectExpr(TypedGMLParser.NewObjectExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterThisExpr(TypedGMLParser.ThisExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitThisExpr(TypedGMLParser.ThisExprContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -952,6 +1048,18 @@ public class TypedGMLBaseListener implements TypedGMLListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterDictInitExpr(TypedGMLParser.DictInitExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitDictInitExpr(TypedGMLParser.DictInitExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterBitwiseOr(TypedGMLParser.BitwiseOrContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -983,18 +1091,6 @@ public class TypedGMLBaseListener implements TypedGMLListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitIsExpr(TypedGMLParser.IsExprContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterNewArrayExpr(TypedGMLParser.NewArrayExprContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitNewArrayExpr(TypedGMLParser.NewArrayExprContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -1096,6 +1192,18 @@ public class TypedGMLBaseListener implements TypedGMLListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterNullCoalesceExpr(TypedGMLParser.NullCoalesceExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitNullCoalesceExpr(TypedGMLParser.NullCoalesceExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterAddSub(TypedGMLParser.AddSubContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -1115,6 +1223,18 @@ public class TypedGMLBaseListener implements TypedGMLListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitLambdaExprAtom(TypedGMLParser.LambdaExprAtomContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterNullConditionalAccessExpr(TypedGMLParser.NullConditionalAccessExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitNullConditionalAccessExpr(TypedGMLParser.NullConditionalAccessExprContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -1223,6 +1343,18 @@ public class TypedGMLBaseListener implements TypedGMLListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitLambdaExpr(TypedGMLParser.LambdaExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterDictionaryEntry(TypedGMLParser.DictionaryEntryContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitDictionaryEntry(TypedGMLParser.DictionaryEntryContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
